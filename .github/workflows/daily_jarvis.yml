@@ -2,14 +2,14 @@ name: Daily Betting Jarvis
 
 on:
   schedule:
-    # Montag bis Donnerstag: Einmal täglich morgens um 07:30 Uhr UTC (08:30 Uhr MEZ)
+    # Montag bis Donnerstag: Morgens um 07:30 UTC (= 09:30 Uhr MESZ)
     - cron: '30 7 * * 1-4'
     
-    # Freitag, Samstag und Sonntag: Bericht 1 um 11:30 UTC (= 12:30 Uhr MEZ)
-    - cron: '30 11 * * 5,6,0'
+    # Freitag, Samstag, Sonntag: Mittag-Dossier um 10:30 UTC (= 12:30 Uhr MESZ)
+    - cron: '30 10 * * 5,6,0'
     
-    # Freitag, Samstag und Sonntag: Bericht 2 um 17:00 UTC (= 18:00 Uhr MEZ für den Start ins Wochenende)
-    - cron: '0 17 * * 5,6,0'
+    # Freitag, Samstag, Sonntag: Abend-Dossier um 15:15 UTC (= 17:15 Uhr MESZ, perfekt vor 18:30 Uhr)
+    - cron: '15 15 * * 5,6,0'
 
   workflow_dispatch: # Manueller Test-Button bleibt erhalten
 
