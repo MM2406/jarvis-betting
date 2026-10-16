@@ -71,9 +71,9 @@ def analyze_with_jarvis(matches_text):
     {matches_text}
     
     DEINE ANWEISUNGEN:
-    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für die spannendsten Spiele tagesaktuelle Fakten zu prüfen (Verletzungen, Sperren, Formkurve der letzten Spiele, Heim-/Auswärtsstärke, H2H).
-    2. **Keine NHL!** (Fokussiere dich auf europäischen Club-Hockey [DEL, ICE, etc.], Fussball, Tennis, Basketball, Handball oder NFL/MLS).
-    3. **Flexibles Angebot:** Analysiere das tatsächliche Angebot des heutigen Tages und erstelle starke Kombi-Vorschläge (Ziel-Gesamtquote idealerweise zwischen 2.00 und 5.00).
+    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für die spannendsten Spiele tagesaktuelle Fakten zu prüfen.
+    2. **Keine NHL!** 
+    3. **Flexibles Angebot:** Erstelle starke Kombi-Vorschläge (Ziel-Gesamtquote zwischen 2.00 und 5.00).
     4. **Begründung:** Jeder Tipp braucht 2-3 präzise Fakten-Sätze.
     
     FORMATIERUNG FÜR TELEGRAM:
@@ -86,7 +86,6 @@ def analyze_with_jarvis(matches_text):
         temperature=0.3
     )
 
-    # Stabiles, bewährtes Standardmodell
     response = client.models.generate_content(
         model="gemini-3.8-flash",
         contents=prompt,
@@ -96,16 +95,19 @@ def analyze_with_jarvis(matches_text):
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
-    for chunk in chunks:
-        requests.post(url, json={
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": chunk
-        })
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text
+    }
+    response = requests.post(url, json=payload)
+    print(f"Telegram API Status Code: {response.status_code}")
+    print(f"Telegram API Antwort: {response.text}")
+    if response.status_code != 200:
+        raise Exception(f"Fehler beim Telegram-Versand: {response.text}")
 
 if __name__ == "__main__":
     matches = fetch_matches()
     if not matches:
-        matches = "Keine API-Spiele im Zeitfenster. Bitte recherchiere die heutigen Top-Spiele über Google Search."
+        matches = "Keine API-Spiele im Zeitfenster."
     analysis = analyze_with_jarvis(matches)
     send_telegram_message(analysis)
