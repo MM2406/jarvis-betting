@@ -86,9 +86,9 @@ def analyze_with_jarvis(matches_text):
         temperature=0.3
     )
 
-    # Automatischer Fallback auf das vom System unterstützte Flash-Modell
+    # Stabiles, bewährtes Standardmodell
     response = client.models.generate_content(
-        model="gemini-3.0-flash",
+        model="gemini-2.0-flash",
         contents=prompt,
         config=config
     )
