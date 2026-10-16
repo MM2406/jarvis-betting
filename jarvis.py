@@ -59,7 +59,7 @@ def fetch_matches():
                     f"[{match['sport_title']}] {match['home_team']} vs. {match['away_team']} ({time_str}) | Quoten: {odds_str}"
                 )
                 
-    return "\n".join(matches_summary[:50])
+    return "\n".join(matches_summary[:150])
 
 def analyze_with_jarvis(matches_text):
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -73,7 +73,7 @@ def analyze_with_jarvis(matches_text):
     DEINE ANWEISUNGEN:
     1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für die spannendsten Spiele tagesaktuelle Fakten zu prüfen.
     2. **Keine NHL!** 
-    3. **Flexibles Angebot:** Erstelle starke Kombi-Vorschläge (Ziel-Gesamtquote zwischen 2.00 und 5.00).
+    3. **Flexibles Angebot:** Erstelle 3 bis 5 starke Kombi-Vorschläge (Ziel-Gesamtquote zwischen 2.00 und 5.00). Baue dabei reine Fußball-Kombis, aber gerne auch sportartenübergreifende "Wochenend-Spezial"-Kombis!
     4. **Begründung:** Jeder Tipp braucht 2-3 präzise Fakten-Sätze.
     
     FORMATIERUNG FÜR TELEGRAM:
