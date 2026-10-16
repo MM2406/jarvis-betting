@@ -31,9 +31,18 @@ def fetch_matches():
 
     matches_summary = []
     now = datetime.now(timezone.utc)
-    tomorrow = now + timedelta(hours=24)
+    
+    # Am Wochenende (Fr, Sa, So): 12 Stunden Fokus
+    # Unter der Woche (Mo-Do): 20 Stunden für den ganzen Spieltag
+    if now.weekday() in [4, 5, 6]:
+        time_window = timedelta(hours=12)
+    else:
+        time_window = timedelta(hours=20)
+        
+    cutoff_time = now + time_window
 
-    for sport in selected_sports[:12]:
+    # Maximal 8 Sportarten abfragen -> garantiert unter 500 Credits/Monat
+    for sport in selected_sports[:8]:
         url_odds = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
@@ -48,7 +57,7 @@ def fetch_matches():
         data = res_odds.json()
         for match in data:
             commence = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
-            if now <= commence <= tomorrow:
+            if now <= commence <= cutoff_time:
                 bookies = match.get("bookmakers", [])
                 if not bookies:
                     continue
@@ -66,12 +75,12 @@ def analyze_with_jarvis(matches_text):
     
     prompt = f"""
     Du bist 'JARVIS', ein hochpräziser Sportwetten-Analyst.
-    Hier sind die anstehenden Spiele der nächsten 24 Stunden mit Buchmacher-Quoten:
+    Hier sind die anstehenden Spiele des aktuellen Zeitfensters mit Buchmacher-Quoten:
     
     {matches_text}
     
     DEINE ANWEISUNGEN:
-    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für die spannendsten Spiele tagesaktuelle Fakten zu prüfen.
+    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für die spannendsten Spiele tagesaktuelle Fakten zu prüfen (z. B. Ausfälle, Form, News).
     2. **Keine NHL!** 
     3. **Flexibles Angebot:** Erstelle 3 bis 5 starke Kombi-Vorschläge (Ziel-Gesamtquote zwischen 2.00 und 5.00). Baue dabei reine Fußball-Kombis, aber gerne auch sportartenübergreifende "Wochenend-Spezial"-Kombis!
     4. **Begründung:** Jeder Tipp braucht 2-3 präzise Fakten-Sätze.
@@ -96,7 +105,6 @@ def analyze_with_jarvis(matches_text):
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
-    # Telegram erlaubt max. 4096 Zeichen pro Nachricht -> Aufteilen in 4000er-Blöcke
     max_length = 4000
     chunks = [text[i:i+max_length] for i in range(0, len(text), max_length)]
     
@@ -114,6 +122,6 @@ def send_telegram_message(text):
 if __name__ == "__main__":
     matches = fetch_matches()
     if not matches:
-        matches = "Keine API-Spiele im Zeitfenster."
+        matches = "Keine passenden Spiele im Zeitfenster gefunden."
     analysis = analyze_with_jarvis(matches)
     send_telegram_message(analysis)
