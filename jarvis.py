@@ -95,15 +95,21 @@ def analyze_with_jarvis(matches_text):
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text
-    }
-    response = requests.post(url, json=payload)
-    print(f"Telegram API Status Code: {response.status_code}")
-    print(f"Telegram API Antwort: {response.text}")
-    if response.status_code != 200:
-        raise Exception(f"Fehler beim Telegram-Versand: {response.text}")
+    
+    # Telegram erlaubt max. 4096 Zeichen pro Nachricht -> Aufteilen in 4000er-Blöcke
+    max_length = 4000
+    chunks = [text[i:i+max_length] for i in range(0, len(text), max_length)]
+    
+    for idx, chunk in enumerate(chunks, 1):
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk
+        }
+        response = requests.post(url, json=payload)
+        print(f"Teil {idx}/{len(chunks)} - Status Code: {response.status_code}")
+        if response.status_code != 200:
+            print(f"Antwort: {response.text}")
+            raise Exception(f"Fehler beim Telegram-Versand (Teil {idx}): {response.text}")
 
 if __name__ == "__main__":
     matches = fetch_matches()
