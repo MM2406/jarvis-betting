@@ -12,46 +12,43 @@ TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
-# Feste Top-Ligen inklusive 2. Bundesliga & Österreichischer Bundesliga
+# Gezielte Top-Ligen
 TARGET_LEAGUES = [
-    # Fußball Deutschland & Österreich
     "soccer_germany_bundesliga",
     "soccer_germany_bundesliga2",
     "soccer_austria_bundesliga",
-    # Europäische Top-Ligen
     "soccer_epl",
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
     "soccer_france_ligue_one",
-    "soccer_england_championship",
-    # Europapokal
-    "soccer_uefa_champs_league",
-    "soccer_uefa_europa_league",
-    "soccer_uefa_europa_conference_league",
-    # US-Sport & Eishockey
     "basketball_nba",
-    "icehockey_nhl",
-    "americanfootball_nfl"
+    "icehockey_nhl"
 ]
 
 def fetch_matches():
     matches_summary = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=24)
+    cutoff = now_utc + timedelta(hours=28)
+
+    print(f"Starte Spielabruf ab {now_utc.isoformat()} bis {cutoff.isoformat()}...")
 
     for sport in TARGET_LEAGUES:
         url_odds = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
+        # Reines h2h garantiert 100%ige Kompatibilität bei allen Buchmachern
         params = {
             "apiKey": ODDS_API_KEY,
-            "regions": "eu,us",
-            "markets": "h2h,totals",
+            "regions": "eu",
+            "markets": "h2h",
             "oddsFormat": "decimal"
         }
         res_odds = requests.get(url_odds, params=params)
+        
         if res_odds.status_code != 200:
+            print(f"Fehler bei {sport}: Status {res_odds.status_code} - {res_odds.text}")
             continue
             
         data = res_odds.json()
+        sport_count = 0
         for match in data:
             commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
             if now_utc <= commence_utc <= cutoff:
@@ -64,12 +61,14 @@ def fetch_matches():
                 for m in bookies[0].get("markets", []):
                     if m.get("key") == "h2h":
                         details.append("H2H: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
-                    elif m.get("key") == "totals":
-                        details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                 
                 line = f"[{match['sport_title']}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}"
                 matches_summary.append(line)
+                sport_count += 1
                 
+        print(f"Liga {sport}: {sport_count} Spiele gefunden.")
+                
+    print(f"Gesamtanzahl gefundener Spiele: {len(matches_summary)}")
     return "\n".join(matches_summary[:200])
 
 def analyze_with_jarvis(matches_text):
@@ -79,12 +78,12 @@ Du bist 'JARVIS', KI-Sportwettenanalyst. Hier sind die anstehenden realen Partie
 {matches_text}
 
 STRIKTE REGELN (ABSOLUTE PRIORITÄT):
-1. **NUR DIESE SPIELE:** Wähle AUSSCHLIESSLICH Partien aus der obigen Liste aus! Erfinde NIEMALS eigene Spiele und übernimm keine Spiele aus dem Web, die nicht oben aufgeführt sind.
-2. **Recherche:** Nutze die Google-Suche NUR, um für die oben genannten Teams Ausfälle, Form und Matchups zu prüfen.
-3. **HYBRID-KOMBINATION:** Jede Kombi (Double, 3er, 4er) MUSS intern aus verschiedenen Sportarten UND verschiedenen Märkten bestehen (z.B. Fußball-Bank + NBA/NHL Totals oder Player-Props).
-4. **Märkte:** Bei NBA, NHL, NFL bevorzuge Totals (Over/Under) oder starke Player-Props. Einzelquoten solide zwischen 1.30 und 1.75.
+1. **NUR DIESE SPIELE:** Wähle AUSSCHLIESSLICH Partien aus der obigen Liste aus! Erfinde NIEMALS eigene Spielpaarungen und nimm keine Spiele auf, die oben nicht existieren.
+2. **Recherche:** Nutze die Google-Suche aktiv, um für die obigen Teams Ausfälle, Form, Matchups sowie Totals (Over/Under Linien) und Player-Props zu ermitteln.
+3. **HYBRID-KOMBINATION:** Jede Kombi (Double, 3er, 4er) MUSS intern aus verschiedenen Sportarten UND verschiedenen Wettmärkten bestehen (z.B. Fußball 1X2/Doppelte Chance + NBA/NHL Over/Under oder Tore/Props).
+4. **Quoten-Disziplin:** Einzelquoten solide zwischen 1.30 und 1.75.
 
-FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown):
+FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne, keine Raute):
 <b>Guten Tag, Sir. Hier ist Ihr optimiertes Sportwetten-Dossier:</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
