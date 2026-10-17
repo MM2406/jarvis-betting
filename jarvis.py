@@ -53,15 +53,16 @@ def fetch_matches():
 def analyze_with_jarvis(matches_text):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
-Du bist 'JARVIS', KI-Sportwettenanalyst. Analysiere folgende Partien mit Quoten und lokaler Anstoßzeit:
+Du bist 'JARVIS', KI-Sportwettenanalyst. Hier sind die anstehenden Partien aus der Buchmacher-API mit Quoten und lokaler Zeit:
 {matches_text}
 
-STRATEGIE:
-1. Prüfe per Google-Suche tagesaktuelle News, Ausfälle und Statistiken.
-2. HYBRID-KOMBINATION (PFLICHT): Trenne Märkte NICHT nach Scheinen! Jede Kombi (Double, 3er, 4er) MUSS intern aus verschiedenen Sportarten UND verschiedenen Wettmärkten bestehen (z.B. Fußball-Bank + NBA Over/Under + NHL Tore/Player-Prop).
-3. Bei NBA, NHL, NFL bevorzuge Totals (Over/Under) oder recherchiere per Web-Suche starke Player-Props. Einzelquoten solide zwischen 1.30 und 1.70.
+STRIKTE REGELN (ABSOLUTE PRIORITÄT):
+1. **NUR DIESE SPIELE:** Wähle AUSSCHLIESSLICH Partien aus der obigen Liste aus! Erfinde NIEMALS eigene Spiele und übernimm keine Spiele aus dem Web, die nicht oben aufgeführt sind.
+2. **Recherche:** Nutze die Google-Suche NUR, um für die oben genannten Teams Ausfälle, Form und Matchups zu prüfen.
+3. **HYBRID-KOMBINATION:** Jede Kombi (Double, 3er, 4er) MUSS intern aus verschiedenen Sportarten UND verschiedenen Märkten bestehen (z.B. Fußball-Bank + NBA/NHL Totals oder Player-Props).
+4. **Märkte:** Bei NBA, NHL, NFL bevorzuge Totals (Over/Under) oder starke Player-Props. Einzelquoten solide zwischen 1.30 und 1.75.
 
-FORMAT (Ausschließlich Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine ###, keine **):
+FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown):
 <b>Guten Tag, Sir. Hier ist Ihr optimiertes Sportwetten-Dossier:</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
@@ -89,7 +90,7 @@ FORMAT (Ausschließlich Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdow
 
 <i>Protokoll abgeschlossen. Möge die mathematische Varianz heute zu Ihren Gunsten ausfallen, Sir.</i>
 """
-    config = types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())], temperature=0.25)
+    config = types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())], temperature=0.2)
     response = client.models.generate_content(model="gemini-3.8-flash", contents=prompt, config=config)
     return response.text
 
