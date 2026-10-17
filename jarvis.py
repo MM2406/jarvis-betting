@@ -23,8 +23,8 @@ def fetch_matches():
 
     matches_summary = []
     now_utc = datetime.now(timezone.utc)
-    time_window = timedelta(hours=12) if now_utc.weekday() in [4, 5, 6] else timedelta(hours=20)
-    cutoff = now_utc + time_window
+    # Einheitliches 20-Stunden-Fenster für verlässliche Spielauswahl
+    cutoff = now_utc + timedelta(hours=20)
 
     for sport in selected_sports:
         url_odds = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
