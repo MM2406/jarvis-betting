@@ -4,14 +4,12 @@ from datetime import datetime, timezone, timedelta
 from google import genai
 from google.genai import types
 
-# 1. API-Schlüssel & Telegram-Konfiguration laden
 ODDS_API_KEY = os.environ["ODDS_API_KEY"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 def fetch_matches():
-    # Alle aktiven Sportarten von The Odds API abrufen
     url = f"https://api.the-odds-api.com/v4/sports/?apiKey={ODDS_API_KEY}"
     res = requests.get(url)
     if res.status_code != 200:
@@ -23,7 +21,6 @@ def fetch_matches():
         "tennis", "icehockey"
     ]
     
-    # Relevante Sportarten filtern (NHL und Eishockey voll integriert)
     selected_sports = []
     for s in all_sports:
         key = s["key"]
@@ -42,7 +39,6 @@ def fetch_matches():
         
     cutoff_time = now + time_window
 
-    # Quoten abrufen inklusive Siegwetten (h2h) und Over/Under (totals)
     for sport in selected_sports:
         url_odds = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
@@ -90,27 +86,58 @@ def analyze_with_jarvis(matches_text):
     {matches_text}
     
     DEINE STRATEGIE & WETTLOGIK:
-    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für deine Auswahlen tagesaktuelle News, Ausfälle, Formkurven, Taktik und Matchups zu prüfen.
+    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um tagesaktuelle News, Ausfälle, Formkurven und Matchups zu prüfen.
     2. **Sportarten-Regeln:**
-       - **NBA, NHL, NFL:** Nutze hier primär die **Over/Under-Linien (Totals)**! Reine Siegwetten in diesen Ligen nur bei überwältigender Faktenlage.
-       - **Spielerwetten (Player Props):** Recherchiere für herausragende Spiele in NFL, NBA oder NHL gezielt starke Player-Props via Google-Suche (z. B. NFL Anytime Touchdown Scorer, Rushing/Receiving Yards, NHL Scorer-Punkte, NBA Spieler-Punkte Over/Under).
+       - **NBA, NHL, NFL:** Nutze primär die Over/Under-Linien (Totals)! Reine Siegwetten nur bei überwältigender Faktenlage.
+       - **Spielerwetten (Player Props):** Recherchiere für Top-Partien in NFL, NBA oder NHL gezielt starke Props (z. B. NFL TD-Scorer, Rushing/Receiving Yards, NHL Scorer-Punkte, NBA Punkte Over/Under).
        - **Fußball:** Favoriten-Siegwetten, Doppelte Chance oder Tor-Totals (Over/Under).
     3. **Kombi-Architektur:** 
-       - Erstelle mindestens zwei größere Kombiwetten (eine 3er-Kombi und eine 4er-Kombi).
-       - Achte bei den Kombis auf solide Einzelquoten (ca. 1.30 bis 1.70), um Umfaller zu minimieren.
-       - Durchmische die Sportarten (z. B. Fußball-Bank + NBA Over/Under + NHL Tore).
+       - Erstelle mindestens zwei größere Kombis (eine 3er-Kombi und eine 4er-Kombi).
+       - Achte auf solide Einzelquoten (ca. 1.30 bis 1.70).
+       - Durchmische die Sportarten.
     
-    STRUKTUR DES DOSSIERS:
-    - **1. Das Cross-Sport Double (2er-Kombi):** Höchste Trefferwahrscheinlichkeit (Zielquote 1.80 - 2.40).
-    - **2. Die Cross-Sport 3er-Kombi:** Starke Mischung aus Fußball und US-Sport/Eishockey (Zielquote 2.80 - 4.50).
-    - **3. Die High-Value 4er-Kombi:** 4 Top-Auswahlen quer über alle Sportarten (Zielquote 4.50 - 8.00).
-    - **4. Das Totals-Spezial (3er-Kombi nur Over/Under):** Reiner Fokus auf Punkte & Tore in NBA/NHL/Fußball.
-    - **5. Das Player-Props Special (1-2 Solo-Tipps):** Konkrete Spielerwetten (z. B. TD-Scorer NFL, Scorer-Punkte NHL/NBA) inklusive detaillierter Matchup-Begründung.
+    FORMATIERUNG & HTML-DESIGN (SEHR WICHTIG):
+    Verwende KEIN Markdown (keine ###, keine **, keine `). Verwende ausschließlich saubere HTML-Tags für Telegram:
+    - Fett: <b>Text</b>
+    - Kursiv: <i>Text</i>
+    - Keine anderen HTML-Tags!
     
-    FORMATIERUNG FÜR TELEGRAM:
-    - Starte mit: "Guten Tag, Sir. Hier ist Ihr optimiertes Sportwetten-Dossier:"
-    - Gib bei jeder Auswahl die exakte Wettart (z. B. 'Over 5.5 Tore', 'Sieg Team A', 'Player X Over 22.5 Pts'), die Quote und 1-2 präzise Fakten-Sätze an.
-    - Zeige am Ende jeder Kombi die berechnete Gesamtquote.
+    STRUKTUR:
+    Starte exakt mit:
+    <b>Guten Tag, Sir. Hier ist Ihr optimiertes Sportwetten-Dossier:</b>
+
+    Gliedere die Sektionen optisch sauber:
+    
+    <b>━━━━━━━━━━━━━━━━━━━━</b>
+    <b>1. DAS CROSS-SPORT DOUBLE (2er-Kombi)</b>
+    <i>Fokus auf maximale statistische Stabilität</i>
+    
+    • <b>[Liga] Team A vs. Team B</b>
+      Tipp: <b>[Wettauswahl]</b> | Quote: <b>[Quote]</b>
+      <i>Fakten:</i> [1-2 präzise Sätze]
+    
+    <b>Gesamtquote: [Quote]</b>
+
+    <b>━━━━━━━━━━━━━━━━━━━━</b>
+    <b>2. DIE CROSS-SPORT 3er-KOMBI</b>
+    ...
+    
+    <b>━━━━━━━━━━━━━━━━━━━━</b>
+    <b>3. DIE HIGH-VALUE 4er-KOMBI</b>
+    ...
+
+    <b>━━━━━━━━━━━━━━━━━━━━</b>
+    <b>4. DAS TOTALS-SPEZIAL (3er-Kombi nur Over/Under)</b>
+    ...
+
+    <b>━━━━━━━━━━━━━━━━━━━━</b>
+    <b>5. PLAYER-PROPS SPECIAL (Solo-Empfehlungen)</b>
+    • <b>[Liga] Spielername (Team) – [Wettart]</b>
+      Indikative Quote: <b>[Quote]</b>
+      <i>Matchup-Analyse:</i> [1-2 Sätze Begründung]
+    
+    Schließe ab mit:
+    <i>Protokoll abgeschlossen. Möge die mathematische Varianz heute zu Ihren Gunsten ausfallen, Sir.</i>
     """
 
     config = types.GenerateContentConfig(
@@ -128,20 +155,39 @@ def analyze_with_jarvis(matches_text):
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
-    # Telegram-Nachrichtenlimit: 4096 Zeichen. Automatischer Splitt bei langen Dossiers.
-    max_length = 4000
-    chunks = [text[i:i+max_length] for i in range(0, len(text), max_length)]
+    # Intelligenter Text-Splitter: Trennt nur an Absätzen, nie mitten im Wort
+    max_len = 3800
+    chunks = []
     
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    
+    if text:
+        chunks.append(text)
+
     for idx, chunk in enumerate(chunks, 1):
         payload = {
             "chat_id": TELEGRAM_CHAT_ID,
-            "text": chunk
+            "text": chunk,
+            "parse_mode": "HTML"
         }
         response = requests.post(url, json=payload)
         print(f"Teil {idx}/{len(chunks)} - Status Code: {response.status_code}")
+        
+        # Fallback auf reinen Text, falls Gemini aus Versehen ein falsches HTML-Tag generiert hat
         if response.status_code != 200:
-            print(f"Antwort: {response.text}")
-            raise Exception(f"Fehler beim Telegram-Versand (Teil {idx}): {response.text}")
+            print("HTML parsing fehlgeschlagen, sende als reinen Text...")
+            payload.pop("parse_mode", None)
+            res_fallback = requests.post(url, json=payload)
+            if res_fallback.status_code != 200:
+                raise Exception(f"Fehler beim Telegram-Versand: {res_fallback.text}")
 
 if __name__ == "__main__":
     matches = fetch_matches()
