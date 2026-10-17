@@ -12,33 +12,53 @@ TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
-def fetch_matches():
-    url = f"https://api.the-odds-api.com/v4/sports/?apiKey={ODDS_API_KEY}"
-    res = requests.get(url)
-    if res.status_code != 200:
-        return "Keine API-Verbindung möglich."
-    
-    target_sports = ["soccer", "basketball", "americanfootball", "handball", "tennis", "icehockey"]
-    selected_sports = [s["key"] for s in res.json() if s.get("active") and any(k in s["key"] for k in target_sports)]
+# Feste Top-Ligen inklusive 2. Bundesliga & Österreichischer Bundesliga
+TARGET_LEAGUES = [
+    # Fußball Deutschland & Österreich
+    "soccer_germany_bundesliga",
+    "soccer_germany_bundesliga2",
+    "soccer_austria_bundesliga",
+    # Europäische Top-Ligen
+    "soccer_epl",
+    "soccer_spain_la_liga",
+    "soccer_italy_serie_a",
+    "soccer_france_ligue_one",
+    "soccer_england_championship",
+    # Europapokal
+    "soccer_uefa_champs_league",
+    "soccer_uefa_europa_league",
+    "soccer_uefa_europa_conference_league",
+    # US-Sport & Eishockey
+    "basketball_nba",
+    "icehockey_nhl",
+    "americanfootball_nfl"
+]
 
+def fetch_matches():
     matches_summary = []
     now_utc = datetime.now(timezone.utc)
-    # Einheitliches 20-Stunden-Fenster für verlässliche Spielauswahl
-    cutoff = now_utc + timedelta(hours=20)
+    cutoff = now_utc + timedelta(hours=24)
 
-    for sport in selected_sports:
+    for sport in TARGET_LEAGUES:
         url_odds = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
-        params = {"apiKey": ODDS_API_KEY, "regions": "eu", "markets": "h2h,totals", "oddsFormat": "decimal"}
+        params = {
+            "apiKey": ODDS_API_KEY,
+            "regions": "eu,us",
+            "markets": "h2h,totals",
+            "oddsFormat": "decimal"
+        }
         res_odds = requests.get(url_odds, params=params)
         if res_odds.status_code != 200:
             continue
             
-        for match in res_odds.json():
+        data = res_odds.json()
+        for match in data:
             commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
             if now_utc <= commence_utc <= cutoff:
                 bookies = match.get("bookmakers", [])
                 if not bookies:
                     continue
+                
                 time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
                 details = []
                 for m in bookies[0].get("markets", []):
@@ -46,14 +66,16 @@ def fetch_matches():
                         details.append("H2H: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
                     elif m.get("key") == "totals":
                         details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-                matches_summary.append(f"[{match['sport_title']}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}")
+                
+                line = f"[{match['sport_title']}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}"
+                matches_summary.append(line)
                 
     return "\n".join(matches_summary[:200])
 
 def analyze_with_jarvis(matches_text):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
-Du bist 'JARVIS', KI-Sportwettenanalyst. Hier sind die anstehenden Partien aus der Buchmacher-API mit Quoten und lokaler Zeit:
+Du bist 'JARVIS', KI-Sportwettenanalyst. Hier sind die anstehenden realen Partien aus der Buchmacher-API mit Quoten und lokaler Zeit:
 {matches_text}
 
 STRIKTE REGELN (ABSOLUTE PRIORITÄT):
