@@ -4,36 +4,37 @@ from datetime import datetime, timezone, timedelta
 from google import genai
 from google.genai import types
 
-# 1. API-Schlüssel laden
+# 1. API-Schlüssel & Telegram-Konfiguration laden
 ODDS_API_KEY = os.environ["ODDS_API_KEY"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 def fetch_matches():
+    # Alle aktiven Sportarten von The Odds API abrufen
     url = f"https://api.the-odds-api.com/v4/sports/?apiKey={ODDS_API_KEY}"
     res = requests.get(url)
     if res.status_code != 200:
-        return "Keine API-Verbindung möglich."
+        return "Keine API-Verbindung zu The Odds API möglich."
     
     all_sports = res.json()
     target_keywords = [
         "soccer", "basketball", "americanfootball", "handball", 
-        "tennis", "icehockey_germany", "icehockey_austria", "icehockey_switzerland"
+        "tennis", "icehockey"
     ]
     
+    # Relevante Sportarten filtern (NHL und Eishockey voll integriert)
     selected_sports = []
     for s in all_sports:
         key = s["key"]
-        if s["active"] and any(k in key for k in target_keywords):
-            if "nhl" not in key:
-                selected_sports.append(key)
+        if s.get("active") and any(k in key for k in target_keywords):
+            selected_sports.append(key)
 
     matches_summary = []
     now = datetime.now(timezone.utc)
     
-    # Am Wochenende (Fr, Sa, So): 12 Stunden Fokus
-    # Unter der Woche (Mo-Do): 20 Stunden für den ganzen Spieltag
+    # Am Wochenende (Fr=4, Sa=5, So=6): 12 Stunden Fokus
+    # Unter der Woche (Mo-Do): 20 Stunden für den gesamten Spieltag
     if now.weekday() in [4, 5, 6]:
         time_window = timedelta(hours=12)
     else:
@@ -41,13 +42,13 @@ def fetch_matches():
         
     cutoff_time = now + time_window
 
-    # Maximal 8 Sportarten abfragen -> garantiert unter 500 Credits/Monat
-    for sport in selected_sports[:8]:
+    # Quoten abrufen inklusive Siegwetten (h2h) und Over/Under (totals)
+    for sport in selected_sports:
         url_odds = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
             "regions": "eu",
-            "markets": "h2h",
+            "markets": "h2h,totals",
             "oddsFormat": "decimal"
         }
         res_odds = requests.get(url_odds, params=params)
@@ -61,38 +62,60 @@ def fetch_matches():
                 bookies = match.get("bookmakers", [])
                 if not bookies:
                     continue
-                outcomes = bookies[0]["markets"][0]["outcomes"]
-                odds_str = ", ".join([f"{o['name']}: {o['price']}" for o in outcomes])
-                time_str = commence.strftime("%d.%m. %H:%M UTC")
-                matches_summary.append(
-                    f"[{match['sport_title']}] {match['home_team']} vs. {match['away_team']} ({time_str}) | Quoten: {odds_str}"
-                )
                 
-    return "\n".join(matches_summary[:150])
+                market_details = []
+                for market in bookies[0].get("markets", []):
+                    m_key = market.get("key")
+                    outcomes = market.get("outcomes", [])
+                    if m_key == "h2h":
+                        h2h_str = "H2H: " + ", ".join([f"{o['name']} ({o['price']})" for o in outcomes])
+                        market_details.append(h2h_str)
+                    elif m_key == "totals":
+                        tot_str = "Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in outcomes])
+                        market_details.append(tot_str)
+                
+                time_str = commence.strftime("%d.%m. %H:%M UTC")
+                match_line = f"[{match['sport_title']}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(market_details)}"
+                matches_summary.append(match_line)
+                
+    return "\n".join(matches_summary[:200])
 
 def analyze_with_jarvis(matches_text):
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     prompt = f"""
-    Du bist 'JARVIS', ein hochpräziser Sportwetten-Analyst.
-    Hier sind die anstehenden Spiele des aktuellen Zeitfensters mit Buchmacher-Quoten:
+    Du bist 'JARVIS', ein hochpräziser Sportwetten-Analyst und Cyber-Butler.
+    Hier sind die anstehenden Partien des aktuellen Zeitfensters inklusive Buchmacher-Quoten (H2H und Over/Under Totals):
     
     {matches_text}
     
-    DEINE ANWEISUNGEN:
-    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für die spannendsten Spiele tagesaktuelle Fakten zu prüfen (z. B. Ausfälle, Form, News).
-    2. **Keine NHL!** 
-    3. **Flexibles Angebot:** Erstelle 3 bis 5 starke Kombi-Vorschläge (Ziel-Gesamtquote zwischen 2.00 und 5.00). Baue dabei reine Fußball-Kombis, aber gerne auch sportartenübergreifende "Wochenend-Spezial"-Kombis!
-    4. **Begründung:** Jeder Tipp braucht 2-3 präzise Fakten-Sätze.
+    DEINE STRATEGIE & WETTLOGIK:
+    1. **Fakten-Check:** Nutze zwingend die Google-Suche, um für deine Auswahlen tagesaktuelle News, Ausfälle, Formkurven, Taktik und Matchups zu prüfen.
+    2. **Sportarten-Regeln:**
+       - **NBA, NHL, NFL:** Nutze hier primär die **Over/Under-Linien (Totals)**! Reine Siegwetten in diesen Ligen nur bei überwältigender Faktenlage.
+       - **Spielerwetten (Player Props):** Recherchiere für herausragende Spiele in NFL, NBA oder NHL gezielt starke Player-Props via Google-Suche (z. B. NFL Anytime Touchdown Scorer, Rushing/Receiving Yards, NHL Scorer-Punkte, NBA Spieler-Punkte Over/Under).
+       - **Fußball:** Favoriten-Siegwetten, Doppelte Chance oder Tor-Totals (Over/Under).
+    3. **Kombi-Architektur:** 
+       - Erstelle mindestens zwei größere Kombiwetten (eine 3er-Kombi und eine 4er-Kombi).
+       - Achte bei den Kombis auf solide Einzelquoten (ca. 1.30 bis 1.70), um Umfaller zu minimieren.
+       - Durchmische die Sportarten (z. B. Fußball-Bank + NBA Over/Under + NHL Tore).
+    
+    STRUKTUR DES DOSSIERS:
+    - **1. Das Cross-Sport Double (2er-Kombi):** Höchste Trefferwahrscheinlichkeit (Zielquote 1.80 - 2.40).
+    - **2. Die Cross-Sport 3er-Kombi:** Starke Mischung aus Fußball und US-Sport/Eishockey (Zielquote 2.80 - 4.50).
+    - **3. Die High-Value 4er-Kombi:** 4 Top-Auswahlen quer über alle Sportarten (Zielquote 4.50 - 8.00).
+    - **4. Das Totals-Spezial (3er-Kombi nur Over/Under):** Reiner Fokus auf Punkte & Tore in NBA/NHL/Fußball.
+    - **5. Das Player-Props Special (1-2 Solo-Tipps):** Konkrete Spielerwetten (z. B. TD-Scorer NFL, Scorer-Punkte NHL/NBA) inklusive detaillierter Matchup-Begründung.
     
     FORMATIERUNG FÜR TELEGRAM:
-    - Starte mit: "Guten Tag, Sir. Hier ist Ihr Sportwetten-Dossier:"
-    - Stelle die Kombis übersichtlich dar (inkl. Einzelquoten und berechneter Gesamtquote).
+    - Starte mit: "Guten Tag, Sir. Hier ist Ihr optimiertes Sportwetten-Dossier:"
+    - Gib bei jeder Auswahl die exakte Wettart (z. B. 'Over 5.5 Tore', 'Sieg Team A', 'Player X Over 22.5 Pts'), die Quote und 1-2 präzise Fakten-Sätze an.
+    - Zeige am Ende jeder Kombi die berechnete Gesamtquote.
     """
 
     config = types.GenerateContentConfig(
         tools=[types.Tool(google_search=types.GoogleSearch())],
-        temperature=0.3
+        temperature=0.25
     )
 
     response = client.models.generate_content(
@@ -105,6 +128,7 @@ def analyze_with_jarvis(matches_text):
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     
+    # Telegram-Nachrichtenlimit: 4096 Zeichen. Automatischer Splitt bei langen Dossiers.
     max_length = 4000
     chunks = [text[i:i+max_length] for i in range(0, len(text), max_length)]
     
