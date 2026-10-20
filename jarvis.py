@@ -25,7 +25,7 @@ TARGET_LEAGUES = [
     "soccer_germany_bundesliga2",
     "soccer_austria_bundesliga",
     "soccer_epl",
-    "soccer_england_championship",
+    "soccer_efl_champ",            # Korrigierter Key für die englische Championship
     "soccer_england_efl_cup",
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
@@ -138,7 +138,7 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne,
         temperature=0.2
     )
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.8-flash",
         contents=prompt,
         config=config
     )
