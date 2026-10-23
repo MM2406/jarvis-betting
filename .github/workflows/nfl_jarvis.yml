@@ -1,0 +1,44 @@
+name: NFL Betting Jarvis
+
+on:
+  schedule:
+    # --- DONNERSTAG (Thursday Night Football) ---
+    # 17:00 UTC (= 19:00 Uhr MESZ / 18:00 Uhr MEZ - vor TNF)
+    - cron: '0 17 * * 4'
+
+    # --- SONNTAG 1: EARLY SLATE (19:00 Uhr Kickoffs) ---
+    # 15:30 UTC (= 17:30 Uhr MESZ / 16:30 Uhr MEZ - Inactives der frühen Spiele liegen vor)
+    - cron: '30 15 * * 0'
+
+    # --- SONNTAG 2: LATE SLATE (22:05/22:25 Uhr & Sunday Night) ---
+    # 18:45 UTC (= 20:45 Uhr MESZ / 19:45 Uhr MEZ - Inactives der späten Spiele liegen vor)
+    - cron: '45 18 * * 0'
+
+    # --- MONTAG (Monday Night Football) ---
+    # 17:00 UTC (= 19:00 Uhr MESZ / 18:00 Uhr MEZ - vor MNF)
+    - cron: '0 17 * * 1'
+
+  workflow_dispatch: # Ermoeglicht manuellen Sofort-Start per Klick
+
+jobs:
+  run-nfl-jarvis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code laden
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pakete installieren
+        run: pip install requests google-genai
+
+      - name: NFL Jarvis starten
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python jarvis_nfl.py
