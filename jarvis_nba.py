@@ -65,50 +65,54 @@ def analyze_nba(matches_text):
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     prompt = """
-Du bist 'JARVIS NBA ELITE', ein spezialisierter Basketball-Quantitative-Analyst.
+Du bist 'JARVIS NBA ELITE', ein hochspezialisierter Basketball-Quantitative-Analyst.
 Hier sind die heutigen realen NBA-Partien mit Buchmacher-Linien:
 """ + matches_text + """
 
 DEINE AUFGABE & REGELN:
 1. Wähle AUSSCHLIESSLICH aus den oben gelisteten realen NBA-Spielen.
 2. Nutze die Google-Suche aktiv für:
-   - Den aktuellen offiziellen NBA Injury Report (wer ist Out/Questionable?).
-   - Pace-Matchups, Defensive Rating gegen bestimmte Positionen, B2B-Müdigkeit.
-   - Aktuelle Player-Prop-Linien und Trends (Punkte, Rebounds, Assists, PRA = Points+Rebounds+Assists, Double-Doubles).
-3. Disziplin: Begründe jede Empfehlung mit harten Daten (z.B. "Gegner lässt die 3.-meisten Rebounds an Center zu", "Spieler X erzielte in 4 der letzten 5 Spiele ein Double-Double").
+   - Offiziellen NBA Injury Report (Out, Questionable, Game-Time Decisions).
+   - Pace, Off/Def-Ratings, B2B-Müdigkeit und Defensiv-Matchups gegen bestimmte Positionen.
+   - Reale Player-Prop-Linien (Punkte, Rebounds, Assists, PRA).
+3. Baue ein breites, mathematisch fundiertes Wettspektrum mit Fokus auf mehrere lukrative Kombiwetten auf.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne, keine Raute):
 <b>🏀 JARVIS NBA INTEL & VALUE REPORT</b>
-<i>Analysierte Partien für die heutige Nacht</i>
+<i>Analysierte Partien und Kombi-Pakete für die heutige Nacht</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>1. GAME PICKS (ML / SPREAD / TOTALS)</b>
-- <b>Team A vs. Team B (Uhrzeit)</b>
-  Pick: <b>[z.B. Spread Team A -4.5 ODER Over 224.5]</b> | Quote: <b>[Quote]</b>
-  <i>Edge:</i> [Präzise Begründung: Pace, Defensiv-Schwächen, Form]
+<b>1. DIE BANKER-KOMBI (2er-Double)</b>
+<i>Solide Kanten mit hoher Eintrittswahrscheinlichkeit (Quote ca. 2.20 - 2.80)</i>
+- <b>Spiel 1: [Team vs. Team]</b> -> Pick: <b>[ML oder moderater Spread]</b> (Quote)
+- <b>Spiel 2: [Team vs. Team]</b> -> Pick: <b>[ML oder Totals]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+<i>Edge:</i> [1 Satz zur Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>2. DIE NBA SPREAD & TOTAL KOMBI (2er-Kombi)</b>
+<b>2. VALUE SPREAD & TOTAL KOMBI (3er-Ticket)</b>
+<i>Ausgewogene Value-Kombi aus Spreads und Über/Unter (Quote ca. 4.00 - 6.50)</i>
 - <b>Spiel 1: [Pick]</b> (Quote)
 - <b>Spiel 2: [Pick]</b> (Quote)
-<b>Gesamtquote: [Quote ca. 2.50 - 3.50]</b>
+- <b>Spiel 3: [Pick]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+<i>Edge:</i> [Kurze Begründung zum Pace- und Matchup-Vorteil]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>3. PLAYER PROPS BOARD (Punkte, PRA, Rebounds)</b>
-- <b>Spieler (Team) vs. Gegner</b>
-  Prop: <b>[z.B. Over 24.5 Punkte ODER Over 38.5 PRA ODER Over 10.5 Rebounds]</b> | Indikative Quote: <b>[Quote]</b>
-  <i>Matchup-Vorteil:</i> [1-2 Sätze zu Spielzeit, gegnerischer Defense und Ausfällen]
-
-- <b>Spieler (Team) vs. Gegner</b>
-  Prop: <b>[Zweiter starker Prop-Tipp]</b> | Indikative Quote: <b>[Quote]</b>
-  <i>Matchup-Vorteil:</i> [1-2 Sätze]
+<b>3. PLAYER-PROP TICKET (2er- bis 3er-Kombi)</b>
+<i>Reine Spieler-Statistiken kombiniert (Punkte, PRA, Rebounds - Quote ca. 3.00 - 5.50)</i>
+- <b>Spieler A (Team): [z.B. Over 23.5 Punkte / Over 8.5 Rebounds]</b> (Quote)
+- <b>Spieler B (Team): [z.B. Over 34.5 PRA / Over 6.5 Assists]</b> (Quote)
+- <i>(Optional Spieler C)</i>: [Pick] (Quote)
+<b>Gesamtquote: [Quote]</b>
+<i>Edge:</i> [Warum diese Rollen/Spielzeiten heute dominieren]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>4. SPECIAL: DOUBLE-DOUBLE / LUKRATIVE VALUE PROP</b>
-- <b>Spieler (Team): [z.B. Ja Morant Double-Double / X Spieler 3+ Dreier]</b> | Quote: <b>[Quote]</b>
-  <i>Begründung:</i> [Warum dieser Spot mathematischen Mehrwert bietet]
+<b>4. SPECIAL VALUE / DOUBLE-DOUBLE</b>
+- <b>Spieler (Team): [z.B. Double-Double / 3+ Dreier]</b> | Quote: <b>[Quote]</b>
+  <i>Spotlight:</i> [Statistischer Ausreißer]
 
-<i>Protokoll abgeschlossen. Möge der Basketball-Gott auf unserer Seite sein.</i>
+<i>Protokoll abgeschlossen. Voller Fokus auf die heutigen Lines.</i>
 """
     config = types.GenerateContentConfig(
         tools=[types.Tool(google_search=types.GoogleSearch())],
