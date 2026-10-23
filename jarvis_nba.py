@@ -66,16 +66,17 @@ def analyze_nba(matches_text):
     
     prompt = """
 Du bist 'JARVIS NBA ELITE', ein hochspezialisierter Basketball-Quantitative-Analyst.
-Hier sind die heutigen realen NBA-Partien mit Buchmacher-Linien:
+Hier sind die heutigen realen NBA-Partien mit Buchmacher-Linien und Anstoßzeiten:
 """ + matches_text + """
 
 DEINE AUFGABE & REGELN:
 1. Wähle AUSSCHLIESSLICH aus den oben gelisteten realen NBA-Spielen.
-2. Nutze die Google-Suche aktiv für:
+2. Gib bei JEDEM Pick und bei JEDEM Player-Prop IMMER die genaue Anstoßzeit (MESZ/MEZ) aus den Daten an!
+3. Nutze die Google-Suche aktiv für:
    - Offiziellen NBA Injury Report (Out, Questionable, Game-Time Decisions).
-   - Pace, Off/Def-Ratings, B2B-Müdigkeit und Defensiv-Matchups gegen bestimmte Positionen.
+   - Pace, Off/Def-Ratings, B2B-Müdigkeit und Defensiv-Matchups.
    - Reale Player-Prop-Linien (Punkte, Rebounds, Assists, PRA).
-3. Baue ein breites, mathematisch fundiertes Wettspektrum mit Fokus auf mehrere lukrative Kombiwetten auf.
+4. Baue ein breites, mathematisch fundiertes Wettspektrum mit Fokus auf mehrere lukrative Kombiwetten auf.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne, keine Raute):
 <b>🏀 JARVIS NBA INTEL & VALUE REPORT</b>
@@ -84,32 +85,32 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne,
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>1. DIE BANKER-KOMBI (2er-Double)</b>
 <i>Solide Kanten mit hoher Eintrittswahrscheinlichkeit (Quote ca. 2.20 - 2.80)</i>
-- <b>Spiel 1: [Team vs. Team]</b> -> Pick: <b>[ML oder moderater Spread]</b> (Quote)
-- <b>Spiel 2: [Team vs. Team]</b> -> Pick: <b>[ML oder Totals]</b> (Quote)
+- <b>[Uhrzeit] Team A vs. Team B</b> -> Pick: <b>[ML oder moderater Spread]</b> (Quote)
+- <b>[Uhrzeit] Team C vs. Team D</b> -> Pick: <b>[ML oder Totals]</b> (Quote)
 <b>Gesamtquote: [Quote]</b>
 <i>Edge:</i> [1 Satz zur Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>2. VALUE SPREAD & TOTAL KOMBI (3er-Ticket)</b>
 <i>Ausgewogene Value-Kombi aus Spreads und Über/Unter (Quote ca. 4.00 - 6.50)</i>
-- <b>Spiel 1: [Pick]</b> (Quote)
-- <b>Spiel 2: [Pick]</b> (Quote)
-- <b>Spiel 3: [Pick]</b> (Quote)
+- <b>[Uhrzeit] Matchup 1</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] Matchup 2</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] Matchup 3</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Quote]</b>
-<i>Edge:</i> [Kurze Begründung zum Pace- und Matchup-Vorteil]
+<i>Edge:</i> [Kurze Begründung zu Pace und Matchup]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>3. PLAYER-PROP TICKET (2er- bis 3er-Kombi)</b>
 <i>Reine Spieler-Statistiken kombiniert (Punkte, PRA, Rebounds - Quote ca. 3.00 - 5.50)</i>
-- <b>Spieler A (Team): [z.B. Over 23.5 Punkte / Over 8.5 Rebounds]</b> (Quote)
-- <b>Spieler B (Team): [z.B. Over 34.5 PRA / Over 6.5 Assists]</b> (Quote)
-- <i>(Optional Spieler C)</i>: [Pick] (Quote)
+- <b>[Uhrzeit] Spieler A (Team vs. Gegner): [z.B. Over 23.5 Punkte / Over 8.5 Rebounds]</b> (Quote)
+- <b>[Uhrzeit] Spieler B (Team vs. Gegner): [z.B. Over 34.5 PRA / Over 6.5 Assists]</b> (Quote)
+- <i>(Optional [Uhrzeit] Spieler C)</i>: [Pick] (Quote)
 <b>Gesamtquote: [Quote]</b>
 <i>Edge:</i> [Warum diese Rollen/Spielzeiten heute dominieren]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>4. SPECIAL VALUE / DOUBLE-DOUBLE</b>
-- <b>Spieler (Team): [z.B. Double-Double / 3+ Dreier]</b> | Quote: <b>[Quote]</b>
+- <b>[Uhrzeit] Spieler (Team vs. Gegner): [z.B. Double-Double / 3+ Dreier]</b> | Quote: <b>[Quote]</b>
   <i>Spotlight:</i> [Statistischer Ausreißer]
 
 <i>Protokoll abgeschlossen. Voller Fokus auf die heutigen Lines.</i>
@@ -150,7 +151,7 @@ def send_telegram_message(text):
 if __name__ == "__main__":
     matches = fetch_nba_matches()
     if not matches:
-        send_telegram_message("ℹ️ <b>Jarvis NBA:</b> Keine NBA-Spiele im 24-Stunden-Fenster angesetzt.")
+        send_telegram_message("🏀 <b>Jarvis NBA Status:</b> Keine NBA-Spiele im 24-Stunden-Fenster angesetzt.")
     else:
         report = analyze_nba(matches)
         send_telegram_message(report)
