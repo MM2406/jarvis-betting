@@ -13,7 +13,7 @@ TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
-# Ausgewählte Kernligen: DACH, England, Top-Ligen & Europacup
+# Ausgewählte Kernligen: DACH, England, Top-Ligen & Europapokal
 SOCCER_LEAGUES = [
     # Deutschland & Österreich
     ("soccer_germany_bundesliga", "1. Bundesliga GER"),
@@ -35,7 +35,6 @@ SOCCER_LEAGUES = [
 def fetch_soccer_matches():
     matches_summary = []
     now_utc = datetime.now(timezone.utc)
-    # 28 Stunden erfassen alle heutigen Partien bis zum Folgetag
     cutoff = now_utc + timedelta(hours=28)
 
     for sport_key, league_name in SOCCER_LEAGUES:
@@ -168,4 +167,7 @@ def send_telegram_message(text):
 if __name__ == "__main__":
     matches = fetch_soccer_matches()
     if not matches:
-        send_telegram_message("⚽ <b>Jarvis Fußball Status:</b> Keine Spiele in den hinterlegten Ligen im aktuellen
+        send_telegram_message("⚽ <b>Jarvis Fußball Status:</b> Keine Spiele in den hinterlegten Ligen im aktuellen 28-Stunden-Fenster.")
+    else:
+        report = analyze_soccer(matches)
+        send_telegram_message(report)
