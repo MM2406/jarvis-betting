@@ -1,17 +1,19 @@
-name: Daily Betting Jarvis
+name: Soccer Betting Jarvis
 
 on:
   schedule:
-    # 1. Vormittags-Dossier (Jeden Tag): 08:30 UTC (= 10:30 Uhr MESZ)
+    # 1. MORGEN-RUN: 08:30 UTC (= 10:30 Uhr MESZ / 09:30 Uhr MEZ)
+    # Perfekter Überblick über den gesamten Spieltag nach den Pressekonferenzen
     - cron: '30 8 * * *'
 
-    # 2. Prime-Time Abend-Dossier (Jeden Tag): 15:30 UTC (= 17:30 Uhr MESZ, ideal vor 18:45 Uhr Europacup & US-Nacht)
-    - cron: '30 15 * * *'
+    # 2. VORABEND-RUN: 14:30 UTC (= 16:30 Uhr MESZ / 15:30 Uhr MEZ)
+    # Frische Quoten vor den Abendspielen (Freitagabend, Bundesliga 18:30, Top-Ligen & Champions League)
+    - cron: '30 14 * * *'
 
-  workflow_dispatch: # Manueller Test-Button bleibt erhalten
+  workflow_dispatch: # Manueller Start-Button
 
 jobs:
-  run-jarvis:
+  run-soccer-jarvis:
     runs-on: ubuntu-latest
     steps:
       - name: Code laden
@@ -25,7 +27,7 @@ jobs:
       - name: Pakete installieren
         run: pip install requests google-genai
 
-      - name: Jarvis starten
+      - name: Soccer Jarvis starten
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
