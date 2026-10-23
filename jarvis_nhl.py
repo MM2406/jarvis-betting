@@ -66,16 +66,17 @@ def analyze_nhl(matches_text):
 
     prompt = """
 Du bist 'JARVIS NHL ANALYST', ein quantitativer Eishockey-Experte.
-Hier sind die realen anstehenden NHL-Spiele mit Buchmacher-Linien:
+Hier sind die heutigen realen NHL-Spiele mit Buchmacher-Linien und Spielzeiten:
 """ + matches_text + """
 
 DEINE AUFGABE & REGELN:
 1. Wähle AUSSCHLIESSLICH aus den oben gelisteten realen NHL-Spielen.
-2. Nutze die Google-Suche aktiv für:
-   - Offiziell bestätigte Starting Goalies (DailyFaceoff / LeftWingLock). Ein Backup-Goalie verändert Sieg- und Totals-Chancen drastisch!
+2. Gib bei JEDEM Pick und bei JEDEM Player-Prop IMMER die genaue Startzeit (MESZ/MEZ) aus den Daten an!
+3. Nutze die Google-Suche aktiv für:
+   - Offiziell bestätigte Starting Goalies (DailyFaceoff / LeftWingLock). Ein unbestätigter Backup-Goalie verändert Sieg- und Totals-Chancen drastisch!
    - Powerplay- vs. Penalty-Kill-Effizienz, B2B-Müdigkeit auf Roadtrips.
    - Reale Player-Prop-Trends: Anytime Goalscorer (Tore), Über/Unter Punkte (Goals+Assists), Über/Unter Assists.
-3. Erstelle 3 differenzierte, mathematisch fundierte Kombiwetten.
+4. Erstelle 3 differenzierte, mathematisch fundierte Kombiwetten.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne, keine Raute):
 <b>🏒 JARVIS NHL ICE INTEL & VALUE REPORT</b>
@@ -84,32 +85,32 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne,
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>1. DIE BANKER-KOMBI (2er-Double)</b>
 <i>Solide Kanten: ML Favoriten oder Puck-Line Absicherung (+1.5) (Quote ca. 2.10 - 2.70)</i>
-- <b>Spiel 1: [Team vs. Team]</b> -> Pick: <b>[ML oder Puck-Line]</b> (Quote)
-- <b>Spiel 2: [Team vs. Team]</b> -> Pick: <b>[ML oder Over/Under 5.5/6.5]</b> (Quote)
+- <b>[Uhrzeit] Team A vs. Team B</b> -> Pick: <b>[ML oder Puck-Line]</b> (Quote)
+- <b>[Uhrzeit] Team C vs. Team D</b> -> Pick: <b>[ML oder Over/Under 5.5/6.5]</b> (Quote)
 <b>Gesamtquote: [Quote]</b>
 <i>Edge:</i> [Bestätigter Starting Goalie & Form]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>2. PUCK-LINE & TOTALS VALUE TICKET (3er-Kombi)</b>
 <i>Ausgewogene 3er-Kombination aus Totals und Spreads (Quote ca. 4.00 - 6.50)</i>
-- <b>Spiel 1: [Pick]</b> (Quote)
-- <b>Spiel 2: [Pick]</b> (Quote)
-- <b>Spiel 3: [Pick]</b> (Quote)
+- <b>[Uhrzeit] Matchup 1</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] Matchup 2</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] Matchup 3</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Quote]</b>
 <i>Edge:</i> [Matchup- und Tempovorteil / Special Teams]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>3. SKATERS POINT & ASSIST TICKET (Player-Props 2er- bis 3er-Kombi)</b>
 <i>Reine Spieler-Wetten (Punkte, Assists, Tore - Quote ca. 3.00 - 5.50)</i>
-- <b>Spieler A (Team): [z.B. Over 0.5 Punkte / Over 0.5 Assists]</b> (Quote)
-- <b>Spieler B (Team): [z.B. Over 1.5 Punkte / Anytime Goalscorer]</b> (Quote)
-- <i>(Optional Spieler C)</i>: [Pick] (Quote)
+- <b>[Uhrzeit] Spieler A (Team vs. Gegner): [z.B. Over 0.5 Punkte / Over 0.5 Assists]</b> (Quote)
+- <b>[Uhrzeit] Spieler B (Team vs. Gegner): [z.B. Over 1.5 Punkte / Anytime Goalscorer]</b> (Quote)
+- <i>(Optional [Uhrzeit] Spieler C)</i>: [Pick] (Quote)
 <b>Gesamtquote: [Quote]</b>
 <i>Edge:</i> [Powerplay-Unit-Nutzung, Matchup gegen schwache Defensiv-Reihen]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>4. ANYTIME GOALSCORER / SPECIAL VALUE</b>
-- <b>Spieler (Team): Anytime Goalscorer</b> | Quote: <b>[Quote]</b>
+- <b>[Uhrzeit] Spieler (Team vs. Gegner): Anytime Goalscorer</b> | Quote: <b>[Quote]</b>
   <i>Spotlight:</i> [Schussvolumen, First-Line-Minuten, gegnerische Gegentorquote]
 
 <i>Puck drop, Sir. Möge das Eis glatt und die Goalies wachsam sein.</i>
