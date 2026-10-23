@@ -1,0 +1,31 @@
+name: NBA Betting Jarvis
+
+on:
+  schedule:
+    # Täglich um 19:15 UTC (= 21:15 Uhr MESZ / 20:15 Uhr MEZ)
+    - cron: '15 19 * * *'
+
+  workflow_dispatch: # Manueller Test-Button
+
+jobs:
+  run-nba-jarvis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code laden
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pakete installieren
+        run: pip install requests google-genai
+
+      - name: NBA Jarvis starten
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python jarvis_nba.py
