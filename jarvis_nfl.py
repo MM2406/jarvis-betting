@@ -66,54 +66,53 @@ def analyze_nfl(matches_text):
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     prompt = """
-Du bist 'JARVIS NFL PRO', ein analytischer Experte fuer American Football und Sportwetten.
+Du bist 'JARVIS NFL PRO', ein analytischer Experte für American Football und Sportwetten.
 Hier sind die realen anstehenden NFL-Spiele mit Buchmacher-Linien:
 """ + matches_text + """
 
 DEINE AUFGABE & REGELN:
-1. Waehle AUSSCHLIESSLICH Partien aus der obigen Liste aus.
-2. Nutze die Google-Suche aktiv fuer:
-   - Offiziellen NFL Injury Report (Schluesselspieler, O-Line, Quarterbacks, Inactive Lists).
-   - Wetterberichte (Wind ueber 15-20 mph drueckt Totals/Passing Yards nach unten).
-   - Reale Player-Prop-Trends: Anytime Touchdown (ATTD), Passing/Rushing/Receiving Yards.
-3. Klare Begruendung: Nenne konkrete Fakten (Run-Defense-Ranking, Red-Zone-Nutzung, Matchup gegen Man/Zone-Coverage).
+1. Wähle AUSSCHLIESSLICH Partien aus der obigen Liste aus.
+2. Nutze die Google-Suche aktiv für:
+   - Offiziellen NFL Injury Report (Key Inactives, O-Line, Cornerback-Matchups).
+   - Wetterberichte (Wind über 15-20 mph drückt Passing Yards und Totals).
+   - Reale Player-Prop-Trends (Passing/Rushing/Receiving Yards, TD-Scorer).
+3. Nutze das Datenvolumen für multiple, diversifizierte Kombiwetten.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne, keine Raute):
 <b>🏈 JARVIS NFL GAMEPLAN & VALUE REPORT</b>
-<i>Analysen und Prognosen fuer den Spieltag</i>
+<i>Analysen und Kombi-Empfehlungen für den Spieltag</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>1. BEST SPREAD & TOTAL PICKS</b>
-- <b>Team A vs. Team B (Datum um Uhrzeit)</b>
-  Pick: <b>[Spread oder Over/Under]</b> | Quote: <b>[Quote]</b>
-  <i>Analyse:</i> [1-2 praezise Saetze zu Matchup, Tempo und Taktik]
-
-- <b>Team C vs. Team D (Datum um Uhrzeit)</b>
-  Pick: <b>[Spread oder Over/Under]</b> | Quote: <b>[Quote]</b>
-  <i>Analyse:</i> [1-2 Saetze]
+<b>1. GAME-DAY DOUBLE (2er-Kombi)</b>
+<i>Favoriten & Key-Number Spreads mit hoher Trefferwahrscheinlichkeit (Quote ca. 2.20 - 2.80)</i>
+- <b>Spiel 1: [Team vs. Team]</b> -> Pick: <b>[Spread oder ML]</b> (Quote)
+- <b>Spiel 2: [Team vs. Team]</b> -> Pick: <b>[Spread oder Over/Under]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+<i>Edge:</i> [1 prägnanter Satz zum Vorteil]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>2. NFL 2er-VALUE-KOMBI</b>
+<b>2. THE MAIN SLATE VALUE TICKET (3er-Kombi)</b>
+<i>Attraktive 3er-Kombination aus Totals und Spreads (Quote ca. 4.00 - 6.50)</i>
 - <b>Spiel 1: [Pick]</b> (Quote)
 - <b>Spiel 2: [Pick]</b> (Quote)
-<b>Gesamtquote: [Quote ca. 2.50 - 3.50]</b>
+- <b>Spiel 3: [Pick]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+<i>Edge:</i> [Matchup- und Taktik-Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>3. PLAYER PROPS (Yards & Completions)</b>
-- <b>Spieler (Team, Position) vs. Gegner</b>
-  Prop: <b>[z.B. Over 68.5 Rushing Yards / Over 1.5 Passing TDs]</b> | Indikative Quote: <b>[Quote]</b>
-  <i>Edge:</i> [Begruendung ueber gegnerische Schwaeche oder Spielvolumen]
-
-- <b>Spieler (Team, Position) vs. Gegner</b>
-  Prop: <b>[Zweiter starker Prop-Tipp]</b> | Indikative Quote: <b>[Quote]</b>
-  <i>Edge:</i> [Begruendung]
+<b>3. WEAPONS & YARDS KOMBI (Player-Props 2er-Ticket)</b>
+<i>Reine Spieler-Wetten (Rushing/Receiving Yards oder Passing TDs - Quote ca. 2.80 - 4.50)</i>
+- <b>Spieler A (Team, Pos): [z.B. Over 65.5 Rushing Yards]</b> (Quote)
+- <b>Spieler B (Team, Pos): [z.B. Over 5.5 Receptions / Over 1.5 Passing TDs]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+<i>Edge:</i> [Red-Zone-Volume, Defense-Schwächen]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>4. ANYTIME TOUCHDOWN SCORER (ATTD) VALUE</b>
+<b>4. ANYTIME TOUCHDOWN (ATTD) VALUE PICK</b>
 - <b>Spieler (Team): Anytime Touchdown Scorer</b> | Quote: <b>[Quote]</b>
-  <i>Begruendung:</i> [Red-Zone-Touches, Goal-Line-Snaps, gegnerische Anfaelligkeit]
+  <i>Begründung:</i> [Goal-Line-Rolle, Snap-Count, Matchup-Vorteil]
 
-<i>Touchdown, Sir. Moegen die Key-Numbers heute auf unserer Seite stehen.</i>
+<i>Touchdown, Sir. Mögen die Linien zu unseren Gunsten ausschlagen.</i>
 """
     config = types.GenerateContentConfig(
         tools=[types.Tool(google_search=types.GoogleSearch())],
@@ -151,7 +150,7 @@ def send_telegram_message(text):
 if __name__ == "__main__":
     matches = fetch_nfl_matches()
     if not matches:
-        print("Keine NFL-Spiele im Zeitfenster gefunden. Keine Nachricht gesendet.")
+        send_telegram_message("🏈 <b>Jarvis NFL Status:</b> Aktuell stehen im Zeitfenster keine NFL-Spiele an oder die Buchmacher-Linien sind noch nicht geöffnet.")
     else:
         report = analyze_nfl(matches)
         send_telegram_message(report)
