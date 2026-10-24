@@ -1,130 +1,16 @@
 import os
+import sys
+import json
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
-from google import genai
-from google.genai import types
 
-# --- API Keys & Credentials ---
-ODDS_API_KEY = os.environ["ODDS_API_KEY"]
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
-
-def fetch_nfl_matches():
-    matches_summary = []
-    now_utc = datetime.now(timezone.utc)
-    # 36-Stunden-Fenster erfasst von Sonntag bis Montagmorgen alle anstehenden Partien
-    cutoff = now_utc + timedelta(hours=36)
-
-    url_odds = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/"
-    params = {
-        "apiKey": ODDS_API_KEY,
-        "regions": "eu,us",
-        "markets": "h2h,spreads,totals",
-        "oddsFormat": "decimal"
-    }
-
-    try:
-        res = requests.get(url_odds, params=params, timeout=15)
-        if res.status_code != 200:
-            print(f"Fehler beim NFL-Abruf: {res.status_code} - {res.text}")
-            return ""
-        data = res.json()
-    except requests.RequestException as e:
-        print(f"Netzwerkfehler: {e}")
-        return ""
-
-    for match in data:
-        commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
-        if now_utc <= commence_utc <= cutoff:
-            bookies = match.get("bookmakers", [])
-            if not bookies:
-                continue
-
-            time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
-            details = []
-
-            for m in bookies[0].get("markets", []):
-                m_key = m.get("key")
-                if m_key == "h2h":
-                    details.append("ML: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
-                elif m_key == "spreads":
-                    details.append("Spread: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-                elif m_key == "totals":
-                    details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-
-            line = f"[NFL] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}"
-            matches_summary.append(line)
-
-    print(f"NFL-Spiele im Zeitfenster: {len(matches_summary)}")
-    return "\n".join(matches_summary)
-
-def analyze_nfl(matches_text):
-    client = genai.Client(api_key=GEMINI_API_KEY)
-
-    prompt = """
-Du bist 'JARVIS NFL PRO', ein analytischer Experte für American Football und Sportwetten.
-Hier sind die realen anstehenden NFL-Spiele mit Buchmacher-Linien und Anstoßzeiten:
-""" + matches_text + """
-
-DEINE AUFGABE & REGELN:
-1. Wähle AUSSCHLIESSLICH Partien aus der obigen Liste aus.
-2. Gib bei JEDEM Pick, bei JEDER Kombi und bei JEDEM Player-Prop IMMER die genaue Kickoff-Uhrzeit (MESZ/MEZ) aus den Daten an!
-3. Nutze die Google-Suche aktiv für:
-   - Offiziellen NFL Injury Report (Key Inactives, O-Line, Cornerback-Matchups).
-   - Wetterberichte (Wind über 15-20 mph drückt Passing Yards und Totals).
-   - Reale Player-Prop-Trends (Passing/Rushing/Receiving Yards, TD-Scorer).
-4. Erstelle 3 differenzierte, mathematisch fundierte Kombiwetten sowie einen ATTD-Tipp.
-
-FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - KEIN Markdown, keine Sterne, keine Raute):
-<b>🏈 JARVIS NFL GAMEPLAN & VALUE REPORT</b>
-<i>Analysen und Kombi-Empfehlungen für den Spieltag</i>
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>1. GAME-DAY DOUBLE (2er-Kombi)</b>
-<i>Favoriten & Key-Number Spreads mit hoher Trefferwahrscheinlichkeit (Quote ca. 2.20 - 2.80)</i>
-- <b>[Uhrzeit] Team A vs. Team B</b> -> Pick: <b>[Spread oder ML]</b> (Quote)
-- <b>[Uhrzeit] Team C vs. Team D</b> -> Pick: <b>[Spread oder Over/Under]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
-<i>Edge:</i> [1 prägnanter Satz zum Vorteil]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>2. THE MAIN SLATE VALUE TICKET (3er-Kombi)</b>
-<i>Attraktive 3er-Kombination aus Totals und Spreads (Quote ca. 4.00 - 6.50)</i>
-- <b>[Uhrzeit] Matchup 1</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Matchup 2</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Matchup 3</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
-<i>Edge:</i> [Matchup- und Taktik-Begründung]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>3. WEAPONS & YARDS KOMBI (Player-Props 2er-Ticket)</b>
-<i>Reine Spieler-Wetten (Rushing/Receiving Yards oder Passing TDs - Quote ca. 2.80 - 4.50)</i>
-- <b>[Uhrzeit] Spieler A (Team vs. Gegner, Pos): [z.B. Over 65.5 Rushing Yards]</b> (Quote)
-- <b>[Uhrzeit] Spieler B (Team vs. Gegner, Pos): [z.B. Over 5.5 Receptions / Over 1.5 Passing TDs]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
-<i>Edge:</i> [Red-Zone-Volume, Defense-Schwächen]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>4. ANYTIME TOUCHDOWN (ATTD) VALUE PICK</b>
-- <b>[Uhrzeit] Spieler (Team vs. Gegner): Anytime Touchdown Scorer</b> | Quote: <b>[Quote]</b>
-  <i>Begründung:</i> [Goal-Line-Rolle, Snap-Count, Matchup-Vorteil]
-
-<i>Touchdown, Sir. Mögen die Linien zu unseren Gunsten ausschlagen.</i>
-"""
-    config = types.GenerateContentConfig(
-        tools=[types.Tool(google_search=types.GoogleSearch())],
-        temperature=0.2
-    )
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt,
-        config=config
-    )
-    return response.text
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -143,15 +29,140 @@ def send_telegram_message(text):
 
     for chunk in chunks:
         payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
-        res = requests.post(url, json=payload, timeout=10)
+        res = requests.post(url, json=payload, timeout=20)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=10)
+            res2 = requests.post(url, json=payload, timeout=20)
+            if res2.status_code != 200:
+                print(f"Telegram Fehler: {res2.text}")
+
+def fetch_nfl_matches():
+    matches_summary = []
+    now_utc = datetime.now(timezone.utc)
+    cutoff = now_utc + timedelta(hours=48)
+
+    url = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/"
+    params = {
+        "apiKey": ODDS_API_KEY,
+        "regions": "us,eu",
+        "markets": "h2h,spreads,totals",
+        "oddsFormat": "decimal"
+    }
+    try:
+        res = requests.get(url, params=params, timeout=15)
+        if res.status_code == 200:
+            data = res.json()
+            for match in data:
+                commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
+                if now_utc <= commence_utc <= cutoff:
+                    bookies = match.get("bookmakers", [])
+                    if not bookies:
+                        continue
+                    time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
+                    details = []
+                    for m in bookies[0].get("markets", []):
+                        m_key = m.get("key")
+                        if m_key == "h2h":
+                            details.append("ML: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
+                        elif m_key == "spreads":
+                            details.append("Spread: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
+                        elif m_key == "totals":
+                            details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
+                    line = f"[NFL] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}"
+                    matches_summary.append(line)
+    except Exception as e:
+        print(f"Odds API Fehler: {e}")
+
+    print(f"NFL-Partien gefunden: {len(matches_summary)}")
+    return "\n".join(matches_summary)
+
+def analyze_nfl(matches_text):
+    prompt = f"""
+Du bist 'JARVIS NFL QUANT PRO', spezialisiert auf quantitative NFL-Analysen (+EV, Key Numbers bei Spreads [3, 7], EPA/Play, QB/Offensive Line Injuries).
+Hier sind die Spiele mit Quoten, Spreads und Totals:
+{matches_text}
+
+REGELN:
+1. MATHEMATISCHER EDGE (+EV): P(Win) muss > (1 / Quote) sein.
+2. PICK OF THE DAY: Stärkste Einzelwette (1.75 - 2.20).
+3. TICKETS:
+   - POTD (Single Bet)
+   - Gridiron Banker (2er-Double, Quote ca. 2.00 - 2.50)
+   - Key Number Spread Ticket (2er-Kombi)
+   - Over/Under Totals Ticket (2er-Kombi)
+
+FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
+<b>🏈 JARVIS NFL INTEL & VALUE REPORT</b>
+<i>Quantitatives Dossier • Key Numbers • EPA & Matchup-Edges</i>
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+⭐ <b>PICK OF THE DAY (Single Bet)</b>
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
+<i>Fair Odds:</i> ~[Faire Quote] | <i>Chance:</i> [X]%
+<i>Edge:</i> [Matchup-Diskrepanz, EPA/Play, QB-Status]
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+1. <b>NFL BANKER DOUBLE (2er-Double)</b>
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+2. <b>KEY NUMBER SPREAD TICKET (2er-Kombi)</b>
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+3. <b>GAME TOTALS (OVER/UNDER) TICKET</b>
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+<b>Gesamtquote: [Quote]</b>
+
+---JSON_DATA---
+{{
+  "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
+  "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
+  "banker": {{"odds": 2.25, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.50}}, {{"match": "M2", "pick": "Pick", "odds": 1.50}}]}},
+  "spread_ticket": {{"odds": 3.65, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.92}}]}},
+  "totals_ticket": {{"odds": 3.65, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.91}}, {{"match": "M2", "pick": "Pick", "odds": 1.91}}]}}
+}}
+"""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2}}
+    try:
+        res = requests.post(url, json=payload, timeout=120)
+        res.raise_for_status()
+        return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception as e:
+        print(f"API Fehler: {e}")
+        return "ERROR"
+
+def parse_and_save_bets(full_text):
+    if "---JSON_DATA---" in full_text:
+        parts = full_text.split("---JSON_DATA---")
+        report_text = parts[0].strip()
+        try:
+            bet_data = json.loads(parts[1].strip())
+            with open("pending_nfl.json", "w", encoding="utf-8") as f:
+                json.dump(bet_data, f, ensure_ascii=False, indent=2)
+            print("Picks in pending_nfl.json gespeichert.")
+        except Exception as e:
+            print(f"JSON Parsing-Fehler: {e}")
+        return report_text
+    return full_text
 
 if __name__ == "__main__":
     matches = fetch_nfl_matches()
     if not matches:
-        send_telegram_message("🏈 <b>Jarvis NFL Status:</b> Aktuell stehen im Zeitfenster keine NFL-Spiele an oder die Buchmacher-Linien sind noch nicht geöffnet.")
+        msg = "🏈 <b>Jarvis NFL Status:</b> Keine Spiele im aktuellen Zeitfenster."
+        print(msg)
+        send_telegram_message(msg)
     else:
-        report = analyze_nfl(matches)
-        send_telegram_message(report)
+        raw_output = analyze_nfl(matches)
+        if raw_output != "ERROR":
+            send_telegram_message(parse_and_save_bets(raw_output))
+            print("✅ NFL Report erfolgreich gesendet.")
+        else:
+            send_telegram_message("⚠️ <b>Jarvis NFL Error:</b> KI-Generierung fehlgeschlagen.")
+            sys.exit(1)
