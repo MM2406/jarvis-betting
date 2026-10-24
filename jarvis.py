@@ -1,18 +1,19 @@
 import os
+import sys
 import json
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 # --- API Keys & Credentials ---
-ODDS_API_KEY = os.environ["ODDS_API_KEY"]
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+# .strip() entfernt unsichtbare Leerzeichen und Zeilenumbrüche aus GitHub Secrets
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
-# Ausgewählte Kernligen: DACH, England, Top-Ligen & Europapokal
 SOCCER_LEAGUES = [
     ("soccer_germany_bundesliga", "1. Bundesliga GER"),
     ("soccer_germany_bundesliga2", "2. Bundesliga GER"),
@@ -26,6 +27,32 @@ SOCCER_LEAGUES = [
     ("soccer_uefa_europa_league", "Europa League"),
     ("soccer_uefa_conference_league", "Conference League")
 ]
+
+def send_telegram_message(text):
+    base_url = "https://api.telegram.org/bot"
+    url = f"{base_url}{TELEGRAM_BOT_TOKEN}/sendMessage"
+    max_len = 3800
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
+
+    for chunk in chunks:
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
+        res = requests.post(url, json=payload, timeout=10)
+        if res.status_code != 200:
+            print(f"Telegram Warnung (HTML): {res.text}")
+            payload.pop("parse_mode", None)
+            res2 = requests.post(url, json=payload, timeout=10)
+            if res2.status_code != 200:
+                print(f"Telegram Fehler (Fatal): {res2.text}")
 
 def fetch_soccer_matches():
     matches_summary = []
@@ -144,7 +171,7 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
 }}
 """
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.2}
@@ -156,8 +183,11 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
         data = res.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]
     except Exception as e:
-        print(f"API Fehler: {e}")
-        return "Fehler bei der KI-Analyse."
+        error_info = f"API Fehler: {e}"
+        if hasattr(e, 'response') and e.response is not None:
+            error_info += f" | Details: {e.response.text}"
+        print(error_info)
+        return "ERROR"
 
 def parse_and_save_bets(full_text):
     if "---JSON_DATA---" in full_text:
@@ -174,37 +204,20 @@ def parse_and_save_bets(full_text):
         return report_text
     return full_text
 
-def send_telegram_message(text):
-    base_url = "https://api.telegram.org/bot"
-    url = f"{base_url}{TELEGRAM_BOT_TOKEN}/sendMessage"
-    max_len = 3800
-    chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
-
-    for chunk in chunks:
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
-        res = requests.post(url, json=payload, timeout=10)
-        if res.status_code != 200:
-            payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=10)
-
 if __name__ == "__main__":
     matches = fetch_soccer_matches()
     if not matches:
-        send_telegram_message("⚽ <b>Jarvis Fußball Status:</b> Keine Spiele in den hinterlegten Ligen im aktuellen Zeitfenster.")
+        msg = "⚽ <b>Jarvis Fußball Status:</b> Keine Spiele in den hinterlegten Ligen im aktuellen Zeitfenster."
+        print(msg)
+        send_telegram_message(msg)
     else:
         raw_output = analyze_soccer(matches)
-        if raw_output != "Fehler bei der KI-Analyse.":
+        if raw_output != "ERROR":
             clean_report = parse_and_save_bets(raw_output)
             send_telegram_message(clean_report)
+            print("✅ Erfolgreich ausgeführt und per Telegram gesendet.")
         else:
-            print("KI-Generierung fehlgeschlagen.")
+            err_msg = "⚠️ <b>Jarvis Error:</b> Die KI-Generierung ist fehlgeschlagen. Bitte checke die GitHub Logs!"
+            print(err_msg)
+            send_telegram_message(err_msg)
+            sys.exit(1)
