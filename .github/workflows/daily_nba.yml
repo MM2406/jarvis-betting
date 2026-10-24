@@ -1,0 +1,31 @@
+name: NBA Jarvis
+
+on:
+  schedule:
+    - cron: '0 20 * * *' # Täglich 20:00 UTC (vor den Spielen)
+  workflow_dispatch:
+
+jobs:
+  run-nba:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python jarvis_nba.py
+      - name: Save pending NBA bets
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pending_nba.json || true
+          git commit -m "Save pending NBA bets [skip ci]" || exit 0
+          git push
