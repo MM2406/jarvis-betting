@@ -3,8 +3,6 @@ import json
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
-from google import genai
-from google.genai import types
 
 # --- API Keys & Credentials ---
 ODDS_API_KEY = os.environ["ODDS_API_KEY"]
@@ -74,8 +72,6 @@ def fetch_soccer_matches():
     return "\n".join(matches_summary)
 
 def analyze_soccer(matches_text):
-    client = genai.Client(api_key=GEMINI_API_KEY)
-
     prompt = f"""
 Du bist 'JARVIS SOCCER QUANT PRO', ein quantitativer Analyst für Profifußball mit Fokus auf Value Betting (+EV) und Buchmacher-In-Effizienzen.
 Hier sind die realen Partien inklusive Buchmacher-Quoten und Spielzeiten:
@@ -147,16 +143,21 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
   "scorer": {{"player": "Name", "match": "Team vs Gegner", "odds": 2.40}}
 }}
 """
-    config = types.GenerateContentConfig(
-        temperature=0.2
-    )
     
-    response = client.models.generate_content(
-        model="gemini-1.5-flash-latest",
-        contents=prompt,
-        config=config
-    )
-    return response.text
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.2}
+    }
+    
+    try:
+        res = requests.post(url, json=payload, timeout=30)
+        res.raise_for_status()
+        data = res.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception as e:
+        print(f"API Fehler: {e}")
+        return "Fehler bei der KI-Analyse."
 
 def parse_and_save_bets(full_text):
     if "---JSON_DATA---" in full_text:
@@ -202,5 +203,8 @@ if __name__ == "__main__":
         send_telegram_message("⚽ <b>Jarvis Fußball Status:</b> Keine Spiele in den hinterlegten Ligen im aktuellen Zeitfenster.")
     else:
         raw_output = analyze_soccer(matches)
-        clean_report = parse_and_save_bets(raw_output)
-        send_telegram_message(clean_report)
+        if raw_output != "Fehler bei der KI-Analyse.":
+            clean_report = parse_and_save_bets(raw_output)
+            send_telegram_message(clean_report)
+        else:
+            print("KI-Generierung fehlgeschlagen.")
