@@ -35,7 +35,7 @@ def fetch_soccer_matches():
     cutoff = now_utc + timedelta(hours=30)
 
     for sport_key, league_name in SOCCER_LEAGUES:
-        url = f"[https://api.the-odds-api.com/v4/sports/](https://api.the-odds-api.com/v4/sports/){sport_key}/odds/"
+        url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
             "regions": "eu",
@@ -175,7 +175,8 @@ def parse_and_save_bets(full_text):
     return full_text
 
 def send_telegram_message(text):
-    url = f"[https://api.telegram.org/bot](https://api.telegram.org/bot){TELEGRAM_BOT_TOKEN}/sendMessage"
+    base_url = "https://api.telegram.org/bot"
+    url = f"{base_url}{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3800
     chunks = []
     while len(text) > max_len:
