@@ -153,7 +153,7 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
         temperature=0.2
     )
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-1.5-pro",
         contents=prompt,
         config=config
     )
