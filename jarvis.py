@@ -88,8 +88,7 @@ STRIKTE QUANTITATIVE REGELN:
 2. PICK OF THE DAY (SINGLE BET):
    - Wähle die eine Einzelwette des Tages mit dem absolut höchsten positiven Erwartungswert (+EV) im Quotenbereich 1.70 - 2.20.
 3. INJURY- & LINEUP-FILTER:
-   - Nutze die Google-Suche aktiv für Ausfälle.
-   - Wähle für Torschützen-Tipps NIEMALS Spieler mit Verletzungs-Status, 'Questionable' oder hoher Rotationsgefahr. Nur bestätigte Starter / Stammkräfte.
+   - Beachte wahrscheinliche Ausfälle. Wähle für Torschützen-Tipps NIEMALS Spieler mit Verletzungs-Status, 'Questionable' oder hoher Rotationsgefahr. Nur bestätigte Starter / Stammkräfte.
 4. KORRELATIONS- & WIDERSPRUCHS-CHECK:
    - Keine widersprüchlichen Picks über verschiedene Scheine hinweg (z. B. nicht auf einem Schein 'Team A gewinnt' und auf einem anderen 'Unter 1.5 Tore' gegen Team A).
 5. SYSTEMWETTEN-EMPFEHLUNG:
@@ -148,12 +147,13 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
   "scorer": {{"player": "Name", "match": "Team vs Gegner", "odds": 2.40}}
 }}
 """
+    # ACHTUNG: Google Search Tool entfernt, um den 404-Fehler zu umgehen!
     config = types.GenerateContentConfig(
-        tools=[types.Tool(google_search=types.GoogleSearch())],
         temperature=0.2
     )
+    
     response = client.models.generate_content(
-        model="gemini-1.5-pro",
+        model="gemini-1.5-flash",
         contents=prompt,
         config=config
     )
