@@ -35,7 +35,7 @@ def fetch_soccer_matches():
     cutoff = now_utc + timedelta(hours=30)
 
     for sport_key, league_name in SOCCER_LEAGUES:
-        url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/"
+        url = f"[https://api.the-odds-api.com/v4/sports/](https://api.the-odds-api.com/v4/sports/){sport_key}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
             "regions": "eu",
@@ -148,56 +148,61 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
   "multi_ticket": {{"odds": 5.50, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.75}}, {{"match": "M2", "pick": "Pick", "odds": 1.80}}, {{"match": "M3", "pick": "Pick", "odds": 1.75}}]}},
   "scorer": {{"player": "Name", "match": "Team vs Gegner", "odds": 2.40}}
 }}
+```
 """
-config = types.GenerateContentConfig(
-tools=[types.Tool(google_search=types.GoogleSearch())],
-temperature=0.2
-)
-response = client.models.generate_content(
-model="gemini-2.5-flash",
-contents=prompt,
-config=config
-)
-return response.text
+    config = types.GenerateContentConfig(
+        tools=[types.Tool(google_search=types.GoogleSearch())],
+        temperature=0.2
+    )
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=config
+    )
+    return response.text
+
 def parse_and_save_bets(full_text):
-if "---JSON_DATA---" in full_text:
-parts = full_text.split("---JSON_DATA---")
-report_text = parts[0].strip()
-json_part = parts[1].replace("json", "").replace("", "").strip()
-try:
-bet_data = json.loads(json_part)
-with open("pending_soccer.json", "w", encoding="utf-8") as f:
-json.dump(bet_data, f, ensure_ascii=False, indent=2)
-print("Picks erfolgreich in pending_soccer.json gespeichert.")
-except Exception as e:
-print(f"JSON Parsing-Fehler: {e}")
-return report_text
-return full_text
+    if "---JSON_DATA---" in full_text:
+        parts = full_text.split("---JSON_DATA---")
+        report_text = parts[0].strip()
+        json_part = parts[1].replace("```json", "").replace("```", "").strip()
+        try:
+            bet_data = json.loads(json_part)
+            with open("pending_soccer.json", "w", encoding="utf-8") as f:
+                json.dump(bet_data, f, ensure_ascii=False, indent=2)
+            print("Picks erfolgreich in pending_soccer.json gespeichert.")
+        except Exception as e:
+            print(f"JSON Parsing-Fehler: {e}")
+        return report_text
+    return full_text
+
 def send_telegram_message(text):
-url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-max_len = 3800
-chunks = []
-while len(text) > max_len:
-split_idx = text.rfind("\n\n", 0, max_len)
-if split_idx == -1:
-split_idx = text.rfind("\n", 0, max_len)
-if split_idx == -1:
-split_idx = max_len
-chunks.append(text[:split_idx].strip())
-text = text[split_idx:].strip()
-if text:
-chunks.append(text)
-for chunk in chunks:
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
-    res = requests.post(url, json=payload, timeout=10)
-    if res.status_code != 200:
-        payload.pop("parse_mode", None)
-        requests.post(url, json=payload, timeout=10)
-if name == "main":
-matches = fetch_soccer_matches()
-if not matches:
-send_telegram_message("⚽ Jarvis Fußball Status: Keine Spiele in den hinterlegten Ligen im aktuellen Zeitfenster.")
-else:
-raw_output = analyze_soccer(matches)
-clean_report = parse_and_save_bets(raw_output)
-send_telegram_message(clean_report)
+    url = f"[https://api.telegram.org/bot](https://api.telegram.org/bot){TELEGRAM_BOT_TOKEN}/sendMessage"
+    max_len = 3800
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
+
+    for chunk in chunks:
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
+        res = requests.post(url, json=payload, timeout=10)
+        if res.status_code != 200:
+            payload.pop("parse_mode", None)
+            requests.post(url, json=payload, timeout=10)
+
+if __name__ == "__main__":
+    matches = fetch_soccer_matches()
+    if not matches:
+        send_telegram_message("⚽ <b>Jarvis Fußball Status:</b> Keine Spiele in den hinterlegten Ligen im aktuellen Zeitfenster.")
+    else:
+        raw_output = analyze_soccer(matches)
+        clean_report = parse_and_save_bets(raw_output)
+        send_telegram_message(clean_report)
