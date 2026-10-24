@@ -1,27 +1,54 @@
-name: NBA Jarvis
+name: NBA Betting Jarvis
 
 on:
   schedule:
-    - cron: '0 20 * * *' # Täglich 20:00 UTC (vor den Spielen)
-  workflow_dispatch:
+    # --- MONTAG BIS FREITAG: TÄGLICHE NACHT-SPIELE ---
+    # 19:30 UTC (= 21:30 Uhr MESZ / 20:30 Uhr MEZ - Vor Beginn der 01:00 Uhr Spiele)
+    - cron: '30 19 * * 1-5'
+
+    # --- SAMSTAG: FRÜHE SLATE (Für Primetime-Spiele ab 18:00 / 20:30 Uhr MEZ) ---
+    # 15:30 UTC (= 17:30 Uhr MESZ / 16:30 Uhr MEZ)
+    - cron: '30 15 * * 6'
+
+    # --- SAMSTAG: NACHT-SLATE (Für Hauptspiele ab 01:00 Uhr MEZ) ---
+    # 19:30 UTC (= 21:30 Uhr MESZ / 20:30 Uhr MEZ)
+    - cron: '30 19 * * 6'
+
+    # --- SONNTAG: FRÜHE SLATE (Für Matinee/Primetime-Spiele ab 19:00 / 21:30 Uhr MEZ) ---
+    # 15:30 UTC (= 17:30 Uhr MESZ / 16:30 Uhr MEZ)
+    - cron: '30 15 * * 0'
+
+    # --- SONNTAG: NACHT-SLATE (Für Hauptspiele ab 01:00 Uhr MEZ) ---
+    # 19:30 UTC (= 21:30 Uhr MESZ / 20:30 Uhr MEZ)
+    - cron: '30 19 * * 0'
+
+  workflow_dispatch: # Manueller Start-Button
 
 jobs:
-  run-nba:
+  run-nba-jarvis:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Code laden
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install requests
-      - env:
+
+      - name: Pakete installieren
+        run: pip install requests
+
+      - name: NBA Jarvis starten
+        env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python jarvis_nba.py
+
       - name: Save pending NBA bets
         run: |
           git config --global user.name "github-actions[bot]"
