@@ -45,11 +45,11 @@ def send_telegram_message(text):
 
     for chunk in chunks:
         payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
-        res = requests.post(url, json=payload, timeout=10)
+        res = requests.post(url, json=payload, timeout=20)
         if res.status_code != 200:
             print(f"Telegram Warnung (HTML): {res.text}")
             payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=10)
+            res2 = requests.post(url, json=payload, timeout=20)
             if res2.status_code != 200:
                 print(f"Telegram Fehler (Fatal): {res2.text}")
 
@@ -67,7 +67,7 @@ def fetch_soccer_matches():
             "oddsFormat": "decimal"
         }
         try:
-            res = requests.get(url, params=params, timeout=10)
+            res = requests.get(url, params=params, timeout=15)
             if res.status_code != 200:
                 continue
             data = res.json()
@@ -177,7 +177,8 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
     }
     
     try:
-        res = requests.post(url, json=payload, timeout=30)
+        # Timeout massiv erhöht auf 120 Sekunden, damit die KI genug Zeit zum Nachdenken hat
+        res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
         data = res.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]
