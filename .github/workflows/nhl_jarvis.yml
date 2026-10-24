@@ -27,6 +27,8 @@ on:
 jobs:
   run-nhl-jarvis:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Code laden
         uses: actions/checkout@v4
@@ -37,7 +39,7 @@ jobs:
           python-version: '3.11'
 
       - name: Pakete installieren
-        run: pip install requests google-genai
+        run: pip install requests
 
       - name: NHL Jarvis starten
         env:
@@ -46,3 +48,11 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python jarvis_nhl.py
+
+      - name: Save pending NHL bets
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pending_nhl.json || true
+          git commit -m "Save pending NHL bets [skip ci]" || exit 0
+          git push
