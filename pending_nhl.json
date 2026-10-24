@@ -1,12 +1,12 @@
 {
-  "date": "2026-10-24",
+  "date": "2026-10-25",
   "potd": {
-    "match": "Ottawa Senators vs. New York Rangers",
-    "pick": "New York Rangers ML",
-    "odds": 2.05
+    "match": "Washington Capitals vs. Buffalo Sabres",
+    "pick": "Washington Capitals ML",
+    "odds": 1.83
   },
   "banker": {
-    "odds": 2.34,
+    "odds": 2.28,
     "picks": [
       {
         "match": "Boston Bruins vs. San Jose Sharks",
@@ -14,39 +14,39 @@
         "odds": 1.52
       },
       {
-        "match": "Chicago Blackhawks vs. Florida Panthers",
-        "pick": "Florida Panthers ML",
-        "odds": 1.54
+        "match": "Dallas Stars vs. New York Islanders",
+        "pick": "Dallas Stars ML",
+        "odds": 1.5
       }
     ]
   },
   "puck_line": {
-    "odds": 2.59,
+    "odds": 4.31,
     "picks": [
       {
-        "match": "New Jersey Devils vs. Los Angeles Kings",
-        "pick": "Los Angeles Kings +1.5",
-        "odds": 1.6
+        "match": "Chicago Blackhawks vs. Florida Panthers",
+        "pick": "Florida Panthers -1.5",
+        "odds": 2.22
       },
       {
-        "match": "Edmonton Oilers vs. Toronto Maple Leafs",
-        "pick": "Toronto Maple Leafs +1.5",
-        "odds": 1.62
+        "match": "Nashville Predators vs. Colorado Avalanche",
+        "pick": "Colorado Avalanche -1.5",
+        "odds": 1.94
       }
     ]
   },
   "totals_ticket": {
-    "odds": 3.03,
+    "odds": 3.31,
     "picks": [
       {
-        "match": "Ottawa Senators vs. New York Rangers",
+        "match": "St Louis Blues vs. Carolina Hurricanes",
         "pick": "Under 6.5",
-        "odds": 1.74
+        "odds": 1.77
       },
       {
-        "match": "Calgary Flames vs. Detroit Red Wings",
-        "pick": "Over 5.5",
-        "odds": 1.74
+        "match": "Dallas Stars vs. New York Islanders",
+        "pick": "Under 5.5",
+        "odds": 1.87
       }
     ]
   }
