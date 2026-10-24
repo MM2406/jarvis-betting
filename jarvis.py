@@ -147,13 +147,12 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i> - kein Markdown):
   "scorer": {{"player": "Name", "match": "Team vs Gegner", "odds": 2.40}}
 }}
 """
-    # ACHTUNG: Google Search Tool entfernt, um den 404-Fehler zu umgehen!
     config = types.GenerateContentConfig(
         temperature=0.2
     )
     
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
+        model="gemini-1.5-flash-latest",
         contents=prompt,
         config=config
     )
