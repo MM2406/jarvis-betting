@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-25",
+  "potd": {
+    "match": "Chicago Bulls vs. Washington Wizards",
+    "pick": "Chicago Bulls ML",
+    "odds": 1.83
+  },
+  "banker": {
+    "odds": 2.05,
+    "picks": [
+      {
+        "match": "Charlotte Hornets vs. Miami Heat",
+        "pick": "Miami Heat ML",
+        "odds": 1.65
+      },
+      {
+        "match": "Phoenix Suns vs. Golden State Warriors",
+        "pick": "Phoenix Suns ML",
+        "odds": 1.24
+      }
+    ]
+  },
+  "spread_ticket": {
+    "odds": 3.48,
+    "picks": [
+      {
+        "match": "Charlotte Hornets vs. Miami Heat",
+        "pick": "Miami Heat -3.5",
+        "odds": 1.91
+      },
+      {
+        "match": "Atlanta Hawks vs. Houston Rockets",
+        "pick": "Houston Rockets +1.5",
+        "odds": 1.82
+      }
+    ]
+  },
+  "totals_ticket": {
+    "odds": 3.65,
+    "picks": [
+      {
+        "match": "Charlotte Hornets vs. Miami Heat",
+        "pick": "Under 229.5",
+        "odds": 1.91
+      },
+      {
+        "match": "Chicago Bulls vs. Washington Wizards",
+        "pick": "Under 244.5",
+        "odds": 1.91
+      }
+    ]
+  }
+}
