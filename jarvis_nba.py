@@ -85,16 +85,19 @@ def fetch_nba_data():
 def analyze_nba(matches_text):
     prompt = f"""
 Du bist 'JARVIS NBA QUANT PRO', ein quantitatives Analyse-Modell für Basketball-Wetten (+EV, Pace-Modelle, Defensive Ratings, Net Ratings, B2B-Ermüdung).
-Nutze Google Search für aktuelle Injury Reports (Out, Questionable, Game-Time Decisions).
+Recherchiere zwingend über Google Search aktuelle Injury Reports und realistische Buchmacher-Player-Props (Punkte, Rebounds, Assists, 3-Pointers).
 
 Hier sind die heutigen NBA-Partien mit Quoten:
 {matches_text}
 
 TICKET-STRUKTUR:
 1. ⭐ NBA PICK OF THE DAY (Single Bet, Quote 1.70 - 2.20): Die statistisch stärkste Kante der Slate.
-2. 1. NBA SPREAD / MONEYLINE VALUE TICKET (2er-Double): Solide Kanten mit hoher Trefferquote. Quote 2.20 - 3.20.
-3. 2. TOTALS & OVER/UNDER COMBO (2er- oder 3er-Kombi): Pace/Defense Missmatches. Quote 3.00 - 6.00.
-4. 3. PLAYER PERFORMANCE / SPOTLIGHT PICK: Ein fokussierter Player Prop oder Match-Special.
+2. 1. NBA SPREAD / MONEYLINE VALUE TICKET (2er-Double): Solide Team-Kanten. Quote 2.20 - 3.20.
+3. 2. TOTALS & OVER/UNDER COMBO (2er- oder 3er-Kombi): Pace/Defense Mismatches. Quote 3.00 - 6.00.
+4. 3. DYNAMIC PLAYER PROPS MULTI-TICKET:
+   - Baue eine reine Spieler-Kombi (Points, Rebounds, Assists, PRAs oder 3PM).
+   - SCHEIN-GRÖSSE IST VOLLKOMMEN FREIGESTELLT (2er-, 3er-, 4er- oder 5er-Kombi)! Wähle die exakte Schein-Größe dynamisch basierend auf der Anzahl der echten Value-Picks an diesem Spieltag.
+   - Nenne für jeden Spieler: Spielername, Team, Pick (z. B. Over 24.5 Points), Quote und kurze analytische Begründung (Matchup, Pace, verletzter Teamkollege).
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏀 JARVIS NBA INTEL & VALUE REPORT</b>
@@ -118,9 +121,11 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>Gesamtquote: [Produkt]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>PLAYER PERFORMANCE / SPOTLIGHT PICK</b>
-- <b>[Spieler / Pick]</b> (Quote: [Quote])
-<i>Analytischer Edge:</i> [Begründung]
+3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET ([Anzahl]-Kombi)</b>
+[Für jeden Spieler-Pick:]
+- <b>[Spielername] ([Team])</b> -> Pick: <b>[z.B. Over 22.5 Points]</b> (Quote: [Quote])
+  <i>Edge:</i> [Kurze Begründung: Pace / Usage / Ausfälle]
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 ---JSON_DATA---
 {{
@@ -128,7 +133,7 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
   "potd": {{"match": "Match", "pick": "Pick", "odds": 1.90}},
   "banker": {{"odds": 2.50, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.55}}, {{"match": "M2", "pick": "Pick", "odds": 1.60}}]}},
   "totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.90}}]}},
-  "prop": {{"player_or_match": "Pick", "odds": 1.85}}
+  "player_props": {{"odds": 4.50, "picks": [{{"player": "Spieler 1", "pick": "Over 24.5 Points", "odds": 1.85}}, {{"player": "Spieler 2", "pick": "Over 7.5 Assists", "odds": 1.90}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
@@ -169,5 +174,4 @@ if __name__ == "__main__":
             send_telegram_message(parse_and_save_bets(raw_output))
             print("✅ NBA Report gesendet.")
         else:
-            send_telegram_message("⚠️ <b>Jarvis NBA Error:</b> Analyse fehlgeschlagen.")
-            sys.exit(1)
+            send_telegram_message("⚠️ <b>Jar
