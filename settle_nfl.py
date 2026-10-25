@@ -59,9 +59,10 @@ Offene NFL-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Endergebnisse, Spreads sowie die exakten Spieler-Statistiken (Touchdowns, Rushing/Receiving/Passing Yards) recherchieren.
+1. Endergebnisse, Spreads sowie die exakten Spieler-Statistiken für alle dynamischen Tickets ('totals' und 'player_props') recherchieren.
 2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH.
-3. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+3. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
+4. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏈 JARVIS NFL SETTLEMENT & RECAP</b>
@@ -71,15 +72,15 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 ⭐ <b>PICK OF THE DAY:</b> [Ergebnis] -> [✅ WON / ❌ LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>SPREAD / ML VALUE TICKET:</b> [✅ WON / ❌ LOST]
+1. <b>NFL BANKER TICKET:</b> [✅ WON / ❌ LOST]
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>TOTALS COMBO:</b> [✅ WON / ❌ LOST]
-[Picks & Resultate]
+2. <b>DYNAMIC TOTALS COMBO:</b> [✅ WON / ❌ LOST]
+[Jeden Pick auflisten mit Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
+3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
 [Für jeden Spieler: Name, Pick, erzielte Yards/TDs, Status ✅/❌]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
