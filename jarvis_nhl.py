@@ -92,16 +92,16 @@ Partien & Quoten:
 
 TICKET-STRUKTUR:
 1. ⭐ NHL PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Höchster Value.
-2. 1. NHL PUCK LINE / MONEYLINE VALUE TICKET (2er-Double): Quote 2.20 - 3.20.
-3. 2. TOTALS VALUE COMBO (2er- oder 3er-Kombi): Over/Under Goal-Lines. Quote 3.20 - 6.00.
-4. 3. DYNAMIC NHL PLAYER PROPS MULTI-TICKET:
+2. 1. NHL BANKER TICKET (Strikt 2er-Double): Höchste Zuverlässigkeit (Moneyline / Puck Line +1.5). Quote 2.10 - 2.80.
+3. 2. DYNAMIC TOTALS VALUE COMBO (Freie Größe: 2 bis 5 Picks): Ineffiziente Over/Under Goal-Lines (5.5, 6.0, 6.5). Dynamisch nach Kantenstärke.
+4. 3. DYNAMIC NHL PLAYER PROPS MULTI-TICKET (Freie Größe: 2 bis 5 Picks):
    - Baue eine reine Spieler-Kombi aus Goalscorern, Points (Over 0.5/1.5) oder Shots on Goal (SOG).
-   - FREIE SCHEIN-GRÖSSE (2er-, 3er- oder 4er-Kombi)! Wähle die Anzahl flexibel nach Stärke der Kanten gegen den jeweiligen Goalie.
-   - Nenne für jeden Spieler: Name, Team, Pick, Quote und Goalie/Defensiv-Matchup.
+   - Wähle die Anzahl flexibel nach Stärke der Kanten gegen den jeweiligen Goalie.
+   - Nenne für jeden Spieler: Name, Team, Pick, Quote und Matchup-Begründung.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏒 JARVIS NHL INTEL & VALUE REPORT</b>
-<i>Quantitatives Eishockey-Modell • Starting Goalies & xG • +EV Filter</i>
+<i>Quantitatives Eishockey-Modell • Starting Goalies & xG • Dynamische Kombis</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
@@ -110,13 +110,13 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <i>Goalie Matchup & Edge:</i> [Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NHL PUCK LINE / ML TICKET (2er-Double)</b>
+1. <b>NHL BANKER TICKET (2er-Double)</b>
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Produkt]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>TOTALS VALUE COMBO ([Anzahl]-Kombi)</b>
+2. <b>DYNAMIC TOTALS VALUE COMBO ([Anzahl]-Kombi)</b>
 [Picks einfügen]
 <b>Gesamtquote: [Produkt]</b>
 
