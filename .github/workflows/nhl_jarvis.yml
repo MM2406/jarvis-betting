@@ -2,27 +2,15 @@ name: NHL Betting Jarvis
 
 on:
   schedule:
-    # --- MONTAG BIS FREITAG: TÄGLICHE NACHT-SPIELE ---
-    # 19:30 UTC (= 21:30 Uhr MESZ / 20:30 Uhr MEZ - Vor Beginn der 01:00 Uhr Spiele)
+    # Montag bis Freitag: 19:30 UTC
     - cron: '30 19 * * 1-5'
-
-    # --- SAMSTAG: FRÜHE SLATE (Für Spiele ab 19:00 / 21:30 Uhr MEZ) ---
-    # 15:30 UTC (= 17:30 Uhr MESZ / 16:30 Uhr MEZ)
+    # Samstag: Early Slate (15:30 UTC) & Nacht-Slate (19:30 UTC)
     - cron: '30 15 * * 6'
-
-    # --- SAMSTAG: NACHT-SLATE (Für Hauptspiele ab 01:00 Uhr MEZ) ---
-    # 19:30 UTC (= 21:30 Uhr MESZ / 20:30 Uhr MEZ)
     - cron: '30 19 * * 6'
-
-    # --- SONNTAG: FRÜHE SLATE (Für Spiele ab 19:00 / 20:00 Uhr MEZ) ---
-    # 15:30 UTC (= 17:30 Uhr MESZ / 16:30 Uhr MEZ)
+    # Sonntag: Early Slate (15:30 UTC) & Nacht-Slate (19:30 UTC)
     - cron: '30 15 * * 0'
-
-    # --- SONNTAG: NACHT-SLATE (Für Hauptspiele ab 01:00 Uhr MEZ) ---
-    # 19:30 UTC (= 21:30 Uhr MESZ / 20:30 Uhr MEZ)
     - cron: '30 19 * * 0'
-
-  workflow_dispatch: # Manueller Start-Button
+  workflow_dispatch:
 
 jobs:
   run-nhl-jarvis:
@@ -56,4 +44,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nhl.json || true
           git commit -m "Save pending NHL bets [skip ci]" || exit 0
-          git push
+          git pull --rebase origin main
+          git push origin main
