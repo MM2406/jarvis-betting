@@ -42,7 +42,6 @@ def fetch_nhl_data():
     now_utc = datetime.now(timezone.utc)
     cutoff = now_utc + timedelta(hours=30)
 
-    # 1. Hauptmärkte aller Partien
     url = "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
@@ -69,14 +68,13 @@ def fetch_nhl_data():
                         if m_key == "h2h":
                             details.append("ML: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
                         elif m_key == "spreads":
-                            details.append("Puck Line (-1.5/+1.5): " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
+                            details.append("Puck Line: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                         elif m_key == "totals":
                             details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                     matches_summary.append(f"[NHL] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}")
     except Exception as e:
         print(f"Odds API Fehler bei Main Markets: {e}")
 
-    # 2. Gezielte Player Props für Top-Events (Goals, Shots on Goal)
     prop_markets = "player_points,player_goals,player_shots_on_goal"
     for match in events_to_fetch_props[:4]:
         event_id = match.get("id")
@@ -107,26 +105,25 @@ def fetch_nhl_data():
         except Exception as e:
             print(f"Fehler bei NHL Props für {event_id}: {e}")
 
-    print(f"NHL-Partien: {len(matches_summary)} | Player Props: {len(player_props_summary)}")
-    return "\n".join(matches_summary), "\n".join(player_props_summary[:35])
+    print(f"NHL-Partien: {len(matches_summary)} | Player Props gesammelt: {len(player_props_summary)}")
+    return "\n".join(matches_summary), "\n".join(player_props_summary[:40])
 
 def analyze_nhl(matches_text, props_text):
     prompt = f"""
-Du bist 'JARVIS NHL QUANT PRO', spezialisiert auf quantitative NHL-Analysen (+EV, Starting Goalies, Special Teams und Player Props).
+Du bist 'JARVIS NHL QUANT PRO', spezialisiert auf quantitative NHL-Analysen (+EV, Starting Goalies, Special Teams und Skater Props).
 Hier sind die Partien mit Quoten, Puck Lines und Totals:
 {matches_text}
 
-Hier sind ECHTE BUCHMACHER-LINIEN für Skater-Props (Points, Shots on Goal, Goals):
+Hier sind ECHTE BUCHMACHER-LINIEN für Skater-Props (Points, Shots, Goals):
 {props_text}
 
-REGELN:
-1. MATHEMATISCHER EDGE (+EV): P(Win) muss > (1 / Quote) sein.
-2. PICK OF THE DAY: Stärkste Einzelwette (1.75 - 2.25).
-3. TICKETS:
-   - POTD (Single Bet)
-   - Ice Banker Double (2er-Double, Quote 2.00 - 2.40)
-   - Puck Line & Totals Ticket (2er-Kombi)
-   - 🎯 NHL SKATER PROPS DOUBLE: Wähle exakt 2 Auswahlen aus den oben bereitgestellten realen Player Props mit dem größten statistischen Edge (z. B. Powerplay-Unit 1 Matchup, gegnerische Penalties, Torschuss-Frequenz).
+ANALYSE-REGELN & TICKET-STRUKTUR:
+1. MATHEMATISCHER EDGE (+EV): P(Win) > (1 / Quote).
+2. DYNAMISCHE KOMBIWETTEN:
+   - ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die stabilste Kante des Tages.
+   - 1. DYNAMIC ICE BANKER: Wähle autonom 2 bis 3 Spiele mit sehr hoher Eintrittswahrscheinlichkeit (ML oder Puck Line +1.5). Zielquote: 1.85 - 2.60.
+   - 2. DYNAMIC PUCK LINE & TOTALS: Wähle autonom 2 bis 3 Kanten (z. B. Puck Line -1.5 oder Game Totals). Zielquote: 2.60 - 4.50.
+   - 🎯 3. AUTONOMES SKATER PROPS TICKET: Wähle frei zwischen 2 und maximal 4 Skater Props aus den realen Buchmacher-Linien (Torschüsse, Scorerpunkte, Tore). Bestimme die Anzahl der Beine selbst anhand des statistischen Werts.
 
 FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏒 JARVIS NHL INTEL & VALUE REPORT</b>
@@ -139,32 +136,31 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <i>Edge:</i> [Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NHL BANKER DOUBLE (2er-Double)</b>
+1. <b>NHL BANKER TICKET ([Anzahl]-Kombi)</b>
+[Für jedes Spiel:]
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>PUCK LINE & TOTALS TICKET (2er-Kombi)</b>
+2. <b>PUCK LINE & TOTALS TICKET ([Anzahl]-Kombi)</b>
+[Für jedes Spiel:]
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-🎯 3. <b>NHL SKATER PROPS DOUBLE (2er-Spielerkombi)</b>
-- <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Über 2.5 Torschüsse / Anytime Goal]</b> (Quote: [Quote])
-  <i>Edge:</i> [Matchup-Metrik / Powerplay Time on Ice]
-- <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Über 0.5 Punkte / Shots]</b> (Quote: [Quote])
-  <i>Edge:</i> [Gegnerisches Goalie-Delta]
-<b>Gesamtquote: [Quote]</b>
+🎯 3. <b>AUTONOMOUS SKATER PROPS TICKET ([Anzahl]-Kombi)</b>
+[Für jeden Skater:]
+- <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Über 2.5 Torschüsse]</b> (Quote: [Quote])
+  <i>Edge:</i> [Matchup-Metrik / Powerplay-Unit]
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 ---JSON_DATA---
 {{
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
   "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
-  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}, {{"match": "M2", "pick": "Pick", "odds": 1.49}}]}},
-  "puck_totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.90}}]}},
-  "player_props": {{"odds": 3.40, "picks": [{{"player": "Spieler 1", "pick": "Line/Pick", "odds": 1.85}}, {{"player": "Spieler 2", "pick": "Line/Pick", "odds": 1.85}}]}}
+  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}]}},
+  "puck_totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}]}},
+  "player_props": {{"odds": 3.40, "picks": [{{"player": "Spieler 1", "pick": "Line/Pick", "odds": 1.85}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
