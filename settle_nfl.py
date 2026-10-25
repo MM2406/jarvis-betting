@@ -8,77 +8,83 @@ from zoneinfo import ZoneInfo
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+
+LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
-    try:
+    max_len = 3800
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
+
+    for chunk in chunks:
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
+        if TELEGRAM_THREAD_ID:
+            try:
+                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+            except ValueError:
+                pass
+
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=20)
-    except Exception as e:
-        print(f"Telegram Fehler: {e}")
+            res2 = requests.post(url, json=payload, timeout=20)
+            if res2.status_code != 200:
+                print(f"Telegram Fehler: {res2.text}")
 
-def settle_bets():
+def settle_nfl_bets():
     file_path = "pending_nfl.json"
     if not os.path.exists(file_path):
-        print("Keine pending_nfl.json vorhanden.")
+        print("Keine offenen NFL Wetten gefunden (pending_nfl.json fehlt).")
         return
 
     with open(file_path, "r", encoding="utf-8") as f:
-        try:
-            pending_data = json.load(f)
-        except Exception as e:
-            print(f"JSON-Ladefehler: {e}")
-            return
-
-    match_date = pending_data.get("date", "Spieltag")
+        data = json.load(f)
 
     prompt = f"""
-Du bist der offizielle Abrechnungs-Bot fuer NFL-Footballwetten.
-WICHTIGSTE REGEL: Nutze Google Search, um die ECHTEN Endergebnisse und Boxscores (Touchdowns, Passing/Rushing Yards) der NFL-Spiele vom {match_date} zu pruefen.
-Behandle das Datum {match_date} als Gegenwart/Gestern. Nutze keine veralteten historischen Spielplaene!
+Du bist 'JARVIS NFL SETTLEMENT AGENT'.
+Recherchiere über Google Search die finalen Ergebnisse der NFL-Spiele inklusive Overtime und Touchdown-Scorer für folgende Wetten:
 
-Hier sind die offenen Tipps:
-{json.dumps(pending_data, ensure_ascii=False, indent=2)}
+Offene NFL-Wetten:
+{json.dumps(data, ensure_ascii=False, indent=2)}
 
-AUFGABE:
-1. Suche per Websuche nach den offiziellen NFL-Endergebnissen und Boxscores der Partien vom {match_date}.
-2. Werte alle Scheine im Datensatz aus ('potd', 'banker', 'spread_totals', 'player_props') -> WON oder LOST.
-   - Ein Kombi-Schein ist nur WON, wenn AUSNAHMSLOS ALLE enthaltenen Picks/Spieler aufgegangen sind.
-3. Begründe bei jedem Schein kurz das Ergebnis.
-4. Berechne den Kassensturz mit 1.0 Unit Einsatz je Schein:
-   - Bei WON: Netto-Gewinn = (Gesamtquote - 1.0)
-   - Bei LOST: Verlust = -1.0 Unit
-5. Erstelle die Gesamtabrechnung mit Bilanz (W - L), Netto-Units und ROI.
+REGELN:
+1. Endergebnisse, Spreads und Touchdowns exakt auswerten.
+2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH.
+3. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
 
-FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
-<b>📊 JARVIS NFL ABRECHNUNG & KASSENSTURZ</b>
-<i>Datum: {match_date}</i>
+FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
+<b>🏈 JARVIS NFL SETTLEMENT & RECAP</b>
+<i>Abrechnung der NFL-Slate vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>Pick of the Day:</b> [WON / LOST] (Quote: X.XX)
-- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
-
-1. <b>Banker Ticket:</b> [WON / LOST] (Quote: X.XX)
-[Fuer jedes Spiel:]
-- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
-
-2. <b>Spread & Totals Ticket:</b> [WON / LOST] (Quote: X.XX)
-[Fuer jedes Spiel:]
-- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
-
-🎯 3. <b>Player Props Ticket:</b> [WON / LOST / ENTFÄLLT] (Quote: X.XX)
-[Fuer jeden Spieler:]
-- [Spieler]: [Echte Stats vs. Line] -> [WON / LOST]
+⭐ <b>PICK OF THE DAY:</b> [Ergebnis] -> [✅ WON / ❌ LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-<b>Bilanz:</b> [X]W - [Y]L
-<b>Netto-Ergebnis:</b> [+/-X.XX] Units
-<b>ROI:</b> [+/-X.X]%
+1. <b>SPREAD / ML VALUE TICKET:</b> [✅ WON / ❌ LOST]
+[Picks & Resultate]
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+2. <b>TOTALS COMBO:</b> [✅ WON / ❌ LOST]
+[Picks & Resultate]
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+3. <b>TOUCHDOWN / PROP PICK:</b> [✅ WON / ❌ LOST]
+[Touchdowns & Status]
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+📈 <b>NFL TAGESBILANZ:</b> [Netto Profit/Loss in Units]
 """
-
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -89,17 +95,13 @@ FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
     try:
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
-        candidates = res.json().get("candidates", [])
-        if candidates and "parts" in candidates[0]["content"]:
-            out_text = candidates[0]["content"]["parts"][0]["text"]
-            send_telegram_message(out_text)
-            os.remove(file_path)
-            print("NFL Abrechnung versendet.")
-        else:
-            print("Keine Textantwort von Gemini erhalten.")
+        result_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+        send_telegram_message(result_text)
+        os.remove(file_path)
+        print("NFL Wetten abgerechnet und pending_nfl.json gelöscht.")
     except Exception as e:
-        print(f"Abrechnungsfehler: {e}")
+        print(f"Fehler bei NFL Settlement: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    settle_bets()
+    settle_nfl_bets()
