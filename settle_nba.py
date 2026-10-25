@@ -53,15 +53,16 @@ def settle_nba_bets():
 
     prompt = f"""
 Du bist 'JARVIS NBA SETTLEMENT AGENT'.
-Recherchiere über Google Search die finalen Ergebnisse und Boxscores der NBA-Nacht für folgende Wetten:
+Recherchiere über Google Search die finalen Ergebnisse, Boxscores und individuellen Spielerstatistiken (Punkte, Rebounds, Assists, 3PM) der NBA-Nacht für folgende Wetten:
 
 Offene NBA-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Ermittle die echten Endergebnisse inklusive Overtime.
+1. Ermittle die echten Endergebnisse sowie die exakten Boxscore-Zahlen für jeden Spieler im 'player_props'-Ticket.
 2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
-3. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+3. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos ALLE Picks im Ticket gewonnen haben.
+4. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏀 JARVIS NBA SETTLEMENT & RECAP</b>
@@ -79,8 +80,8 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>PLAYER PROP / SPECIAL:</b> [✅ WON / ❌ LOST]
-[Statistik & Status]
+3. <b>PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
+[Für jeden Spieler: Name, Line, erzielte Stats, Status ✅/❌]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 📈 <b>NBA TAGESBILANZ:</b> [Netto Profit/Loss in Units]
