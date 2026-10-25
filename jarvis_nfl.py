@@ -84,8 +84,8 @@ def fetch_nfl_data():
 
 def analyze_nfl(matches_text):
     prompt = f"""
-Du bist 'JARVIS NFL QUANT PRO', spezialisiert auf quantitative NFL-Modelle (EPA/Play, Success Rate, Trench-Matchups, Key Numbers 3 & 7, Wind/Wetter, Inactive Lists).
-Recherchiere über Google Search nach aktuellen Inactives und Wetterbedingungen.
+Du bist 'JARVIS NFL QUANT PRO', spezialisiert auf quantitative NFL-Modelle (EPA/Play, Inactives, Key Numbers, Redzone-Target-Share, Rushing Yards vs. Run Funnel Defenses).
+Recherchiere über Google Search nach offiziellen Inactives, Wetter (Wind) und gängigen Player Props (Anytime Touchdown Scorer, Passing/Rushing/Receiving Yards).
 
 Spiele & Quoten:
 {matches_text}
@@ -93,12 +93,15 @@ Spiele & Quoten:
 TICKET-STRUKTUR:
 1. ⭐ NFL PICK OF THE DAY (Single Bet, Quote 1.80 - 2.15): Die stärkste Kante über Key Numbers oder EPA-Differenzen.
 2. 1. NFL SPREAD / MONEYLINE VALUE TICKET (2er-Double): Quote 2.40 - 3.40.
-3. 2. TOTALS VALUE COMBO (2er-Kombi): Ineffiziente Over/Under Totals (Key Numbers 41, 44, 47, 51). Quote 3.20 - 4.20.
-4. 3. ANYTIME TOUCHDOWN / PLAYER PROP: Ein fundierter Touchdown- oder Yardage-Pick.
+3. 2. TOTALS VALUE COMBO (2er-Kombi): Ineffiziente Totals. Quote 3.20 - 4.20.
+4. 3. DYNAMIC NFL PLAYER PROPS MULTI-TICKET:
+   - Baue eine reine NFL-Spieler-Kombi (Anytime Touchdowns, Passing Yards, Rushing Yards, Receiving Yards, Receptions).
+   - KEINE BESCHRÄNKUNG DER SCHEIN-GRÖSSE! Wähle frei und dynamisch zwischen 2er-, 3er-, 4er- oder sogar 5er-Kombi, abhängig davon, wie viele herausragende Matchup-Vorteile (z. B. CB vs. WR Mismatches, verletzter RB1) vorliegen!
+   - Nenne für jeden Pick: Spieler, Team, Line, Quote und taktische Begründung.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏈 JARVIS NFL INTEL & VALUE REPORT</b>
-<i>Quantitatives NFL-Modell • EPA/Play & Inactives • Key Number Edge</i>
+<i>Quantitatives NFL-Modell • EPA/Play & Inactives • Dynamic Player Props</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
@@ -118,9 +121,11 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>Gesamtquote: [Produkt]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>ANYTIME TOUCHDOWN / PROP PICK</b>
-- <b>[Spieler]</b> (Quote: [Quote])
-<i>Spotlight:</i> [Begründung mit Redzone-Share]
+3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET ([Anzahl]-Kombi)</b>
+[Für jeden Spieler-Pick:]
+- <b>[Spielername] ([Team])</b> -> Pick: <b>[z.B. Over 68.5 Receiving Yards / Anytime TD]</b> (Quote: [Quote])
+  <i>Matchup Edge:</i> [Begründung mit Target-Share / Coverage-Schwäche]
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 ---JSON_DATA---
 {{
@@ -128,7 +133,7 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
   "potd": {{"match": "Match", "pick": "Pick", "odds": 1.90}},
   "banker": {{"odds": 2.50, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.55}}, {{"match": "M2", "pick": "Pick", "odds": 1.60}}]}},
   "totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.90}}]}},
-  "td_scorer": {{"player": "Spieler", "odds": 2.10}}
+  "player_props": {{"odds": 5.50, "picks": [{{"player": "Spieler 1", "pick": "Anytime Touchdown", "odds": 2.10}}, {{"player": "Spieler 2", "pick": "Over 64.5 Rush Yds", "odds": 1.85}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
