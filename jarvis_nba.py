@@ -92,16 +92,16 @@ Hier sind die heutigen NBA-Partien mit Quoten:
 
 TICKET-STRUKTUR:
 1. ⭐ NBA PICK OF THE DAY (Single Bet, Quote 1.70 - 2.20): Die statistisch stärkste Kante der Slate.
-2. 1. NBA SPREAD / MONEYLINE VALUE TICKET (2er-Double): Solide Team-Kanten. Quote 2.20 - 3.20.
-3. 2. TOTALS & OVER/UNDER COMBO (2er- oder 3er-Kombi): Pace/Defense Mismatches. Quote 3.00 - 6.00.
-4. 3. DYNAMIC PLAYER PROPS MULTI-TICKET:
+2. 1. NBA BANKER TICKET (Strikt 2er-Double): Höchste Trefferquote aus Spreads / Moneyline. Quote 2.10 - 2.80.
+3. 2. DYNAMIC TOTALS VALUE COMBO (Freie Größe: 2 bis 5 Picks): Ineffiziente Over/Under Linien nach Pace & Matchup. Wähle dynamisch die Anzahl basierend auf den stärksten Kanten.
+4. 3. DYNAMIC PLAYER PROPS MULTI-TICKET (Freie Größe: 2 bis 5 Picks):
    - Baue eine reine Spieler-Kombi (Points, Rebounds, Assists, PRAs oder 3PM).
-   - SCHEIN-GRÖSSE IST VOLLKOMMEN FREIGESTELLT (2er-, 3er-, 4er- oder 5er-Kombi)! Wähle die exakte Schein-Größe dynamisch basierend auf der Anzahl der echten Value-Picks an diesem Spieltag.
-   - Nenne für jeden Spieler: Spielername, Team, Pick (z. B. Over 24.5 Points), Quote und kurze analytische Begründung (Matchup, Pace, verletzter Teamkollege).
+   - Wähle dynamisch die Anzahl an Picks basierend auf echten Value-Gelegenheiten.
+   - Nenne für jeden Spieler: Spielername, Team, Pick, Quote und kurze analytische Begründung.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏀 JARVIS NBA INTEL & VALUE REPORT</b>
-<i>Quantitatives Modell • Pace & Injury Impact • +EV Slates</i>
+<i>Quantitatives Modell • Pace & Injury Impact • Dynamische Value-Tickets</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
@@ -110,13 +110,13 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <i>Edge & Intel:</i> [Begründung mit Pace/Injuries]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NBA SPREAD / MONEYLINE VALUE TICKET (2er-Double)</b>
+1. <b>NBA BANKER TICKET (2er-Double)</b>
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Produkt]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>TOTALS VALUE COMBO ([Anzahl]-Kombi)</b>
+2. <b>DYNAMIC TOTALS VALUE COMBO ([Anzahl]-Kombi)</b>
 [Picks einfügen]
 <b>Gesamtquote: [Produkt]</b>
 
@@ -124,7 +124,7 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET ([Anzahl]-Kombi)</b>
 [Für jeden Spieler-Pick:]
 - <b>[Spielername] ([Team])</b> -> Pick: <b>[z.B. Over 22.5 Points]</b> (Quote: [Quote])
-  <i>Edge:</i> [Kurze Begründung: Pace / Usage / Ausfälle]
+  <i>Edge:</i> [Kurze Begründung]
 <b>Gesamtquote: [Produkt aller Quoten]</b>
 
 ---JSON_DATA---
@@ -174,4 +174,5 @@ if __name__ == "__main__":
             send_telegram_message(parse_and_save_bets(raw_output))
             print("✅ NBA Report gesendet.")
         else:
-            send_telegram_message("⚠️ <b>Jar
+            send_telegram_message("⚠️ <b>Jarvis NBA Error:</b> Analyse fehlgeschlagen.")
+            sys.exit(1)
