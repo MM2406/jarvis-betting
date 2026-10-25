@@ -53,16 +53,18 @@ def settle_soccer_bets():
 
     prompt = f"""
 Du bist 'JARVIS SOCCER SETTLEMENT AGENT'.
-Nutze Google Search, um die finalen Spielergebnisse, Torschützen und Statistiken für folgende Fussballwetten vom Spieltag zu recherchieren und exakt auszuwerten:
+Nutze Google Search, um die finalen Spielergebnisse, Torschützen und Torstatistiken für folgende Fussballwetten zu recherchieren und exakt auszuwerten:
 
 Offene Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
 1. Suche nach den tatsächlichen Endergebnissen der genannten Partien.
-2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 VOID/POSTPONED.
-3. Berechne den Gewinn bzw. Verlust je Ticket bei fiktiven 1.00 Unit Einsatz pro Schein.
-4. Berechne die gesamte Netto-Bilanz (Profit/Verlust in Units) für diesen Tag.
+2. Prüfe jeden einzelnen Pick innerhalb der Listen (Goals, Multi-League, Banker).
+3. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 VOID/POSTPONED.
+4. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
+5. Berechne den Gewinn bzw. Verlust je Ticket bei fiktiven 1.00 Unit Einsatz pro Schein.
+6. Berechne die gesamte Netto-Bilanz (Profit/Verlust in Units).
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>📊 JARVIS SOCCER SETTLEMENT & RECAP</b>
@@ -78,11 +80,11 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 2. <b>GOALS & BTTS VALUE TICKET:</b> [✅ WON / ❌ LOST]
-[Picks auswerten]
+[Jeden Pick auflisten mit Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 3. <b>MULTI-LEAGUE VALUE TICKET:</b> [✅ WON / ❌ LOST]
-[Picks auswerten]
+[Jeden Pick auflisten mit Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 4. <b>VALUE TORSCHÜTZE / SPECIAL:</b> [✅ WON / ❌ LOST]
