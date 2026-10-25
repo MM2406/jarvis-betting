@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-25",
+  "potd": {
+    "match": "Dallas Stars vs. New York Islanders",
+    "pick": "Under 5.5 Tore",
+    "odds": 1.83
+  },
+  "banker": {
+    "odds": 2.33,
+    "picks": [
+      {
+        "match": "Chicago Blackhawks vs. Florida Panthers",
+        "pick": "Florida Panthers ML",
+        "odds": 1.53
+      },
+      {
+        "match": "Dallas Stars vs. New York Islanders",
+        "pick": "Dallas Stars ML",
+        "odds": 1.52
+      }
+    ]
+  },
+  "totals": {
+    "odds": 3.91,
+    "picks": [
+      {
+        "match": "Winnipeg Jets vs. Montréal Canadiens",
+        "pick": "Under 5.5 Tore",
+        "odds": 2.08
+      },
+      {
+        "match": "Nashville Predators vs. Colorado Avalanche",
+        "pick": "Over 6.5 Tore",
+        "odds": 1.88
+      }
+    ]
+  },
+  "scorer": {
+    "player": "Jason Robertson (Dallas Stars)",
+    "odds": 2.45
+  }
+}
