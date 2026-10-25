@@ -33,43 +33,70 @@ def settle_bets():
             print(f"JSON-Ladefehler: {e}")
             return
 
+    match_date = pending_data.get("date", "gestern")
+
     prompt = f"""
-Du bist der Abrechnungs-Bot fuer NHL-Wetten. Hier sind die Tipps der letzten Nacht:
+Du bist der offizielle Abrechnungs-Bot fuer NHL-Eishockeywetten.
+WICHTIGSTE REGEL: Nutze Google Search, um die ECHTEN Endergebnisse (inkl. Overtime/Shootout) und Boxscores (Tore, Punkte, Torschuesse) der NHL-Spiele vom {match_date} zu pruefen.
+Behandle das Datum {match_date} als Gegenwart/Gestern. Nutze keine veralteten historischen Spielplaene!
+
+Hier sind die offenen Tipps:
 {json.dumps(pending_data, ensure_ascii=False, indent=2)}
 
 AUFGABE:
-1. Pruefe offizielle Endergebnisse (inkl. Overtime/Shootout) und Boxscores (Tore, Punkte, Torschuesse).
-2. Werte alle Scheine aus: 'potd', 'banker', 'puck_totals', 'player_props' -> WON oder LOST.
+1. Suche per Websuche nach den offiziellen NHL-Endergebnissen und Boxscores vom {match_date}.
+2. Werte alle Scheine im Datensatz aus ('potd', 'banker', 'puck_totals', 'player_props') -> WON oder LOST.
    - Ein Kombi-Schein ist nur WON, wenn AUSNAHMSLOS ALLE enthaltenen Picks/Spieler aufgegangen sind.
-3. Begründe bei jedem Skater im Player Props Ticket kurz das Ergebnis.
-4. Berechne den Kassensturz mit 1.0 Unit Einsatz je Schein (Gewinn = Gesamtquote - 1.0; Verlust = -1.0 Unit).
+3. Begründe bei jedem Schein kurz das Ergebnis.
+4. Berechne den Kassensturz mit 1.0 Unit Einsatz je Schein:
+   - Bei WON: Netto-Gewinn = (Gesamtquote - 1.0)
+   - Bei LOST: Verlust = -1.0 Unit
+5. Erstelle die Gesamtabrechnung mit Bilanz (W - L), Netto-Units und ROI.
 
-FORMAT (Telegram-HTML):
+FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
 <b>📊 JARVIS NHL ABRECHNUNG & KASSENSTURZ</b>
-<i>Datum: {pending_data.get('date', 'Gestern')}</i>
+<i>Datum: {match_date}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>Pick of the Day:</b> [WON / LOST] (Quote: X.XX)
+- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
+
 1. <b>Banker Ticket:</b> [WON / LOST] (Quote: X.XX)
+[Fuer jedes Spiel:]
+- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
+
 2. <b>Puck Line & Totals:</b> [WON / LOST] (Quote: X.XX)
-🎯 3. <b>Skater Props Ticket:</b> [WON / LOST] (Quote: X.XX)
-[Führe jeden Skater auf, z.B.:]
-   - [Spieler 1]: [Statistik -> WON/LOST]
+[Fuer jedes Spiel:]
+- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
+
+🎯 3. <b>Skater Props Ticket:</b> [WON / LOST / ENTFÄLLT] (Quote: X.XX)
+[Fuer jeden Skater:]
+- [Spieler]: [Echte Stats vs. Line] -> [WON / LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>Bilanz:</b> [X]W - [Y]L
 <b>Netto-Ergebnis:</b> [+/-X.XX] Units
 <b>ROI:</b> [+/-X.X]%
 """
+
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.1}}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"googleSearch": {}}],
+        "generationConfig": {"temperature": 0.1}
+    }
 
     try:
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
-        send_telegram_message(res.json()["candidates"][0]["content"]["parts"][0]["text"])
-        os.remove(file_path)
-        print("NHL Abrechnung versendet.")
+        candidates = res.json().get("candidates", [])
+        if candidates and "parts" in candidates[0]["content"]:
+            out_text = candidates[0]["content"]["parts"][0]["text"]
+            send_telegram_message(out_text)
+            os.remove(file_path)
+            print("NHL Abrechnung versendet.")
+        else:
+            print("Keine Textantwort von Gemini erhalten.")
     except Exception as e:
         print(f"Abrechnungsfehler: {e}")
         sys.exit(1)
