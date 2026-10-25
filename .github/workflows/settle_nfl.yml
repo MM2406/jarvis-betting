@@ -2,9 +2,9 @@ name: Settle NFL Bets
 
 on:
   schedule:
-    # Freitag, Montag und Dienstag jeweils um 09:30 UTC (= 10:30 MEZ / 11:30 MESZ)
+    # Freitag, Montag und Dienstag jeweils um 09:30 UTC
     - cron: '30 9 * * 1,2,5'
-  workflow_dispatch: # Manueller Start-Button
+  workflow_dispatch:
 
 jobs:
   settle-nfl:
@@ -35,9 +35,9 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull
           if [ ! -f pending_nfl.json ]; then
             git add -A
             git commit -m "Remove settled pending_nfl.json [skip ci]" || echo "No changes to commit"
-            git push
+            git pull --rebase origin main
+            git push origin main
           fi
