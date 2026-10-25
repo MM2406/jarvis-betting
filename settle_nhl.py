@@ -38,9 +38,10 @@ Du bist der Abrechnungs-Bot fuer NHL-Eishockeywetten. Hier sind die Tipps der le
 {json.dumps(pending_data, ensure_ascii=False, indent=2)}
 
 AUFGABE:
-1. Pruefe offizielle Endergebnisse (inklusive Overtime / Shootout).
-2. Werte aus: 'potd', 'banker', 'puck_line', 'totals_ticket' -> WON oder LOST.
-3. Berechne Kassensturz mit 1.0 Unit Einsatz je Schein (Gewinn = Quote - 1.0; Verlust = -1.0 Unit).
+1. Pruefe offizielle Endergebnisse (inkl. Overtime/Shootout) und die Boxscores (Tore, Scorerpunkte, Torschuesse).
+2. Werte alle Scheine aus: 'potd', 'banker', 'puck_totals', 'player_props' -> WON oder LOST.
+3. Begründe bei 'player_props' die Werte kurz (z.B. "McDavid: 4 Torschuesse (Line war Über 3.5) -> WON").
+4. Berechne den Kassensturz mit 1.0 Unit Einsatz je Schein (Gewinn = Quote - 1.0; Verlust = -1.0 Unit).
 
 FORMAT (Telegram-HTML):
 <b>📊 JARVIS NHL ABRECHNUNG & KASSENSTURZ</b>
@@ -49,8 +50,10 @@ FORMAT (Telegram-HTML):
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>Pick of the Day:</b> [WON / LOST] (Quote: X.XX)
 1. <b>NHL Banker Double:</b> [WON / LOST] (Quote: X.XX)
-2. <b>Puck Line Ticket:</b> [WON / LOST] (Quote: X.XX)
-3. <b>Totals Ticket:</b> [WON / LOST] (Quote: X.XX)
+2. <b>Puck Line & Totals:</b> [WON / LOST] (Quote: X.XX)
+🎯 3. <b>Skater Props Double:</b> [WON / LOST] (Quote: X.XX)
+   - [Spieler 1]: [Statistik -> WON/LOST]
+   - [Spieler 2]: [Statistik -> WON/LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>Bilanz:</b> [X]W - [Y]L
