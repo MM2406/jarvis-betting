@@ -42,7 +42,6 @@ def fetch_nba_data():
     now_utc = datetime.now(timezone.utc)
     cutoff = now_utc + timedelta(hours=30)
 
-    # 1. Hauptmärkte aller Partien abrufen (1 Credit)
     url = "https://api.the-odds-api.com/v4/sports/basketball_nba/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
@@ -76,7 +75,6 @@ def fetch_nba_data():
     except Exception as e:
         print(f"Odds API Fehler bei Main Markets: {e}")
 
-    # 2. Gezielt echte Player Props für die ersten 4 Partien abrufen (~12-16 Credits)
     prop_markets = "player_points,player_assists,player_rebounds"
     for match in events_to_fetch_props[:4]:
         event_id = match.get("id")
@@ -97,17 +95,17 @@ def fetch_nba_data():
                         m_name = mk.get("key")
                         for oc in mk.get("outcomes", []):
                             p_name = oc.get("description", oc.get("name", "Unknown"))
-                            p_type = oc.get("name") # Over oder Under
+                            p_type = oc.get("name")
                             point = oc.get("point")
                             price = oc.get("price")
-                            if point and price and 1.70 <= price <= 2.20:
+                            if point and price and 1.65 <= price <= 2.25:
                                 player_props_summary.append(f"{m_title} | {p_name} ({m_name}): {p_type} {point} @ {price}")
-                    break # Nur vom ersten Buchmacher nehmen
+                    break
         except Exception as e:
             print(f"Fehler bei Props für Event {event_id}: {e}")
 
     print(f"NBA-Partien: {len(matches_summary)} | Player Props gesammelt: {len(player_props_summary)}")
-    return "\n".join(matches_summary), "\n".join(player_props_summary[:35])
+    return "\n".join(matches_summary), "\n".join(player_props_summary[:40])
 
 def analyze_nba(matches_text, props_text):
     prompt = f"""
@@ -115,13 +113,16 @@ Du bist 'JARVIS NBA QUANT PRO', spezialisiert auf quantitative NBA-Analysen (+EV
 Hier sind die realen Partien mit Quoten:
 {matches_text}
 
-Hier sind die ECHTEN BUCHMACHER-LINIEN für Spielerwetten (Points, Assists, Rebounds):
+Hier sind ECHTE BUCHMACHER-LINIEN für Spielerwetten (Points, Assists, Rebounds):
 {props_text}
 
-REGELN:
-1. MATHEMATISCHER EDGE (+EV): P(Win) muss > (1 / Quote) sein.
-2. PICK OF THE DAY: Stärkste Einzelwette auf Spielerebene oder Team (1.75 - 2.20).
-3. PLAYER PROPS DOUBLE (🎯): Wähle exakt 2 Auswahlen aus den oben bereitgestellten realen Player Props mit dem größten statistischen Edge (z. B. Matchup-Schwächen des Gegners, Ausfall eines Co-Stars).
+ANALYSE-REGELN & TICKET-STRUKTUR:
+1. MATHEMATISCHER EDGE (+EV): Jedes Bein muss einen plausiblen statistischen Vorteil haben.
+2. DYNAMISCHE KOMBIWETTEN:
+   - ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die absolut stärkste Einzelwette des Tages.
+   - 1. DYNAMIC BANKER TICKET: Wähle autonom 2 bis 3 Spiele mit sehr hoher Eintrittswahrscheinlichkeit (ML oder Spread). Zielquote: 1.85 - 2.60.
+   - 2. DYNAMIC MARKET VALUE TICKET: Wähle autonom 2 bis 3 Kanten aus Spreads/Totals, wo der Markt schief bewertet ist. Zielquote: 2.60 - 4.50.
+   - 🎯 3. AUTONOMES PLAYER PROPS TICKET: Wähle frei zwischen 2 und maximal 4 Spielerwetten aus den realen Buchmacher-Linien. Entscheide selbst anhand der Matchup-Vorteile über die Anzahl der Beine (2er-, 3er- oder 4er-Kombi). Keine erzwungenen Beine!
 
 FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏀 JARVIS NBA INTEL & VALUE REPORT</b>
@@ -134,32 +135,31 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <i>Edge:</i> [Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NBA BANKER DOUBLE (2er-Double)</b>
+1. <b>NBA BANKER TICKET ([Anzahl]-Kombi)</b>
+[Füge hier für jedes gewählte Spiel eine Zeile ein:]
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>SPREAD & TOTALS TICKET (2er-Kombi)</b>
+2. <b>MARKET VALUE TICKET ([Anzahl]-Kombi)</b>
+[Füge hier für jedes gewählte Spiel eine Zeile ein:]
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-🎯 3. <b>NBA PLAYER PROPS DOUBLE (2er-Spielerkombi)</b>
-- <b>[Spieler] ([Team])</b> -> Pick: <b>[Über/Unter X.X Punkte/Assists/Rebounds]</b> (Quote: [Quote])
+🎯 3. <b>AUTONOMOUS PLAYER PROPS TICKET ([Anzahl]-Kombi)</b>
+[Füge hier für jeden ausgewählten Spieler eine Zeile ein:]
+- <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Über 24.5 Punkte]</b> (Quote: [Quote])
   <i>Edge:</i> [Matchup-Metrik / Begründung]
-- <b>[Spieler] ([Team])</b> -> Pick: <b>[Über/Unter X.X Punkte/Assists/Rebounds]</b> (Quote: [Quote])
-  <i>Edge:</i> [Matchup-Metrik / Begründung]
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 ---JSON_DATA---
 {{
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
   "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
-  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}, {{"match": "M2", "pick": "Pick", "odds": 1.49}}]}},
-  "spread_totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.90}}]}},
-  "player_props": {{"odds": 3.40, "picks": [{{"player": "Spieler 1", "pick": "Über/Unter X.X Stat", "odds": 1.85}}, {{"player": "Spieler 2", "pick": "Über/Unter X.X Stat", "odds": 1.85}}]}}
+  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}]}},
+  "market_value": {{"odds": 3.40, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.85}}]}},
+  "player_props": {{"odds": 3.80, "picks": [{{"player": "Spieler 1", "pick": "Über X.X Stat", "odds": 1.85}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
