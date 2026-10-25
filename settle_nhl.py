@@ -53,13 +53,13 @@ def settle_nhl_bets():
 
     prompt = f"""
 Du bist 'JARVIS NHL SETTLEMENT AGENT'.
-Recherchiere über Google Search die finalen Ergebnisse der NHL-Nacht (inkl. OT und Shootout) für folgende Wetten:
+Recherchiere über Google Search die finalen Ergebnisse der NHL-Nacht (inkl. OT und Shootout) sowie die Boxscores (Torschützen, Assists, Shots on Goal) für folgende Wetten:
 
 Offene NHL-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Endergebnisse und Torschützen prüfen.
+1. Endergebnisse und Spieler-Statistiken (Tore, Assists, Shots) prüfen.
 2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH.
 3. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
 
@@ -79,8 +79,8 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>GOALSCORER / SPECIAL:</b> [✅ WON / ❌ LOST]
-[Statistik & Status]
+3. <b>PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
+[Für jeden Spieler: Name, Pick, tatsächliche Stats, Status ✅/❌]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 📈 <b>NHL TAGESBILANZ:</b> [Netto Profit/Loss in Units]
