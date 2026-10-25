@@ -53,13 +53,13 @@ def settle_nfl_bets():
 
     prompt = f"""
 Du bist 'JARVIS NFL SETTLEMENT AGENT'.
-Recherchiere über Google Search die finalen Ergebnisse der NFL-Spiele inklusive Overtime und Touchdown-Scorer für folgende Wetten:
+Recherchiere über Google Search die finalen Ergebnisse der NFL-Spiele inklusive Touchdown-Scorer und Spieler-Yards/Stats für folgende Wetten:
 
 Offene NFL-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Endergebnisse, Spreads und Touchdowns exakt auswerten.
+1. Endergebnisse, Spreads sowie die exakten Spieler-Statistiken (Touchdowns, Rushing/Receiving/Passing Yards) recherchieren.
 2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH.
 3. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
 
@@ -79,8 +79,8 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>TOUCHDOWN / PROP PICK:</b> [✅ WON / ❌ LOST]
-[Touchdowns & Status]
+3. <b>PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
+[Für jeden Spieler: Name, Pick, erzielte Yards/TDs, Status ✅/❌]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 📈 <b>NFL TAGESBILANZ:</b> [Netto Profit/Loss in Units]
