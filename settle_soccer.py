@@ -23,7 +23,6 @@ def send_telegram_message(text):
 def settle_bets():
     file_path = "pending_soccer.json"
     if not os.path.exists(file_path):
-        # Fallback falls die Datei anders benannt wurde
         for alt in ["pending_bets.json", "pending_football.json"]:
             if os.path.exists(alt):
                 file_path = alt
@@ -43,15 +42,15 @@ def settle_bets():
 
     prompt = f"""
 Du bist der offizielle Abrechnungs-Bot fuer Fussballwetten.
-WICHTIGSTE REGEL: Nutze Google Search, um die ECHTEN Endergebnisse der Spiele vom {match_date} zu pruefen.
-Behandle das angegebene Datum {match_date} als Gegenwart/Gestern. Nutze keinesfalls historische Partien aus vergangenen Jahren!
+WICHTIGSTE REGEL: Nutze Google Search, um die ECHTEN Endergebnisse der Fussballspiele vom {match_date} zu pruefen.
+Behandle das Datum {match_date} als Gegenwart/Gestern. Nutze keinesfalls historische Partien aus vergangenen Jahren!
 
 Hier sind die offenen Tipps:
 {json.dumps(pending_data, ensure_ascii=False, indent=2)}
 
 AUFGABE:
 1. Suche per Websuche nach den offiziellen Endergebnissen jedes einzelnen Spiels vom {match_date}.
-2. Werte alle Scheine im Datensatz aus ('potd', 'banker', 'goals', etc.) -> WON oder LOST.
+2. Werte alle Scheine im Datensatz aus ('potd', 'banker', 'goals', 'multi_league', 'scorer', etc.) -> WON oder LOST.
    - Kombiwetten sind nur WON, wenn ALLE enthaltenen Tipps korrekt sind.
 3. Berechne den Kassensturz mit 1.0 Unit Einsatz je Schein:
    - Bei WON: Netto-Gewinn = (Quote - 1.0)
@@ -64,8 +63,10 @@ FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>Pick of the Day:</b> [WON / LOST] (Quote: X.XX)
-[Werte hier alle weiteren im JSON vorhandenen Scheine auf:]
+- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
+
 1. <b>[Scheinname]:</b> [WON / LOST] (Quote: X.XX)
+- [Match/Tipp]: [Endergebnis] -> [WON / LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>Bilanz:</b> [X]W - [Y]L
@@ -73,7 +74,7 @@ FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
 <b>ROI:</b> [+/-X.X]%
 """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
