@@ -9,6 +9,7 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
@@ -29,6 +30,12 @@ def send_telegram_message(text):
 
     for chunk in chunks:
         payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
+        if TELEGRAM_THREAD_ID:
+            try:
+                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+            except ValueError:
+                pass
+
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
