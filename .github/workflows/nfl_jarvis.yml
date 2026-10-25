@@ -2,23 +2,15 @@ name: NFL Betting Jarvis
 
 on:
   schedule:
-    # --- DONNERSTAG (Thursday Night Football) ---
-    # 17:00 UTC (= 19:00 Uhr MESZ / 18:00 Uhr MEZ - vor TNF)
+    # Donnerstag (TNF): 17:00 UTC
     - cron: '0 17 * * 4'
-
-    # --- SONNTAG 1: EARLY SLATE (19:00 Uhr Kickoffs) ---
-    # 15:30 UTC (= 17:30 Uhr MESZ / 16:30 Uhr MEZ - Inactives der frühen Spiele liegen vor)
+    # Sonntag Early Slate (19:00 Uhr Kickoffs): 15:30 UTC
     - cron: '30 15 * * 0'
-
-    # --- SONNTAG 2: LATE SLATE (22:05/22:25 Uhr & Sunday Night) ---
-    # 18:45 UTC (= 20:45 Uhr MESZ / 19:45 Uhr MEZ - Inactives der späten Spiele liegen vor)
+    # Sonntag Late Slate (22:05/22:25 Uhr & Sunday Night): 18:45 UTC
     - cron: '45 18 * * 0'
-
-    # --- MONTAG (Monday Night Football) ---
-    # 17:00 UTC (= 19:00 Uhr MESZ / 18:00 Uhr MEZ - vor MNF)
+    # Montag (MNF): 17:00 UTC
     - cron: '0 17 * * 1'
-
-  workflow_dispatch: # Ermoeglicht manuellen Sofort-Start per Klick
+  workflow_dispatch:
 
 jobs:
   run-nfl-jarvis:
@@ -52,4 +44,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nfl.json || true
           git commit -m "Save pending NFL bets [skip ci]" || exit 0
-          git push
+          git pull --rebase origin main
+          git push origin main
