@@ -2,9 +2,9 @@ name: Settle NHL Bets
 
 on:
   schedule:
-    # Täglich um 09:30 UTC (= 11:30 Uhr MESZ / 10:30 Uhr MEZ) nach Ende aller Westküsten-Spiele
+    # Täglich um 09:30 UTC nach Ende aller Spiele
     - cron: '30 9 * * *'
-  workflow_dispatch: # Manueller Start-Button
+  workflow_dispatch:
 
 jobs:
   settle-nhl:
@@ -35,9 +35,9 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull
           if [ ! -f pending_nhl.json ]; then
             git add -A
             git commit -m "Remove settled pending_nhl.json [skip ci]" || echo "No changes to commit"
-            git push
+            git pull --rebase origin main
+            git push origin main
           fi
