@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-25",
+  "potd": {
+    "match": "New York Knicks vs. Orlando Magic",
+    "pick": "New York Knicks -7.5",
+    "odds": 1.92
+  },
+  "banker": {
+    "odds": 2.3,
+    "picks": [
+      {
+        "match": "Utah Jazz vs. Los Angeles Lakers",
+        "pick": "Los Angeles Lakers ML",
+        "odds": 1.41
+      },
+      {
+        "match": "Sacramento Kings vs. Memphis Grizzlies",
+        "pick": "Memphis Grizzlies ML",
+        "odds": 1.63
+      }
+    ]
+  },
+  "totals": {
+    "odds": 3.57,
+    "picks": [
+      {
+        "match": "Brooklyn Nets vs. Indiana Pacers",
+        "pick": "Over 231.5",
+        "odds": 1.89
+      },
+      {
+        "match": "Oklahoma City Thunder vs. Los Angeles Clippers",
+        "pick": "Under 224.5",
+        "odds": 1.89
+      }
+    ]
+  },
+  "prop": {
+    "player_or_match": "Cameron Boozer Over 8.5 Rebounds",
+    "odds": 1.82
+  }
+}
