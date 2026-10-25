@@ -1,68 +1,73 @@
 {
   "date": "2026-10-25",
   "potd": {
-    "match": "Atalanta BC vs. Frosinone",
-    "pick": "Atalanta BC",
-    "odds": 1.91
+    "match": "TSG Hoffenheim vs. Bayer Leverkusen",
+    "pick": "Bayer Leverkusen",
+    "odds": 2.1
   },
   "banker": {
-    "odds": 2.28,
+    "odds": 2.34,
     "picks": [
       {
         "match": "Athletic Bilbao vs. Getafe",
         "pick": "Athletic Bilbao",
-        "odds": 1.52
+        "odds": 1.54
       },
       {
         "match": "SC Freiburg vs. Bayern Munich",
         "pick": "Bayern Munich",
-        "odds": 1.5
+        "odds": 1.52
       }
     ]
   },
-  "goals_ticket": {
-    "odds": 5.03,
+  "goals": {
+    "odds": 5.33,
     "picks": [
       {
         "match": "Manchester United vs. Bournemouth",
-        "pick": "Over 2.5 Tore",
-        "odds": 1.71
+        "pick": "Over 2.5",
+        "odds": 1.78
       },
       {
-        "match": "Crystal Palace vs. Newcastle United",
-        "pick": "Under 3.5 Tore",
-        "odds": 1.6
+        "match": "Celta Vigo vs. Real Betis",
+        "pick": "Over 2.5",
+        "odds": 1.76
       },
       {
-        "match": "TSG Hoffenheim vs. Bayer Leverkusen",
-        "pick": "Over 3.5 Tore",
-        "odds": 1.84
+        "match": "Real Sociedad vs. Levante",
+        "pick": "Under 3.5",
+        "odds": 1.7
       }
     ]
   },
-  "multi_ticket": {
-    "odds": 5.06,
+  "multi_league": {
+    "odds": 5.73,
     "picks": [
       {
-        "match": "Sturm Graz vs. Ried",
-        "pick": "Sturm Graz",
-        "odds": 1.6
+        "match": "Hull City vs. Brentford",
+        "pick": "Brentford",
+        "odds": 1.64
       },
       {
-        "match": "Rennes vs. Strasbourg",
-        "pick": "Rennes",
-        "odds": 1.72
+        "match": "AS Monaco vs. Lille",
+        "pick": "AS Monaco",
+        "odds": 1.88
       },
       {
         "match": "Udinese vs. AC Milan",
         "pick": "AC Milan",
-        "odds": 1.84
+        "odds": 1.86
       }
     ]
   },
   "scorer": {
-    "player": "Harry Kane",
-    "match": "SC Freiburg vs. Bayern Munich",
-    "odds": 1.85
+    "odds": 1.9,
+    "picks": [
+      {
+        "player": "El Clásico Special",
+        "pick": "Over 4.0 Tore",
+        "odds": 1.9
+      }
+    ]
   }
 }
