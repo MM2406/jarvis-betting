@@ -37,19 +37,19 @@ def settle_bets():
 
     prompt = f"""
 Du bist der offizielle Abrechnungs-Bot fuer NBA-Wetten.
-WICHTIGSTE REGEL: Nutze Google Search, um die ECHTEN Endergebnisse und Boxscores (Spielerstatistiken) der NBA-Spiele der letzten Nacht ({match_date}) zu pruefen.
+WICHTIGSTE REGEL: Nutze Google Search, um die ECHTEN Endergebnisse und Boxscores (Spielerstatistiken: Punkte, Rebounds, Assists) der NBA-Spiele vom {match_date} zu pruefen.
 Behandle das Datum {match_date} als Gegenwart/Gestern. Nutze keine veralteten historischen Spielplaene!
 
 Hier sind die offenen Tipps:
 {json.dumps(pending_data, ensure_ascii=False, indent=2)}
 
 AUFGABE:
-1. Suche per Websuche nach den offiziellen NBA-Endergebnissen und Boxscores der Partien.
-2. Werte alle Scheine im Datensatz aus ('potd', 'banker', 'market_value', 'player_props', 'spread_totals', etc.) -> WON oder LOST.
-   - Kombiwetten sind nur WON, wenn AUSNAHMSLOS ALLE enthaltenen Tipps/Spieler-Picks korrekt sind.
+1. Suche per Websuche nach den offiziellen NBA-Endergebnissen und Boxscores der Partien vom {match_date}.
+2. Werte alle Scheine im Datensatz aus ('potd', 'banker', 'market_value', 'spread_totals', 'player_props') -> WON oder LOST.
+   - Ein Kombi-Schein ist nur WON, wenn AUSNAHMSLOS ALLE enthaltenen Picks/Spieler aufgegangen sind.
 3. Begründe bei jedem Schein kurz das Ergebnis anhand der realen Punkte/Stats.
 4. Berechne den Kassensturz mit 1.0 Unit Einsatz je Schein:
-   - Bei WON: Netto-Gewinn = (Quote - 1.0)
+   - Bei WON: Netto-Gewinn = (Gesamtquote - 1.0)
    - Bei LOST: Verlust = -1.0 Unit
 5. Erstelle die Gesamtabrechnung mit Bilanz (W - L), Netto-Units und ROI.
 
@@ -62,16 +62,16 @@ FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
 - [Match/Tipp]: [Endergebnis] -> [WON / LOST]
 
 1. <b>Banker Ticket:</b> [WON / LOST] (Quote: X.XX)
-[Für jedes Spiel:]
+[Fuer jedes Spiel:]
 - [Match/Tipp]: [Endergebnis] -> [WON / LOST]
 
-2. <b>Market Value / Spread & Totals Ticket:</b> [WON / LOST] (Quote: X.XX)
-[Für jedes Spiel:]
+2. <b>Market Value / Spread & Totals:</b> [WON / LOST] (Quote: X.XX)
+[Fuer jedes Spiel:]
 - [Match/Tipp]: [Endergebnis] -> [WON / LOST]
 
 🎯 3. <b>Player Props Ticket:</b> [WON / LOST / ENTFÄLLT] (Quote: X.XX)
-[Für jeden Spieler die realen Stats aufführen:]
-- [Spieler]: [Punkte/Assists/Rebounds] -> [WON / LOST]
+[Fuer jeden Spieler:]
+- [Spieler]: [Echte Stats vs. Line] -> [WON / LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>Bilanz:</b> [X]W - [Y]L
@@ -79,7 +79,7 @@ FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
 <b>ROI:</b> [+/-X.X]%
 """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
