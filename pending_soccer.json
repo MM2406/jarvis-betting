@@ -1,5 +1,5 @@
 {
-  "date": "2024-10-25",
+  "date": "2026-10-25",
   "potd": {
     "match": "TSG Hoffenheim vs. Bayer Leverkusen",
     "pick": "Bayer Leverkusen",
@@ -21,37 +21,37 @@
     ]
   },
   "goals": {
-    "odds": 5.96,
+    "odds": 5.42,
     "picks": [
       {
-        "match": "TSG Hoffenheim vs. Bayer Leverkusen",
-        "pick": "Over 3.5 Tore",
-        "odds": 1.79
-      },
-      {
         "match": "Manchester United vs. Bournemouth",
-        "pick": "Over 2.5 Tore",
+        "pick": "Over 2.5",
         "odds": 1.78
       },
       {
-        "match": "Genoa vs. Venezia",
-        "pick": "Under 2.5 Tore",
-        "odds": 1.87
+        "match": "TSG Hoffenheim vs. Bayer Leverkusen",
+        "pick": "Over 3.5",
+        "odds": 1.79
+      },
+      {
+        "match": "Real Sociedad vs. Levante",
+        "pick": "Under 3.5",
+        "odds": 1.7
       }
     ]
   },
   "multi_league": {
-    "odds": 5.67,
+    "odds": 5.73,
     "picks": [
-      {
-        "match": "AS Monaco vs. Lille",
-        "pick": "AS Monaco",
-        "odds": 1.86
-      },
       {
         "match": "Hull City vs. Brentford",
         "pick": "Brentford",
         "odds": 1.64
+      },
+      {
+        "match": "AS Monaco vs. Lille",
+        "pick": "AS Monaco",
+        "odds": 1.88
       },
       {
         "match": "Udinese vs. AC Milan",
@@ -65,7 +65,7 @@
     "picks": [
       {
         "player": "Robert Lewandowski",
-        "pick": "Anytime Goalscorer",
+        "pick": "Torschütze zu beliebigem Zeitpunkt",
         "odds": 1.95
       }
     ]
