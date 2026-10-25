@@ -41,9 +41,10 @@ def settle_bets():
     match_date = pending_data.get("date", "gestern")
 
     prompt = f"""
-Du bist der offizielle Abrechnungs-Bot fuer Fussballwetten.
+Du bist der offizielle Abrechnungs-Bot fuer Fussballwetten (Soccer).
 WICHTIGSTE REGEL: Nutze Google Search, um die ECHTEN Endergebnisse der Fussballspiele vom {match_date} zu pruefen.
 Behandle das Datum {match_date} als Gegenwart/Gestern. Nutze keinesfalls historische Partien aus vergangenen Jahren!
+Verwende in der Nachricht die Bezeichnung 'SOCCER' oder 'FUSSBALL', niemals 'Football' (Verwechslungsgefahr mit NFL).
 
 Hier sind die offenen Tipps:
 {json.dumps(pending_data, ensure_ascii=False, indent=2)}
@@ -58,13 +59,14 @@ AUFGABE:
 4. Erstelle die Gesamtabrechnung mit Bilanz (W - L), Netto-Units und ROI.
 
 FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
-<b>📊 JARVIS FOOTBALL ABRECHNUNG & KASSENSTURZ</b>
+<b>📊 JARVIS SOCCER ABRECHNUNG & KASSENSTURZ</b>
 <i>Spieltag: {match_date}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>Pick of the Day:</b> [WON / LOST] (Quote: X.XX)
 - [Match/Tipp]: [Endergebnis] -> [WON / LOST]
 
+[Werte hier alle weiteren im JSON vorhandenen Scheine auf:]
 1. <b>[Scheinname]:</b> [WON / LOST] (Quote: X.XX)
 - [Match/Tipp]: [Endergebnis] -> [WON / LOST]
 
@@ -89,7 +91,7 @@ FORMAT-VORGABE (Telegram-HTML, keine Markdown-Sternderl im Text):
             out_text = candidates[0]["content"]["parts"][0]["text"]
             send_telegram_message(out_text)
             os.remove(file_path)
-            print("Fussball Abrechnung erfolgreich abgeschlossen.")
+            print("Soccer Abrechnung erfolgreich abgeschlossen.")
         else:
             print("Keine Textantwort von Gemini erhalten.")
     except Exception as e:
