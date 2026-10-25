@@ -42,7 +42,6 @@ def fetch_nfl_data():
     now_utc = datetime.now(timezone.utc)
     cutoff = now_utc + timedelta(hours=48)
 
-    # 1. Hauptmärkte aller anstehenden Partien
     url = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
@@ -76,7 +75,6 @@ def fetch_nfl_data():
     except Exception as e:
         print(f"Odds API Fehler bei Main Markets: {e}")
 
-    # 2. Gezielte Player Props für Top-Events (Passing TDs, Rushing Yards, Anytime TD)
     prop_markets = "player_pass_tds,player_rush_yds,player_anytime_td"
     for match in events_to_fetch_props[:4]:
         event_id = match.get("id")
@@ -107,26 +105,25 @@ def fetch_nfl_data():
         except Exception as e:
             print(f"Fehler bei NFL Props für {event_id}: {e}")
 
-    print(f"NFL-Partien: {len(matches_summary)} | Player Props: {len(player_props_summary)}")
-    return "\n".join(matches_summary), "\n".join(player_props_summary[:35])
+    print(f"NFL-Partien: {len(matches_summary)} | Player Props gesammelt: {len(player_props_summary)}")
+    return "\n".join(matches_summary), "\n".join(player_props_summary[:40])
 
 def analyze_nfl(matches_text, props_text):
     prompt = f"""
-Du bist 'JARVIS NFL QUANT PRO', spezialisiert auf quantitative NFL-Analysen (+EV, EPA/Play, Key Numbers [3, 7] und Player Props).
+Du bist 'JARVIS NFL QUANT PRO', spezialisiert auf quantitative NFL-Analysen (+EV, Key Numbers [3, 7] und Player Props).
 Hier sind die Spiele mit Quoten, Spreads und Totals:
 {matches_text}
 
 Hier sind ECHTE BUCHMACHER-LINIEN für Spielerwetten (Pass TDs, Rush Yards, Anytime TD):
 {props_text}
 
-REGELN:
-1. MATHEMATISCHER EDGE (+EV): P(Win) muss > (1 / Quote) sein.
-2. PICK OF THE DAY: Stärkste Einzelwette (1.75 - 2.20).
-3. TICKETS:
-   - POTD (Single Bet)
-   - Gridiron Banker (2er-Double, Quote 2.00 - 2.45)
-   - Spread & Totals Ticket (2er-Kombi)
-   - 🎯 NFL PLAYER PROPS DOUBLE: Wähle exakt 2 Auswahlen aus den oben bereitgestellten realen Player Props mit klarem statistischem Edge (z. B. Red-Zone-Usage, schwache Rushing Defense).
+ANALYSE-REGELN & TICKET-STRUKTUR:
+1. MATHEMATISCHER EDGE (+EV): Berücksichtige EPA/Play und Key Numbers.
+2. DYNAMISCHE KOMBIWETTEN:
+   - ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die stärkste Kante der Spielwoche.
+   - 1. DYNAMIC GRIDIRON BANKER: Wähle autonom 2 bis 3 Spiele mit sehr hoher Eintrittswahrscheinlichkeit (ML oder Spread um Key Numbers). Zielquote: 1.85 - 2.60.
+   - 2. DYNAMIC SPREAD & TOTALS: Wähle autonom 2 bis 3 Kanten aus alternativen Spreads oder Game Totals. Zielquote: 2.60 - 4.50.
+   - 🎯 3. AUTONOMES NFL PLAYER PROPS TICKET: Wähle frei zwischen 2 und maximal 4 Player Props aus den realen Buchmacher-Linien (Anytime TD, Rush Yds, Pass TDs). Entscheide die Beine autonom nach Red-Zone-Target-Shares und Matchups.
 
 FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏈 JARVIS NFL INTEL & VALUE REPORT</b>
@@ -139,32 +136,31 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <i>Edge:</i> [Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NFL BANKER DOUBLE (2er-Double)</b>
+1. <b>NFL BANKER TICKET ([Anzahl]-Kombi)</b>
+[Für jedes Spiel:]
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>SPREAD & TOTALS TICKET (2er-Kombi)</b>
+2. <b>SPREAD & TOTALS TICKET ([Anzahl]-Kombi)</b>
+[Für jedes Spiel:]
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-🎯 3. <b>NFL PLAYER PROPS DOUBLE (2er-Spielerkombi)</b>
+🎯 3. <b>AUTONOMOUS PLAYER PROPS TICKET ([Anzahl]-Kombi)</b>
+[Für jeden Spieler:]
 - <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Anytime Touchdown / Über X.X Rush Yds]</b> (Quote: [Quote])
   <i>Edge:</i> [Red-Zone Target Share, Defensiv-Schwäche]
-- <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Über X.X Pass TDs / Rush Yds]</b> (Quote: [Quote])
-  <i>Edge:</i> [Matchup-Metrik]
-<b>Gesamtquote: [Quote]</b>
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 ---JSON_DATA---
 {{
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
   "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
-  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}, {{"match": "M2", "pick": "Pick", "odds": 1.49}}]}},
-  "spread_totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.90}}]}},
-  "player_props": {{"odds": 3.50, "picks": [{{"player": "Spieler 1", "pick": "Line/Pick", "odds": 1.85}}, {{"player": "Spieler 2", "pick": "Line/Pick", "odds": 1.90}}]}}
+  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}]}},
+  "spread_totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}]}},
+  "player_props": {{"odds": 3.50, "picks": [{{"player": "Spieler 1", "pick": "Line/Pick", "odds": 1.85}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
