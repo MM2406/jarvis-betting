@@ -38,9 +38,10 @@ Du bist der Abrechnungs-Bot fuer NBA-Wetten. Hier sind die Tipps der letzten Nac
 {json.dumps(pending_data, ensure_ascii=False, indent=2)}
 
 AUFGABE:
-1. Pruefe die offiziellen Endergebnisse (inkl. Overtime/OT).
-2. Werte aus: 'potd', 'banker', 'spread_ticket', 'totals_ticket' -> WON oder LOST.
-3. Berechne Kassensturz mit 1.0 Unit Einsatz je Schein (Gewinn = Quote - 1.0; Verlust = -1.0 Unit).
+1. Pruefe die offiziellen Endergebnisse der Spiele und die BOXSCORES (Spieler-Statistiken für Punkte, Rebounds, Assists).
+2. Werte alle Scheine aus: 'potd', 'banker', 'spread_totals', 'player_props' -> WON oder LOST.
+3. Begründe bei 'player_props' die Spielerwerte kurz (z. B. "Doncic: 32 Punkte erzielt (Line war Über 29.5) -> Treffer").
+4. Berechne den Kassensturz mit 1.0 Unit Einsatz je Schein (Gewinn = Quote - 1.0; Verlust = -1.0 Unit).
 
 FORMAT (Telegram-HTML):
 <b>📊 JARVIS NBA ABRECHNUNG & KASSENSTURZ</b>
@@ -48,9 +49,11 @@ FORMAT (Telegram-HTML):
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>Pick of the Day:</b> [WON / LOST] (Quote: X.XX)
-1. <b>NBA Banker Double:</b> [WON / LOST] (Quote: X.XX)
-2. <b>Spread Ticket:</b> [WON / LOST] (Quote: X.XX)
-3. <b>Totals Ticket:</b> [WON / LOST] (Quote: X.XX)
+1. <b>Banker Double:</b> [WON / LOST] (Quote: X.XX)
+2. <b>Spread & Totals:</b> [WON / LOST] (Quote: X.XX)
+🎯 3. <b>Player Props Double:</b> [WON / LOST] (Quote: X.XX)
+   - [Spieler 1]: [Ergebnis, z.B. 28 Punkte -> WON]
+   - [Spieler 2]: [Ergebnis, z.B. 6 Assists -> LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 <b>Bilanz:</b> [X]W - [Y]L
