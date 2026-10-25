@@ -36,18 +36,21 @@ def send_telegram_message(text):
             if res2.status_code != 200:
                 print(f"Telegram Fehler: {res2.text}")
 
-def fetch_nfl_matches():
+def fetch_nfl_data():
     matches_summary = []
+    player_props_summary = []
     now_utc = datetime.now(timezone.utc)
     cutoff = now_utc + timedelta(hours=48)
 
+    # 1. Hauptmärkte aller anstehenden Partien
     url = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
-        "regions": "us,eu",
+        "regions": "us",
         "markets": "h2h,spreads,totals",
         "oddsFormat": "decimal"
     }
+    events_to_fetch_props = []
     try:
         res = requests.get(url, params=params, timeout=15)
         if res.status_code == 200:
@@ -55,6 +58,7 @@ def fetch_nfl_matches():
             for match in data:
                 commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                 if now_utc <= commence_utc <= cutoff:
+                    events_to_fetch_props.append(match)
                     bookies = match.get("bookmakers", [])
                     if not bookies:
                         continue
@@ -68,38 +72,71 @@ def fetch_nfl_matches():
                             details.append("Spread: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                         elif m_key == "totals":
                             details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-                    line = f"[NFL] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}"
-                    matches_summary.append(line)
+                    matches_summary.append(f"[NFL] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}")
     except Exception as e:
-        print(f"Odds API Fehler: {e}")
+        print(f"Odds API Fehler bei Main Markets: {e}")
 
-    print(f"NFL-Partien gefunden: {len(matches_summary)}")
-    return "\n".join(matches_summary)
+    # 2. Gezielte Player Props für Top-Events (Passing TDs, Rushing Yards, Anytime TD)
+    prop_markets = "player_pass_tds,player_rush_yds,player_anytime_td"
+    for match in events_to_fetch_props[:4]:
+        event_id = match.get("id")
+        m_title = f"{match.get('home_team')} vs. {match.get('away_team')}"
+        p_url = f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/events/{event_id}/odds"
+        p_params = {
+            "apiKey": ODDS_API_KEY,
+            "regions": "us",
+            "markets": prop_markets,
+            "oddsFormat": "decimal"
+        }
+        try:
+            p_res = requests.get(p_url, params=p_params, timeout=15)
+            if p_res.status_code == 200:
+                p_data = p_res.json()
+                for bk in p_data.get("bookmakers", []):
+                    for mk in bk.get("markets", []):
+                        m_name = mk.get("key")
+                        for oc in mk.get("outcomes", []):
+                            p_name = oc.get("description", oc.get("name", "Unknown"))
+                            p_type = oc.get("name")
+                            point = oc.get("point")
+                            price = oc.get("price")
+                            if price and 1.65 <= price <= 2.30:
+                                line_label = f"{p_type} {point}" if point is not None else p_type
+                                player_props_summary.append(f"{m_title} | {p_name} ({m_name}): {line_label} @ {price}")
+                    break
+        except Exception as e:
+            print(f"Fehler bei NFL Props für {event_id}: {e}")
 
-def analyze_nfl(matches_text):
+    print(f"NFL-Partien: {len(matches_summary)} | Player Props: {len(player_props_summary)}")
+    return "\n".join(matches_summary), "\n".join(player_props_summary[:35])
+
+def analyze_nfl(matches_text, props_text):
     prompt = f"""
-Du bist 'JARVIS NFL QUANT PRO', spezialisiert auf quantitative NFL-Analysen (+EV, Key Numbers bei Spreads [3, 7], EPA/Play, QB/Offensive Line Injuries).
+Du bist 'JARVIS NFL QUANT PRO', spezialisiert auf quantitative NFL-Analysen (+EV, EPA/Play, Key Numbers [3, 7] und Player Props).
 Hier sind die Spiele mit Quoten, Spreads und Totals:
 {matches_text}
+
+Hier sind ECHTE BUCHMACHER-LINIEN für Spielerwetten (Pass TDs, Rush Yards, Anytime TD):
+{props_text}
 
 REGELN:
 1. MATHEMATISCHER EDGE (+EV): P(Win) muss > (1 / Quote) sein.
 2. PICK OF THE DAY: Stärkste Einzelwette (1.75 - 2.20).
 3. TICKETS:
    - POTD (Single Bet)
-   - Gridiron Banker (2er-Double, Quote ca. 2.00 - 2.50)
-   - Key Number Spread Ticket (2er-Kombi)
-   - Over/Under Totals Ticket (2er-Kombi)
+   - Gridiron Banker (2er-Double, Quote 2.00 - 2.45)
+   - Spread & Totals Ticket (2er-Kombi)
+   - 🎯 NFL PLAYER PROPS DOUBLE: Wähle exakt 2 Auswahlen aus den oben bereitgestellten realen Player Props mit klarem statistischem Edge (z. B. Red-Zone-Usage, schwache Rushing Defense).
 
 FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏈 JARVIS NFL INTEL & VALUE REPORT</b>
-<i>Quantitatives Dossier • Key Numbers • EPA & Matchup-Edges</i>
+<i>Quantitatives Dossier • Key Numbers • Real Player Props</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
 <i>Fair Odds:</i> ~[Faire Quote] | <i>Chance:</i> [X]%
-<i>Edge:</i> [Matchup-Diskrepanz, EPA/Play, QB-Status]
+<i>Edge:</i> [Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 1. <b>NFL BANKER DOUBLE (2er-Double)</b>
@@ -108,24 +145,26 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>Gesamtquote: [Quote]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>KEY NUMBER SPREAD TICKET (2er-Kombi)</b>
+2. <b>SPREAD & TOTALS TICKET (2er-Kombi)</b>
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Quote]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>GAME TOTALS (OVER/UNDER) TICKET</b>
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+🎯 3. <b>NFL PLAYER PROPS DOUBLE (2er-Spielerkombi)</b>
+- <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Anytime Touchdown / Über X.X Rush Yds]</b> (Quote: [Quote])
+  <i>Edge:</i> [Red-Zone Target Share, Defensiv-Schwäche]
+- <b>[Spieler] ([Team])</b> -> Pick: <b>[z.B. Über X.X Pass TDs / Rush Yds]</b> (Quote: [Quote])
+  <i>Edge:</i> [Matchup-Metrik]
 <b>Gesamtquote: [Quote]</b>
 
 ---JSON_DATA---
 {{
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
   "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
-  "banker": {{"odds": 2.25, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.50}}, {{"match": "M2", "pick": "Pick", "odds": 1.50}}]}},
-  "spread_ticket": {{"odds": 3.65, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.92}}]}},
-  "totals_ticket": {{"odds": 3.65, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.91}}, {{"match": "M2", "pick": "Pick", "odds": 1.91}}]}}
+  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}, {{"match": "M2", "pick": "Pick", "odds": 1.49}}]}},
+  "spread_totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.90}}]}},
+  "player_props": {{"odds": 3.50, "picks": [{{"player": "Spieler 1", "pick": "Line/Pick", "odds": 1.85}}, {{"player": "Spieler 2", "pick": "Line/Pick", "odds": 1.90}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
@@ -153,13 +192,11 @@ def parse_and_save_bets(full_text):
     return full_text
 
 if __name__ == "__main__":
-    matches = fetch_nfl_matches()
+    matches, props = fetch_nfl_data()
     if not matches:
-        msg = "🏈 <b>Jarvis NFL Status:</b> Keine Spiele im aktuellen Zeitfenster."
-        print(msg)
-        send_telegram_message(msg)
+        send_telegram_message("🏈 <b>Jarvis NFL Status:</b> Keine Spiele im aktuellen Zeitfenster.")
     else:
-        raw_output = analyze_nfl(matches)
+        raw_output = analyze_nfl(matches, props)
         if raw_output != "ERROR":
             send_telegram_message(parse_and_save_bets(raw_output))
             print("✅ NFL Report erfolgreich gesendet.")
