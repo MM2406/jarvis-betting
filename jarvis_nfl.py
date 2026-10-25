@@ -92,16 +92,16 @@ Spiele & Quoten:
 
 TICKET-STRUKTUR:
 1. ⭐ NFL PICK OF THE DAY (Single Bet, Quote 1.80 - 2.15): Die stärkste Kante über Key Numbers oder EPA-Differenzen.
-2. 1. NFL SPREAD / MONEYLINE VALUE TICKET (2er-Double): Quote 2.40 - 3.40.
-3. 2. TOTALS VALUE COMBO (2er-Kombi): Ineffiziente Totals. Quote 3.20 - 4.20.
-4. 3. DYNAMIC NFL PLAYER PROPS MULTI-TICKET:
+2. 1. NFL BANKER TICKET (Strikt 2er-Double): Höchste Zuverlässigkeit aus Moneyline / Short Spreads. Quote 2.10 - 2.80.
+3. 2. DYNAMIC TOTALS VALUE COMBO (Freie Größe: 2 bis 5 Picks): Ineffiziente Over/Under Totals nach Key Numbers (41, 44, 47, 51) und Wetter. Dynamisch gewählt.
+4. 3. DYNAMIC NFL PLAYER PROPS MULTI-TICKET (Freie Größe: 2 bis 5 Picks):
    - Baue eine reine NFL-Spieler-Kombi (Anytime Touchdowns, Passing Yards, Rushing Yards, Receiving Yards, Receptions).
-   - KEINE BESCHRÄNKUNG DER SCHEIN-GRÖSSE! Wähle frei und dynamisch zwischen 2er-, 3er-, 4er- oder sogar 5er-Kombi, abhängig davon, wie viele herausragende Matchup-Vorteile (z. B. CB vs. WR Mismatches, verletzter RB1) vorliegen!
-   - Nenne für jeden Pick: Spieler, Team, Line, Quote und taktische Begründung.
+   - Wähle frei und dynamisch zwischen 2er-, 3er-, 4er- oder 5er-Kombi, je nachdem wie viele echte Kanten (CB vs WR Mismatches, verletzter RB1) vorliegen.
+   - Nenne für jeden Pick: Spieler, Team, Line, Quote und Begründung.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏈 JARVIS NFL INTEL & VALUE REPORT</b>
-<i>Quantitatives NFL-Modell • EPA/Play & Inactives • Dynamic Player Props</i>
+<i>Quantitatives NFL-Modell • EPA/Play & Inactives • Dynamische Kombis</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
@@ -110,13 +110,13 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <i>Trench / Matchup Edge:</i> [Begründung mit EPA/Inactives]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NFL SPREAD / ML VALUE TICKET (2er-Double)</b>
+1. <b>NFL BANKER TICKET (2er-Double)</b>
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Produkt]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>TOTALS VALUE COMBO (2er-Kombi)</b>
+2. <b>DYNAMIC TOTALS VALUE COMBO ([Anzahl]-Kombi)</b>
 [Picks einfügen]
 <b>Gesamtquote: [Produkt]</b>
 
