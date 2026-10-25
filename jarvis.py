@@ -101,9 +101,9 @@ ANALYSE-REGELN & TICKET-STRUKTUR:
 1. MATHEMATISCHER EDGE (+EV): P(Win) > (1 / Quote).
 2. TICKET-AUFBAU:
    - ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die absolut stärkste Einzelwette des Spieltags.
-   - 1. SOCCER BANKER TICKET (2er-Double): Hohe Trefferwahrscheinlichkeit (1X2, Over 1.5, Doppelchance). Quote 2.10 - 2.60.
-   - 2. GOALS & BTTS VALUE TICKET (2er- oder 3er-Kombi): Ineffiziente Tor-Märkte (Over/Under, BTTS). Quote 3.50 - 6.50.
-   - 3. MULTI-LEAGUE VALUE TICKET (2er- oder 3er-Kombi): Ligenübergreifende Kanten. Quote 4.00 - 7.50.
+   - 1. SOCCER BANKER TICKET (Strikt 2er-Double): Höchste Trefferwahrscheinlichkeit (1X2, Over 1.5, Doppelchance). Quote 2.00 - 2.70.
+   - 2. DYNAMIC GOALS & BTTS VALUE TICKET (Freie Größe: 2 bis 5 Picks): Ineffiziente Tor-Märkte (Over/Under, BTTS). Wähle dynamisch die Anzahl basierend auf echten Kanten.
+   - 3. DYNAMIC MULTI-LEAGUE VALUE TICKET (Freie Größe: 2 bis 5 Picks): Ligenübergreifende Kanten. Wähle dynamisch die Anzahl basierend auf echten Kanten.
    - 4. VALUE TORSCHÜTZE / SPECIAL PICK: Optional ein starker Torschützen-Pick oder Match-Special.
 
 FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
@@ -123,13 +123,13 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>GOALS & BTTS VALUE TICKET ([Anzahl]-Kombi)</b>
+2. <b>DYNAMIC GOALS & BTTS VALUE TICKET ([Anzahl]-Kombi)</b>
 [Für jedes Spiel:]
 - <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>MULTI-LEAGUE VALUE TICKET ([Anzahl]-Kombi)</b>
+3. <b>DYNAMIC MULTI-LEAGUE VALUE TICKET ([Anzahl]-Kombi)</b>
 [Für jedes Spiel:]
 - <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
 <b>Gesamtquote: [Produkt aller Quoten]</b>
@@ -144,8 +144,8 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
   "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
   "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}, {{"match": "M2", "pick": "Pick", "odds": 1.49}}]}},
-  "goals": {{"odds": 5.00, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.70}}]}},
-  "multi_league": {{"odds": 5.00, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.70}}]}},
+  "goals": {{"odds": 5.00, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.70}}, {{"match": "M2", "pick": "Pick", "odds": 1.75}}]}},
+  "multi_league": {{"odds": 5.00, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.70}}, {{"match": "M2", "pick": "Pick", "odds": 1.80}}]}},
   "scorer": {{"odds": 1.85, "picks": [{{"player": "Spieler", "pick": "Pick", "odds": 1.85}}]}}
 }}
 """
