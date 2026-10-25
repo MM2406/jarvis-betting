@@ -61,7 +61,8 @@ Offene NHL-Wetten:
 REGELN:
 1. Endergebnisse und Spieler-Statistiken (Tore, Assists, Shots) prüfen.
 2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH.
-3. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+3. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
+4. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏒 JARVIS NHL SETTLEMENT & RECAP</b>
@@ -71,15 +72,15 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 ⭐ <b>PICK OF THE DAY:</b> [Ergebnis] -> [✅ WON / ❌ LOST]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>PUCK LINE / ML TICKET:</b> [✅ WON / ❌ LOST]
+1. <b>NHL BANKER TICKET:</b> [✅ WON / ❌ LOST]
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>TOTALS COMBO:</b> [✅ WON / ❌ LOST]
-[Picks & Resultate]
+2. <b>DYNAMIC TOTALS COMBO:</b> [✅ WON / ❌ LOST]
+[Jeden Pick auflisten mit Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
+3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
 [Für jeden Spieler: Name, Pick, tatsächliche Stats, Status ✅/❌]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
