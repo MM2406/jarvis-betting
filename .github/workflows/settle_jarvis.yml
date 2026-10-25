@@ -2,41 +2,41 @@ name: Settle Jarvis Soccer
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # Täglich morgens um 08:00 UTC
+    - cron: '0 8 * * *'  # Täglich um 08:00 UTC
   workflow_dispatch:
 
 jobs:
-  run-settlement:
+  settle-soccer:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Code
+      - name: Code laden
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Dependencies
-        run: |
-          pip install requests
+      - name: Pakete installieren
+        run: pip install requests
 
-      - name: Run Soccer Settlement
+      - name: Soccer Wetten abrechnen
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
-        run: |
-          python settle_soccer.py
+        run: python settle_soccer.py
 
-      - name: Commit & Push (Remove Pending File)
+      - name: Pending-Datei entfernen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull
           if [ ! -f pending_soccer.json ]; then
             git add -A
             git commit -m "Remove settled pending_soccer.json [skip ci]" || echo "No changes to commit"
-            git push
+            git pull --rebase origin main
+            git push origin main
           fi
