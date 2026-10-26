@@ -53,35 +53,43 @@ def settle_nhl_bets():
 
     prompt = f"""
 Du bist 'JARVIS NHL SETTLEMENT AGENT'.
-Recherchiere über Google Search die finalen Ergebnisse der NHL-Nacht (inkl. OT und Shootout) sowie die Boxscores (Torschützen, Assists, Shots on Goal) für folgende Wetten:
+Recherchiere über Google Search die finalen Ergebnisse der NHL (inkl. OT und Shootout) sowie die Boxscores (Torschützen, Assists, Shots on Goal) für folgende Wetten:
 
 Offene NHL-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Endergebnisse und Spieler-Statistiken (Tore, Assists, Shots) prüfen.
-2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH.
-3. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
-4. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien noch anstehen / laufen oder verschoben wurden.
+2. Endergebnisse und Spieler-Statistiken (Tore, Assists, Shots) prüfen.
+3. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH.
+4. Noch nicht gespielte oder laufende Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
+5. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
+6. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+
+WICHTIGE STATUS-ZEILE AM ENDE:
+Falls noch mindestens ein Pick offen oder in Progress ist, schreibe ganz am Ende exakt:
+---STATUS: INCOMPLETE---
+Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
+---STATUS: COMPLETE---
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏒 JARVIS NHL SETTLEMENT & RECAP</b>
 <i>Abrechnung der NHL-Slate vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY:</b> [Ergebnis] -> [✅ WON / ❌ LOST]
+⭐ <b>PICK OF THE DAY:</b> [Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NHL BANKER TICKET:</b> [✅ WON / ❌ LOST]
+1. <b>NHL BANKER TICKET:</b> [Status]
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS COMBO:</b> [✅ WON / ❌ LOST]
+2. <b>DYNAMIC TOTALS COMBO:</b> [Status]
 [Jeden Pick auflisten mit Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
-[Für jeden Spieler: Name, Pick, tatsächliche Stats, Status ✅/❌]
+3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [Status]
+[Für jeden Spieler: Name, Pick, tatsächliche Stats, Status ✅/❌/⏳]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 📈 <b>NHL TAGESBILANZ:</b> [Netto Profit/Loss in Units]
@@ -96,10 +104,18 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
     try:
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
-        result_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        send_telegram_message(result_text)
-        os.remove(file_path)
-        print("NHL Wetten abgerechnet und pending_nhl.json gelöscht.")
+        raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+        
+        is_complete = "---STATUS: COMPLETE---" in raw_text
+        clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
+        
+        send_telegram_message(clean_text)
+
+        if is_complete:
+            os.remove(file_path)
+            print("Alle NHL Wetten final beendet. pending_nhl.json gelöscht.")
+        else:
+            print("Noch NHL Spiele/Props offen. pending_nhl.json bleibt für den nächsten Run erhalten.")
     except Exception as e:
         print(f"Fehler bei NHL Settlement: {e}")
         sys.exit(1)
