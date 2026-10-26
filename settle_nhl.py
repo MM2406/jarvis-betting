@@ -65,6 +65,12 @@ REGELN:
 4. Noch nicht gespielte oder laufende Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
 5. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
 6. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+7. Berechne die genauen Metriken für das Performance Dashboard:
+   - Ticket Win-Rate: (Gewonnene Tickets / Abgerechnete Tickets) in % inkl. 10-Segment Fortschrittsbalken (z.B. [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜])
+   - Pick Hit-Rate: (Richtige Einzeltipps / Alle gespielten Einzeltipps) in % inkl. 10-Segment Fortschrittsbalken
+   - Einsatz / Rückzahlung in Units
+   - Netto-Profit / Verlust
+   - ROI (Yield) in % = (Netto-Profit / Gesamteinsatz) * 100
 
 WICHTIGE STATUS-ZEILE AM ENDE:
 Falls noch mindestens ein Pick offen oder in Progress ist, schreibe ganz am Ende exakt:
@@ -92,7 +98,12 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 [Für jeden Spieler: Name, Pick, tatsächliche Stats, Status ✅/❌/⏳]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-📈 <b>NHL TAGESBILANZ:</b> [Netto Profit/Loss in Units]
+📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>
+• <b>Ticket Win-Rate:</b> [X]/[Y] ([Prozent]%) [Balken]
+• <b>Pick Hit-Rate:</b>   [X]/[Y] ([Prozent]%) [Balken]
+• <b>Einsatz / Return:</b> [Gesamteinsatz] U ➔ [Rückzahlung] U
+• <b>Netto-Profit:</b>     [+/- Profit] Units
+• <b>Tages-ROI:</b>        [+/- ROI]%
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
@@ -105,17 +116,17 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        
+
         is_complete = "---STATUS: COMPLETE---" in raw_text
         clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
-        
+
         send_telegram_message(clean_text)
 
         if is_complete:
             os.remove(file_path)
             print("Alle NHL Wetten final beendet. pending_nhl.json gelöscht.")
         else:
-            print("Noch NHL Spiele/Props offen. pending_nhl.json bleibt für den nächsten Run erhalten.")
+            print("Noch NHL Spiele/Props offen. pending_nhl.json bleibt erhalten.")
     except Exception as e:
         print(f"Fehler bei NHL Settlement: {e}")
         sys.exit(1)
