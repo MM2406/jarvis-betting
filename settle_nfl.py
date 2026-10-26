@@ -62,7 +62,14 @@ REGELN:
 1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien (z. B. Monday Night Football) noch anstehen / laufen.
 2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH.
 3. Noch nicht gespielte Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
-4. Berechne die Netto-Units (Einsatz 1.00 Unit pro Schein).
+4. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
+5. Berechne die Netto-Units (Einsatz 1.00 Unit pro Schein).
+6. Berechne die genauen Metriken für das Performance Dashboard:
+   - Ticket Win-Rate: (Gewonnene Tickets / Abgerechnete Tickets) in % inkl. 10-Segment Fortschrittsbalken (z.B. [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜])
+   - Pick Hit-Rate: (Richtige Einzeltipps / Alle gespielten Einzeltipps) in % inkl. 10-Segment Fortschrittsbalken
+   - Einsatz / Rückzahlung in Units
+   - Netto-Profit / Verlust
+   - ROI (Yield) in % = (Netto-Profit / Gesamteinsatz) * 100
 
 WICHTIGE STATUS-ZEILE AM ENDE:
 Falls noch mindestens ein Pick offen ist, schreibe ganz am Ende exakt:
@@ -90,7 +97,12 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 [Für jeden Spieler: Name, Pick, erzielte Stats, Status ✅/❌/⏳]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-📈 <b>NFL TAGESBILANZ:</b> [Netto Profit/Loss in Units]
+📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>
+• <b>Ticket Win-Rate:</b> [X]/[Y] ([Prozent]%) [Balken]
+• <b>Pick Hit-Rate:</b>   [X]/[Y] ([Prozent]%) [Balken]
+• <b>Einsatz / Return:</b> [Gesamteinsatz] U ➔ [Rückzahlung] U
+• <b>Netto-Profit:</b>     [+/- Profit] Units
+• <b>Tages-ROI:</b>        [+/- ROI]%
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
@@ -103,10 +115,10 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        
+
         is_complete = "---STATUS: COMPLETE---" in raw_text
         clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
-        
+
         send_telegram_message(clean_text)
 
         if is_complete:
