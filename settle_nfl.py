@@ -59,29 +59,35 @@ Offene NFL-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Endergebnisse, Spreads sowie die exakten Spieler-Statistiken für alle dynamischen Tickets ('totals' und 'player_props') recherchieren.
-2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH.
-3. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
-4. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien (z. B. Monday Night Football) noch anstehen / laufen.
+2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH.
+3. Noch nicht gespielte Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
+4. Berechne die Netto-Units (Einsatz 1.00 Unit pro Schein).
+
+WICHTIGE STATUS-ZEILE AM ENDE:
+Falls noch mindestens ein Pick offen ist, schreibe ganz am Ende exakt:
+---STATUS: INCOMPLETE---
+Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
+---STATUS: COMPLETE---
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏈 JARVIS NFL SETTLEMENT & RECAP</b>
 <i>Abrechnung der NFL-Slate vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY:</b> [Ergebnis] -> [✅ WON / ❌ LOST]
+⭐ <b>PICK OF THE DAY:</b> [Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NFL BANKER TICKET:</b> [✅ WON / ❌ LOST]
+1. <b>NFL BANKER TICKET:</b> [Status]
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS COMBO:</b> [✅ WON / ❌ LOST]
+2. <b>DYNAMIC TOTALS COMBO:</b> [Status]
 [Jeden Pick auflisten mit Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
-[Für jeden Spieler: Name, Pick, erzielte Yards/TDs, Status ✅/❌]
+3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [Status]
+[Für jeden Spieler: Name, Pick, erzielte Stats, Status ✅/❌/⏳]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 📈 <b>NFL TAGESBILANZ:</b> [Netto Profit/Loss in Units]
@@ -96,10 +102,18 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
     try:
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
-        result_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        send_telegram_message(result_text)
-        os.remove(file_path)
-        print("NFL Wetten abgerechnet und pending_nfl.json gelöscht.")
+        raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+        
+        is_complete = "---STATUS: COMPLETE---" in raw_text
+        clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
+        
+        send_telegram_message(clean_text)
+
+        if is_complete:
+            os.remove(file_path)
+            print("Alle NFL Wetten final beendet. pending_nfl.json gelöscht.")
+        else:
+            print("Noch Spiele offen (z. B. MNF). pending_nfl.json bleibt für den nächsten Run erhalten.")
     except Exception as e:
         print(f"Fehler bei NFL Settlement: {e}")
         sys.exit(1)
