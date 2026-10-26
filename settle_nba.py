@@ -53,35 +53,42 @@ def settle_nba_bets():
 
     prompt = f"""
 Du bist 'JARVIS NBA SETTLEMENT AGENT'.
-Recherchiere über Google Search die finalen Ergebnisse, Boxscores und individuellen Spielerstatistiken (Punkte, Rebounds, Assists, 3PM) der NBA-Nacht für folgende Wetten:
+Recherchiere über Google Search die finalen Ergebnisse, Boxscores und individuellen Spielerstatistiken (Punkte, Rebounds, Assists, 3PM) der NBA für folgende Wetten:
 
 Offene NBA-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Ermittle die echten Endergebnisse sowie die exakten Boxscore-Zahlen für alle dynamischen Tickets ('totals' und 'player_props').
-2. Markiere jeden Tipp mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
-3. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos ALLE Picks im Ticket gewonnen haben.
-4. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien noch anstehen / laufen oder verschoben wurden.
+2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
+3. Noch nicht gespielte oder laufende Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
+4. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos ALLE Picks im Ticket gewonnen haben.
+5. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+
+WICHTIGE STATUS-ZEILE AM ENDE:
+Falls noch mindestens ein Pick offen oder in Progress ist, schreibe ganz am Ende exakt:
+---STATUS: INCOMPLETE---
+Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
+---STATUS: COMPLETE---
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏀 JARVIS NBA SETTLEMENT & RECAP</b>
 <i>Abrechnung der NBA-Slate vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY:</b> [Ergebnis] -> [✅ WON / ❌ LOST]
+⭐ <b>PICK OF THE DAY:</b> [Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NBA BANKER TICKET:</b> [✅ WON / ❌ LOST]
+1. <b>NBA BANKER TICKET:</b> [Status]
 [Picks & Resultate]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS COMBO:</b> [✅ WON / ❌ LOST]
+2. <b>DYNAMIC TOTALS COMBO:</b> [Status]
 [Jeden Pick auflisten mit Ergebnis & Status]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [✅ WON / ❌ LOST]
-[Für jeden Spieler: Name, Line, erzielte Stats, Status ✅/❌]
+3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [Status]
+[Für jeden Spieler: Name, Line, erzielte Stats, Status ✅/❌/⏳]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 📈 <b>NBA TAGESBILANZ:</b> [Netto Profit/Loss in Units]
@@ -96,10 +103,18 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
     try:
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
-        result_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        send_telegram_message(result_text)
-        os.remove(file_path)
-        print("NBA Wetten abgerechnet und pending_nba.json gelöscht.")
+        raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+        
+        is_complete = "---STATUS: COMPLETE---" in raw_text
+        clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
+        
+        send_telegram_message(clean_text)
+
+        if is_complete:
+            os.remove(file_path)
+            print("Alle NBA Wetten final beendet. pending_nba.json gelöscht.")
+        else:
+            print("Noch NBA Spiele/Props offen. pending_nba.json bleibt für den nächsten Run erhalten.")
     except Exception as e:
         print(f"Fehler bei NBA Settlement: {e}")
         sys.exit(1)
