@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-26",
+  "potd": {
+    "match": "Calgary Flames vs. Toronto Maple Leafs",
+    "pick": "Toronto Maple Leafs Moneyline",
+    "odds": 1.74
+  },
+  "banker": {
+    "odds": 2.39,
+    "picks": [
+      {
+        "match": "Edmonton Oilers vs. Detroit Red Wings",
+        "pick": "Edmonton Oilers Moneyline",
+        "odds": 1.56
+      },
+      {
+        "match": "Carolina Hurricanes vs. Boston Bruins",
+        "pick": "Carolina Hurricanes Moneyline",
+        "odds": 1.53
+      }
+    ]
+  },
+  "totals": {
+    "odds": 6.52,
+    "picks": [
+      {
+        "match": "Calgary Flames vs. Toronto Maple Leafs",
+        "pick": "Over 6.5",
+        "odds": 1.83
+      },
+      {
+        "match": "Edmonton Oilers vs. Detroit Red Wings",
+        "pick": "Over 6.5",
+        "odds": 1.8
+      },
+      {
+        "match": "Dallas Stars vs. New Jersey Devils",
+        "pick": "Under 5.5",
+        "odds": 1.98
+      }
+    ]
+  },
+  "player_props": {
+    "odds": 6.49,
+    "picks": [
+      {
+        "player": "Leon Draisaitl",
+        "pick": "Anytime Goalscorer",
+        "odds": 1.95
+      },
+      {
+        "player": "Auston Matthews",
+        "pick": "Over 3.5 Shots on Goal",
+        "odds": 1.8
+      },
+      {
+        "player": "Connor McDavid",
+        "pick": "Over 1.5 Scorerpunkte",
+        "odds": 1.85
+      }
+    ]
+  }
+}
