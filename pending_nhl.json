@@ -1,62 +1,62 @@
 {
-  "date": "2026-10-26",
+  "date": "2026-10-27",
   "potd": {
-    "match": "Calgary Flames vs. Toronto Maple Leafs",
-    "pick": "Toronto Maple Leafs Moneyline",
-    "odds": 1.74
+    "match": "Nashville Predators vs. New York Islanders",
+    "pick": "Nashville Predators Moneyline",
+    "odds": 1.85
   },
   "banker": {
-    "odds": 2.39,
+    "odds": 2.52,
     "picks": [
-      {
-        "match": "Edmonton Oilers vs. Detroit Red Wings",
-        "pick": "Edmonton Oilers Moneyline",
-        "odds": 1.56
-      },
       {
         "match": "Carolina Hurricanes vs. Boston Bruins",
         "pick": "Carolina Hurricanes Moneyline",
-        "odds": 1.53
+        "odds": 1.52
+      },
+      {
+        "match": "Vegas Golden Knights vs. Ottawa Senators",
+        "pick": "Vegas Golden Knights Moneyline",
+        "odds": 1.66
       }
     ]
   },
   "totals": {
-    "odds": 6.52,
+    "odds": 7.25,
     "picks": [
       {
-        "match": "Calgary Flames vs. Toronto Maple Leafs",
-        "pick": "Over 6.5",
-        "odds": 1.83
-      },
-      {
-        "match": "Edmonton Oilers vs. Detroit Red Wings",
-        "pick": "Over 6.5",
-        "odds": 1.8
-      },
-      {
         "match": "Dallas Stars vs. New Jersey Devils",
-        "pick": "Under 5.5",
-        "odds": 1.98
+        "pick": "Under 5.5 Goals",
+        "odds": 1.94
+      },
+      {
+        "match": "Utah Mammoth vs. Minnesota Wild",
+        "pick": "Over 6.5 Goals",
+        "odds": 2.02
+      },
+      {
+        "match": "Vegas Golden Knights vs. Ottawa Senators",
+        "pick": "Over 6.5 Goals",
+        "odds": 1.85
       }
     ]
   },
   "player_props": {
-    "odds": 6.49,
+    "odds": 7.77,
     "picks": [
       {
-        "player": "Leon Draisaitl",
+        "player": "Kirill Kaprizov (Minnesota Wild)",
         "pick": "Anytime Goalscorer",
-        "odds": 1.95
+        "odds": 2.1
       },
       {
-        "player": "Auston Matthews",
-        "pick": "Over 3.5 Shots on Goal",
-        "odds": 1.8
+        "player": "Macklin Celebrini (San Jose Sharks)",
+        "pick": "Over 2.5 Shots on Goal",
+        "odds": 1.72
       },
       {
-        "player": "Connor McDavid",
-        "pick": "Over 1.5 Scorerpunkte",
-        "odds": 1.85
+        "player": "Jack Eichel (Vegas Golden Knights)",
+        "pick": "Over 1.5 Points",
+        "odds": 2.15
       }
     ]
   }
