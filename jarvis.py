@@ -98,14 +98,19 @@ WICHTIG: Verwende in Überschriften und Text ausschließlich 'SOCCER' oder 'FUSS
 Hier sind die realen Partien mit Quoten:
 {matches_text}
 
-ANALYSE-REGELN & TICKET-STRUKTUR:
-1. MATHEMATISCHER EDGE (+EV): P(Win) > (1 / Quote).
-2. TICKET-AUFBAU:
-   - ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die absolut stärkste Einzelwette des Spieltags.
-   - 1. SOCCER BANKER TICKET (Strikt 2er-Double): Höchste Trefferwahrscheinlichkeit (1X2, Over 1.5, Doppelchance). Quote 2.00 - 2.70.
-   - 2. DYNAMIC GOALS & BTTS VALUE TICKET (Freie Größe: 2 bis 5 Picks): Ineffiziente Tor-Märkte (Over/Under, BTTS). Wähle dynamisch die Anzahl basierend auf echten Kanten.
-   - 3. DYNAMIC MULTI-LEAGUE VALUE TICKET (Freie Größe: 2 bis 5 Picks): Ligenübergreifende Kanten. Wähle dynamisch die Anzahl basierend auf echten Kanten.
-   - 4. VALUE TORSCHÜTZE / SPECIAL PICK: Optional ein starker Torschützen-Pick oder Match-Special.
+STRIKTE QUANTITATIVE LEITPLANKEN:
+1. MATHEMATISCHER VALUE (+EV): P(Win) > (1 / Quote).
+2. QUOTEN-KORRIDOR FÜR KOMBIS:
+   - Sowohl DYNAMIC GOALS als auch DYNAMIC MULTI-LEAGUE müssen eine Gesamtquote zwischen 2.75 und 4.50 anstreben.
+   - Baue bevorzugt extrem solide 2er-Kombis (z.B. ~1.80 x ~1.85 = ~3.33) oder 3er-Kombis mit sichereren Linien (z.B. Over 1.5, Doppelchance). Vermeide zwingend risikoreiche Kombis über Quote 5.00!
+3. MINDESTQUOTE BANKER: Jeder Pick im Banker-Ticket muss mindestens Quote 1.35 aufweisen (keine Minimalquoten unter 1.30). Gesamtquote 2.00 - 2.70.
+
+TICKET-STRUKTUR:
+- ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die absolut stärkste Einzelwette des Spieltags.
+- 1. SOCCER BANKER TICKET (Strikt 2er-Double, Gesamtquote 2.00 - 2.70): Höchste Trefferwahrscheinlichkeit (1X2, Over 1.5, Doppelchance; min. 1.35 pro Pick).
+- 2. DYNAMIC GOALS & BTTS VALUE TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Ineffiziente Tor-Märkte (Over/Under, BTTS) mit fundierter Rationale.
+- 3. DYNAMIC MULTI-LEAGUE VALUE TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Ligenübergreifende Kanten mit klarem Edge.
+- 4. VALUE TORSCHÜTZE / SPECIAL PICK: Optional ein starker Torschützen-Pick oder Match-Special (Quote 1.80 - 2.60).
 
 FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>⚽ JARVIS SOCCER INTEL & VALUE REPORT</b>
@@ -119,20 +124,21 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 1. <b>SOCCER BANKER TICKET (2er-Double)</b>
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
+- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
 <b>Gesamtquote: [Produkt aller Quoten]</b>
+<i>Modell-Edge:</i> [Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 2. <b>DYNAMIC GOALS & BTTS VALUE TICKET ([Anzahl]-Kombi)</b>
 [Für jedes Spiel:]
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
 <b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 3. <b>DYNAMIC MULTI-LEAGUE VALUE TICKET ([Anzahl]-Kombi)</b>
 [Für jedes Spiel:]
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
+- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
 <b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
@@ -145,15 +151,14 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
   "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
   "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}, {{"match": "M2", "pick": "Pick", "odds": 1.49}}]}},
-  "goals": {{"odds": 5.00, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.70}}, {{"match": "M2", "pick": "Pick", "odds": 1.75}}]}},
-  "multi_league": {{"odds": 5.00, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.70}}, {{"match": "M2", "pick": "Pick", "odds": 1.80}}]}},
-  "scorer": {{"odds": 1.85, "picks": [{{"player": "Spieler", "pick": "Pick", "odds": 1.85}}]}}
+  "goals": {{"odds": 3.40, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.80}}, {{"match": "M2", "pick": "Pick", "odds": 1.88}}]}},
+  "multi_league": {{"odds": 3.30, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.80}}, {{"match": "M2", "pick": "Pick", "odds": 1.83}}]}},
+  "scorer": {{"odds": 2.10, "picks": [{{"player": "Spieler", "pick": "Pick", "odds": 2.10}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2}}
 
-    # Automatischer Retry-Mechanismus bei Google 500/503-Fehlern
     for attempt in range(1, 4):
         try:
             res = requests.post(url, json=payload, timeout=120)
