@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -151,13 +152,25 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2}}
-    try:
-        res = requests.post(url, json=payload, timeout=120)
-        res.raise_for_status()
-        return res.json()["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception as e:
-        print(f"API Fehler: {e}")
-        return "ERROR"
+
+    # Automatischer Retry-Mechanismus bei Google 500/503-Fehlern
+    for attempt in range(1, 4):
+        try:
+            res = requests.post(url, json=payload, timeout=120)
+            if res.status_code == 200:
+                return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            elif res.status_code in [500, 502, 503, 504]:
+                print(f"Versuch {attempt}/3: Gemini Server Status {res.status_code}. Warte 6 Sekunden...")
+                time.sleep(6)
+            else:
+                res.raise_for_status()
+        except Exception as e:
+            print(f"Versuch {attempt}/3 fehlgeschlagen: {e}")
+            if attempt < 3:
+                time.sleep(6)
+            else:
+                return "ERROR"
+    return "ERROR"
 
 def parse_and_save_bets(full_text):
     if "---JSON_DATA---" in full_text:
