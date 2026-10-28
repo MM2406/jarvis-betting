@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -47,13 +48,13 @@ def fetch_nhl_data():
     url = "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
-        "regions": "us,eu",
+        "regions": "eu,us",
         "markets": "h2h,spreads,totals",
         "oddsFormat": "decimal"
     }
     matches_summary = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=30)
+    cutoff = now_utc + timedelta(hours=36)
 
     try:
         res = requests.get(url, params=params, timeout=15)
@@ -72,68 +73,76 @@ def fetch_nhl_data():
                         if m_key == "h2h":
                             details.append("Moneyline: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
                         elif m_key == "spreads":
-                            details.append("Puck Line: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
+                            details.append("Puckline: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                         elif m_key == "totals":
                             details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                     matches_summary.append(f"{match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}")
     except Exception as e:
-        print(f"Fehler bei NHL Odds: {e}")
+        print(f"Fehler bei NHL Odds API: {e}")
 
-    print(f"NHL Partien gesammelt: {len(matches_summary)}")
+    print(f"NHL-Partien gesammelt: {len(matches_summary)}")
     return "\n".join(matches_summary)
 
 def analyze_nhl(matches_text):
     prompt = f"""
-Du bist 'JARVIS NHL QUANT PRO', spezialisiert auf Eishockey-Analysen (Starting Goalies, Schussvolumen/Corsi, Powerplay-Units, xG).
-Recherchiere über Google Search bestätigte Starting Goalies und aktuelle Player Props (Anytime Goalscorer, Spieler-Punkte, Shots on Goal).
+Du bist 'JARVIS NHL QUANT PRO', spezialisiert auf quantitative NHL-Analysen (Starting Goalie Confirmation, Expected Goals [xGF%], Powerplay vs Penalty Kill Matchups).
+Recherchiere via Google Search nach den bestätigten Starting Goalies (Daily Faceoff / Goalie Post) und Injury Updates für die anstehenden NHL-Spiele.
 
-Partien & Quoten:
+Hier sind die realen NHL-Partien mit aktuellen Quoten:
 {matches_text}
 
+STRIKTE QUANTITATIVE LEITPLANKEN:
+1. MATHEMATISCHER VALUE (+EV): P(Win) > (1 / Quote).
+2. QUOTEN-KORRIDOR FÜR KOMBIS:
+   - Sowohl DYNAMIC TOTALS als auch DYNAMIC PLAYER PROPS müssen eine Gesamtquote zwischen 2.75 und 4.50 anstreben.
+   - Baue bevorzugt extrem solide 2er-Kombis (z.B. ~1.80 x ~1.85 = ~3.33) oder 3er-Kombis mit sichereren Linien. Vermeide zwingend risikoreiche 3er-Kombis über Quote 5.00!
+3. MINDESTQUOTE BANKER: Jeder Pick im Banker-Ticket muss mindestens Quote 1.35 aufweisen (keine Minimalquoten). Gesamtquote 2.00 - 2.70.
+4. STARTING GOALIES: Berücksichtige zwingend die bestätigten oder wahrscheinlichen Starting Goalies und deren Save Percentage (SV%).
+
 TICKET-STRUKTUR:
-1. ⭐ NHL PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Höchster Value.
-2. 1. NHL BANKER TICKET (Strikt 2er-Double): Höchste Zuverlässigkeit (Moneyline / Puck Line +1.5). Quote 2.10 - 2.80.
-3. 2. DYNAMIC TOTALS VALUE COMBO (Freie Größe: 2 bis 5 Picks): Ineffiziente Over/Under Goal-Lines (5.5, 6.0, 6.5). Dynamisch nach Kantenstärke.
-4. 3. DYNAMIC NHL PLAYER PROPS MULTI-TICKET (Freie Größe: 2 bis 5 Picks):
-   - Baue eine reine Spieler-Kombi aus Goalscorern, Points (Over 0.5/1.5) oder Shots on Goal (SOG).
-   - Wähle die Anzahl flexibel nach Stärke der Kanten gegen den jeweiligen Goalie.
-   - Nenne für jeden Spieler: Name, Team, Pick, Quote und Matchup-Begründung.
+- ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die stärkste Kante der Slate (Moneyline oder Puckline).
+- 1. NHL BANKER TICKET (Strikt 2er-Double, Gesamtquote 2.00 - 2.70): Picks mit extrem hoher Erfolgswahrscheinlichkeit (Min. 1.35 pro Pick).
+- 2. DYNAMIC TOTALS COMBO (2 bis 4 Picks, Zielquote 2.75 - 4.50): Solide Over/Under-Picks basierend auf Goalie-Form und Torstatistiken.
+- 3. DYNAMIC NHL PLAYER PROPS MULTI-TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Anytime Goalscorer, Shots on Goal oder Scorerpunkte (G+A) mit starkem Matchup.
 
 FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>🏒 JARVIS NHL INTEL & VALUE REPORT</b>
-<i>Quantitatives Eishockey-Modell • Starting Goalies & xG • Dynamische Kombis</i>
+<i>Quantitatives NHL-Dossier • Goalie Matchups & xGF% • Marktanalyse</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
 - <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<i>Fair Odds:</i> ~[Faire Quote] | <i>Modell-Kante:</i> [X]%
-<i>Goalie Matchup & Edge:</i> [Begründung]
+<i>Fair Odds:</i> ~[Faire Quote] | <i>Modell-Kante:</i> +[X]%
+<i>Goalie / Matchup Edge:</i> [Ausführliche Begründung mit Goalie Matchup]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 1. <b>NHL BANKER TICKET (2er-Double)</b>
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote)
-<b>Gesamtquote: [Produkt]</b>
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
+<b>Gesamtquote: [Produkt aller Quoten]</b>
+<i>Modell-Edge:</i> [Begründung]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS VALUE COMBO ([Anzahl]-Kombi)</b>
-[Picks einfügen]
-<b>Gesamtquote: [Produkt]</b>
+2. <b>DYNAMIC TOTALS COMBO ([Anzahl]-Kombi)</b>
+[Für jedes Spiel:]
+- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
+<i>Rationale:</i> [Begründung mit Goalie & Tor-Trends]
+<b>Gesamtquote: [Produkt aller Quoten]</b>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET ([Anzahl]-Kombi)</b>
-[Für jeden Spieler-Pick:]
-- <b>[Spielername] ([Team])</b> -> Pick: <b>[z.B. Anytime Goalscorer / Over 2.5 SOG]</b> (Quote: [Quote])
-  <i>Matchup Edge:</i> [Begründung gegen Torwart / PP-Vorteil]
+3. <b>DYNAMIC NHL PLAYER PROPS MULTI-TICKET ([Anzahl]-Kombi)</b>
+[Für jeden Spieler:]
+- <b>[Spielername] ([Team])</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
+<i>Matchup Edge:</i> [Begründung via Ice-Time, Powerplay-Rolle, Schussvolumen]
 <b>Gesamtquote: [Produkt aller Quoten]</b>
 
 ---JSON_DATA---
 {{
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
-  "potd": {{"match": "Match", "pick": "Pick", "odds": 1.90}},
-  "banker": {{"odds": 2.50, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.55}}, {{"match": "M2", "pick": "Pick", "odds": 1.60}}]}},
-  "totals": {{"odds": 3.60, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.90}}, {{"match": "M2", "pick": "Pick", "odds": 1.90}}]}},
-  "player_props": {{"odds": 5.00, "picks": [{{"player": "Spieler 1", "pick": "Over 2.5 Shots on Goal", "odds": 1.80}}, {{"player": "Spieler 2", "pick": "Anytime Goalscorer", "odds": 2.40}}]}}
+  "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
+  "banker": {{"odds": 2.30, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.50}}, {{"match": "M2", "pick": "Pick", "odds": 1.53}}]}},
+  "totals": {{"odds": 3.40, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.85}}, {{"match": "M2", "pick": "Pick", "odds": 1.84}}]}},
+  "player_props": {{"odds": 3.40, "picks": [{{"player": "P1", "pick": "Pick", "odds": 1.85}}, {{"player": "P2", "pick": "Pick", "odds": 1.84}}]}}
 }}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
@@ -142,13 +151,24 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
         "tools": [{"googleSearch": {}}],
         "generationConfig": {"temperature": 0.2}
     }
-    try:
-        res = requests.post(url, json=payload, timeout=120)
-        res.raise_for_status()
-        return res.json()["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception as e:
-        print(f"API Fehler: {e}")
-        return "ERROR"
+
+    for attempt in range(1, 4):
+        try:
+            res = requests.post(url, json=payload, timeout=120)
+            if res.status_code == 200:
+                return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            elif res.status_code in [500, 502, 503, 504]:
+                print(f"Versuch {attempt}/3: Gemini Server Status {res.status_code}. Warte 6 Sekunden...")
+                time.sleep(6)
+            else:
+                res.raise_for_status()
+        except Exception as e:
+            print(f"Versuch {attempt}/3 fehlgeschlagen: {e}")
+            if attempt < 3:
+                time.sleep(6)
+            else:
+                return "ERROR"
+    return "ERROR"
 
 def parse_and_save_bets(full_text):
     if "---JSON_DATA---" in full_text:
@@ -158,7 +178,7 @@ def parse_and_save_bets(full_text):
             bet_data = json.loads(parts[1].strip())
             with open("pending_nhl.json", "w", encoding="utf-8") as f:
                 json.dump(bet_data, f, ensure_ascii=False, indent=2)
-            print("Picks in pending_nhl.json gespeichert.")
+            print("NHL Wetten in pending_nhl.json gespeichert.")
         except Exception as e:
             print(f"JSON Parsing-Fehler: {e}")
         return report_text
@@ -167,12 +187,12 @@ def parse_and_save_bets(full_text):
 if __name__ == "__main__":
     matches = fetch_nhl_data()
     if not matches:
-        send_telegram_message("🏒 <b>Jarvis NHL Status:</b> Keine Spiele im aktuellen Zeitfenster.")
+        send_telegram_message("🏒 <b>Jarvis NHL Status:</b> Keine Spiele im Zeitfenster.")
     else:
         raw_output = analyze_nhl(matches)
         if raw_output != "ERROR":
             send_telegram_message(parse_and_save_bets(raw_output))
-            print("✅ NHL Report gesendet.")
+            print("✅ NHL Report erfolgreich gesendet.")
         else:
-            send_telegram_message("⚠️ <b>Jarvis NHL Error:</b> Analyse fehlgeschlagen.")
+            send_telegram_message("⚠️ <b>Jarvis NHL Error:</b> KI-Generierung fehlgeschlagen.")
             sys.exit(1)
