@@ -63,7 +63,7 @@ def fetch_soccer_data():
         params = {
             "apiKey": ODDS_API_KEY,
             "regions": "eu",
-            "markets": "h2h,totals",
+            "markets": "h2h,spreads,totals",
             "oddsFormat": "decimal"
         }
         try:
@@ -82,6 +82,8 @@ def fetch_soccer_data():
                             m_key = m.get("key")
                             if m_key == "h2h":
                                 details.append("1X2: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
+                            elif m_key == "spreads":
+                                details.append("Handicap: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                             elif m_key == "totals":
                                 details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
                         matches_summary.append(f"[{league}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}")
@@ -96,22 +98,22 @@ def analyze_soccer(matches_text):
 Du bist 'JARVIS SOCCER QUANT PRO', spezialisiert auf quantitative Fussball-Analysen (+EV, xG-Modelle, Ligen-Ineffizienzen).
 WICHTIG: Verwende in Überschriften und Text ausschließlich 'SOCCER' oder 'FUSSBALL' – NIEMALS 'Football', um jede Verwechslung mit American Football (NFL) auszuschließen!
 
-Hier sind die realen Partien mit Quoten (inklusive MLS):
+Hier sind die realen Partien mit Quoten (1X2, Spreads/Handicap, Over/Under inkl. MLS):
 {matches_text}
 
 STRIKTE QUANTITATIVE LEITPLANKEN:
 1. MATHEMATISCHER VALUE (+EV): P(Win) > (1 / Quote).
 2. QUOTEN-KORRIDOR FÜR KOMBIS:
    - Sowohl DYNAMIC GOALS als auch DYNAMIC MULTI-LEAGUE müssen eine Gesamtquote zwischen 2.75 und 4.50 anstreben.
-   - Baue bevorzugt extrem solide 2er-Kombis (z.B. ~1.80 x ~1.85 = ~3.33) oder 3er-Kombis mit sichereren Linien (z.B. Over 1.5, Doppelchance). Vermeide zwingend risikoreiche Kombis über Quote 5.00!
+   - Baue bevorzugt extrem solide 2er-Kombis (z.B. ~1.80 x ~1.85 = ~3.33) oder 3er-Kombis mit sichereren Linien (z.B. Over 1.5, Doppelchance, Asian Handicap Puffer). Vermeide zwingend risikoreiche Kombis über Quote 5.00!
 3. MINDESTQUOTE BANKER: Jeder Pick im Banker-Ticket muss mindestens Quote 1.35 aufweisen (keine Minimalquoten unter 1.30). Gesamtquote 2.00 - 2.70.
 
 TICKET-STRUKTUR:
-- ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die absolut stärkste Einzelwette des Spieltags.
-- 1. SOCCER BANKER TICKET (Strikt 2er-Double, Gesamtquote 2.00 - 2.70): Höchste Trefferwahrscheinlichkeit (1X2, Over 1.5, Doppelchance; min. 1.35 pro Pick).
+- ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die absolut stärkste Einzelwette des Spieltags (1X2, Handicap oder Total).
+- 1. SOCCER BANKER TICKET (Strikt 2er-Double, Gesamtquote 2.00 - 2.70): Höchste Trefferwahrscheinlichkeit (1X2, Over 1.5, Doppelchance, Handicap; min. 1.35 pro Pick).
 - 2. DYNAMIC GOALS & BTTS VALUE TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Ineffiziente Tor-Märkte (Over/Under, BTTS) mit fundierter Rationale.
-- 3. DYNAMIC MULTI-LEAGUE VALUE TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Ligenübergreifende Kanten mit klarem Edge.
-- 4. VALUE TORSCHÜTZE / SPECIAL PICK: Optional ein starker Torschützen-Pick oder Match-Special (Quote 1.80 - 2.60).
+- 3. DYNAMIC MULTI-LEAGUE VALUE TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Ligenübergreifende Kanten (inkl. MLS & europäische Ligen).
+- 4. VALUE TORSCHÜTZE / SPECIAL PICK: Ein fundierter Torschützen-Pick oder Match-Special (Quote 1.80 - 2.60) basierend auf aktueller Form und Startaufstellungen.
 
 FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 <b>⚽ JARVIS SOCCER INTEL & VALUE REPORT</b>
@@ -121,7 +123,7 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
 - <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
 <i>Fair Odds:</i> ~[Faire Quote] | <i>Chance:</i> [X]%
-<i>Edge:</i> [Begründung mit xG / Matchup]
+<i>Edge:</i> [Begründung mit xG / Matchup / Handicap]
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
 1. <b>SOCCER BANKER TICKET (2er-Double)</b>
