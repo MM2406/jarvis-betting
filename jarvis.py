@@ -51,7 +51,8 @@ def fetch_soccer_data():
         "soccer_spain_la_liga",
         "soccer_italy_serie_a",
         "soccer_france_ligue_one",
-        "soccer_austria_bundesliga"
+        "soccer_austria_bundesliga",
+        "soccer_usa_mls"
     ]
     matches_summary = []
     now_utc = datetime.now(timezone.utc)
@@ -95,7 +96,7 @@ def analyze_soccer(matches_text):
 Du bist 'JARVIS SOCCER QUANT PRO', spezialisiert auf quantitative Fussball-Analysen (+EV, xG-Modelle, Ligen-Ineffizienzen).
 WICHTIG: Verwende in Überschriften und Text ausschließlich 'SOCCER' oder 'FUSSBALL' – NIEMALS 'Football', um jede Verwechslung mit American Football (NFL) auszuschließen!
 
-Hier sind die realen Partien mit Quoten:
+Hier sind die realen Partien mit Quoten (inklusive MLS):
 {matches_text}
 
 STRIKTE QUANTITATIVE LEITPLANKEN:
