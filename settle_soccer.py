@@ -53,18 +53,19 @@ def settle_soccer_bets():
 
     prompt = f"""
 Du bist 'JARVIS SOCCER SETTLEMENT AGENT'.
-Nutze Google Search, um die finalen Spielergebnisse, Torschützen und Torstatistiken für folgende Fussballwetten zu recherchieren und exakt auszuwerten:
+Nutze Google Search, um die finalen Spielergebnisse, Torschützen, Torstatistiken und Handicaps/Spreads für folgende Fussballwetten (inkl. europäische Ligen & MLS) zu recherchieren und exakt auszuwerten:
 
 Offene Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien noch anstehen / laufen oder verschoben wurden.
-2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
-3. Noch nicht gespielte oder laufende Tipps markierst du mit ⏳ OFFEN / IN PROGRESS.
-4. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
-5. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
-6. Berechne die genauen Metriken für das Performance Dashboard:
+1. Prüfe via Google Search, ob alle Spiele bereits beendet sind oder ob Partien noch anstehen / laufen oder verschoben wurden.
+2. Prüfe 1X2, Over/Under, Asian Handicaps / Spreads und Torschützen-Picks exakt.
+3. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
+4. Noch nicht gespielte oder laufende Tipps markierst du mit ⏳ OFFEN / IN PROGRESS.
+5. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
+6. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
+7. Berechne die genauen Metriken für das Performance Dashboard:
    - Ticket Win-Rate: (Gewonnene Tickets / Abgerechnete Tickets) in % inkl. 10-Segment Fortschrittsbalken (z.B. [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜])
    - Pick Hit-Rate: (Richtige Einzeltipps / Alle gespielten Einzeltipps) in % inkl. 10-Segment Fortschrittsbalken
    - Einsatz / Rückzahlung in Units
@@ -72,7 +73,7 @@ REGELN:
    - ROI (Yield) in % = (Netto-Profit / Gesamteinsatz) * 100
 
 WICHTIGE STATUS-ZEILE AM ENDE:
-Falls noch mindestens ein Spiel offen oder in Progress ist, schreibe ganz am Ende exakt:
+Falls noch mindestens ein Spiel offen oder in Progress ist (z. B. späte MLS-Nachtspiele oder Dienstags-/Mittwochsspiele), schreibe ganz am Ende exakt:
 ---STATUS: INCOMPLETE---
 Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
 ---STATUS: COMPLETE---
