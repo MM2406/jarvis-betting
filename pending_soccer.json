@@ -1,12 +1,12 @@
 {
-  "date": "2026-10-27",
+  "date": "2024-10-28",
   "potd": {
     "match": "Monza vs. Napoli",
-    "pick": "Napoli Sieg",
+    "pick": "Napoli Sieg (1X2)",
     "odds": 1.78
   },
   "banker": {
-    "odds": 2.28,
+    "odds": 2.38,
     "picks": [
       {
         "match": "Venezia vs. Inter Milan",
@@ -16,52 +16,57 @@
       {
         "match": "AC Milan vs. Bologna",
         "pick": "AC Milan Sieg",
-        "odds": 1.68
+        "odds": 1.75
       }
     ]
   },
   "goals": {
-    "odds": 7.26,
+    "odds": 6.78,
     "picks": [
       {
-        "match": "Sassuolo vs. Lazio",
+        "match": "Fiorentina vs. Atalanta BC",
         "pick": "Over 2.75 Tore",
-        "odds": 1.92
+        "odds": 1.78
       },
       {
         "match": "Parma vs. Udinese",
-        "pick": "Under 2.25 Tore",
-        "odds": 1.9
+        "pick": "Over 2.25 Tore",
+        "odds": 1.83
       },
       {
         "match": "Genoa vs. Juventus",
-        "pick": "Under 2.25 Tore",
-        "odds": 1.99
+        "pick": "Under 2.0 Tore",
+        "odds": 2.08
       }
     ]
   },
   "multi_league": {
-    "odds": 3.1,
+    "odds": 6.05,
     "picks": [
-      {
-        "match": "Torino vs. Como",
-        "pick": "Como Sieg",
-        "odds": 1.81
-      },
       {
         "match": "Genoa vs. Juventus",
         "pick": "Juventus Sieg",
-        "odds": 1.71
+        "odds": 1.76
+      },
+      {
+        "match": "Frosinone vs. Lecce",
+        "pick": "Under 3.25 Tore",
+        "odds": 1.93
+      },
+      {
+        "match": "Monza vs. Napoli",
+        "pick": "Napoli Sieg",
+        "odds": 1.78
       }
     ]
   },
   "scorer": {
-    "odds": 2.15,
+    "odds": 1.85,
     "picks": [
       {
-        "player": "Romelu Lukaku",
-        "pick": "Erzielt ein Tor",
-        "odds": 2.15
+        "player": "Lautaro Martínez (Inter Milan)",
+        "pick": "Trifft jederzeit",
+        "odds": 1.85
       }
     ]
   }
