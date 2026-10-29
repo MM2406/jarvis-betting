@@ -13,13 +13,12 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_EURO_THREAD_ID", "").strip()
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
+HISTORY_FILE = "euro_history.json"
 
 EURO_LEAGUES = [
-    # Europäischer Basketball
     "basketball_euroleague",
     "basketball_spain_acb",
     "basketball_germany_bbl",
-    # Europäisches Spitzen-Eishockey
     "icehockey_sweden_shl",
     "icehockey_liiga",
     "icehockey_germany_del"
@@ -51,10 +50,98 @@ def send_telegram(text):
     except Exception as e:
         print(f"Telegram-Fehler: {e}")
 
+def load_history():
+    if not os.path.exists(HISTORY_FILE):
+        return {"settled": [], "pending": []}
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
+        return {"settled": [], "pending": []}
+
+def save_history(history):
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Fehler beim Speichern von {HISTORY_FILE}: {e}")
+
+def settle_pending_picks(history):
+    pending = history.get("pending", [])
+    if not pending:
+        print("Keine offenen Euro-Picks zur Auswertung.")
+        return history
+
+    still_pending = []
+    settled_now = []
+
+    for item in pending:
+        prompt_settle = f"""
+Recherchiere via Google Search das offizielle Endergebnis für folgende europäische Basketball- oder Eishockey-Wette:
+Event: {item.get('match')}
+Sportart/Liga: {item.get('league')}
+Tipp / Markt: {item.get('pick')}
+Datum: {item.get('date')}
+
+REGELN:
+1. Prüfe, ob die Partie bereits offiziell beendet ist. Falls noch nicht angepfiffen oder live, gib 'PENDING' aus.
+2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, oder 'LOST', wenn er verloren ging.
+3. Bei Spielabsage oder Push gib 'VOID' aus.
+
+Antworte strikt in diesem Format:
+RESULT: WON oder LOST oder PENDING oder VOID
+SCORE: Exaktes Endergebnis (z.B. 82:76 oder 3:2 n.V.)
+INFO: Kurze Erklärung.
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt_settle}]}],
+            "tools": [{"googleSearch": {}}],
+            "generationConfig": {"temperature": 0.1}
+        }
+
+        try:
+            res = requests.post(url, json=payload, timeout=60)
+            if res.status_code == 200:
+                text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                if "RESULT: WON" in text:
+                    item["status"] = "WON"
+                    settled_now.append(item)
+                elif "RESULT: LOST" in text:
+                    item["status"] = "LOST"
+                    settled_now.append(item)
+                elif "RESULT: VOID" in text:
+                    item["status"] = "VOID"
+                    settled_now.append(item)
+                else:
+                    still_pending.append(item)
+            else:
+                still_pending.append(item)
+        except Exception as e:
+            print(f"Fehler bei Abrechnung {item.get('match')}: {e}")
+            still_pending.append(item)
+
+    if settled_now:
+        history["settled"].extend(settled_now)
+        history["pending"] = still_pending
+        save_history(history)
+
+        won_count = sum(1 for p in settled_now if p["status"] == "WON")
+        total_count = len(settled_now)
+        
+        msg = f"📊 <b>JARVIS EURO-HOOPS &amp; ICE ABRECHNUNG</b>\nAusgewertete Tipps: <b>{won_count}/{total_count}</b> Treffer.\n"
+        for p in settled_now:
+            icon = "✅" if p["status"] == "WON" else ("❌" if p["status"] == "LOST" else "🟡")
+            msg += f"\n{icon} <b>{p['match']}</b>\nTipp: {p['pick']} (Quote: {p.get('odds', 'N/A')})"
+        
+        send_telegram(msg)
+
+    return history
+
 def fetch_euro_odds():
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    # Scan-Fenster: 8 Stunden (deckt von 16:30 Uhr bis Mitternacht exakt alle Abendpartien ab)
     cutoff = now_utc + timedelta(hours=8)
 
     for sport in EURO_LEAGUES:
@@ -93,12 +180,23 @@ def fetch_euro_odds():
     return "\n".join(all_events[:50])
 
 def generate_euro_report():
+    history = load_history()
+    settle_pending_picks(history)
+
+    # Wenn der Lauf am Morgen stattfindet (vor 12 Uhr), soll nur abgerechnet werden
+    now_hour = datetime.now(LOCAL_TZ).hour
+    if now_hour < 12:
+        print("Morgen-Run: Nur Abrechnung durchgeführt. Neuer Report folgt am Nachmittag.")
+        return
+
     odds_data = fetch_euro_odds()
     if not odds_data:
         print("Keine europäischen Basketball- oder Eishockeyspiele für heute Abend im Fenster.")
         return
 
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+
     prompt = f"""
 Du bist 'JARVIS EURO INTEL' – Quantitativer Wettexperte für europäischen Spitzen-Basketball (EuroLeague, ACB, BBL) und europäisches Eishockey (SHL, Liiga, DEL).
 Erstelle für heute Abend ({today_str}) ein präzises Value-Dossier für die Prime-Time (18:00 bis 22:00 Uhr MEZ).
@@ -108,9 +206,12 @@ VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 
 RICHTLINIEN:
 - Wähle AUSNAHMSLOS Partien aus der obigen Liste. Erfinde keine Partien oder Quoten.
-- Suche echte Kanten (+EV) bei Siegen, Spreads/Handicaps oder Over/Under-Linien (Eishockey z. B. 4.5/5.5 Tore, Basketball Gesamtpunkte).
+- Suche echte Kanten (+EV) bei Siegen, Spreads/Handicaps oder Over/Under-Linien.
 
-FORMATIERUNG & STRUKTUR (Exaktes HTML für Telegram):
+FORMATIERUNG & STRUKTUR:
+Erstelle ZUERST den HTML-Report für Telegram und füge GANZ AM ENDE einen abgetrennten JSON-Block mit den getrackten Einzel-Tipps für die automatische Auswertung hinzu!
+
+REPORT-HTML:
 🏀🏒 <b>JARVIS EURO-HOOPS &amp; ICE DOSSIER</b>
 <i>EuroLeague • SHL • DEL • Liiga • Prime-Time Value</i>
 
@@ -139,9 +240,18 @@ Rationale: [Pace, Offensive Rating, Matchup-Vorteile]
 - [Uhrzeit] [Sportart] Match ➔ <b>Pick: [Markt &amp; Tipp]</b> (Quote: 2.XX+)
 Kanten-Spotlight: [Warum der Markt den Außenseiter oder die Over/Under-Linie fehlbewertet]
 
-Gib AUSSCHLIESSLICH den fertigen HTML-Report aus (kein Markdown, keine Backticks ```html).
+---JSON_TRACKING---
+[
+  {{
+    "match": "Team A vs Team B",
+    "league": "EuroLeague",
+    "pick": "Team A -4.5",
+    "odds": "1.85",
+    "date": "{today_iso}"
+  }}
+]
 """
-    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=){GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -152,7 +262,23 @@ Gib AUSSCHLIESSLICH den fertigen HTML-Report aus (kein Markdown, keine Backticks
         try:
             res = requests.post(url, json=payload, timeout=90)
             if res.status_code == 200:
-                report = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                
+                report = full_reply
+                if "---JSON_TRACKING---" in full_reply:
+                    parts = full_reply.split("---JSON_TRACKING---")
+                    report = parts[0].strip()
+                    json_str = parts[1].replace("```json", "").replace("```", "").strip()
+                    try:
+                        new_picks = json.loads(json_str)
+                        for np in new_picks:
+                            np["status"] = "PENDING"
+                        history["pending"].extend(new_picks)
+                        save_history(history)
+                        print(f"{len(new_picks)} neue Euro-Picks fürs Tracking gespeichert.")
+                    except Exception as je:
+                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
+
                 report = report.replace("```html", "").replace("```", "").strip()
                 send_telegram(report)
                 print("Euro Report erfolgreich versendet.")
