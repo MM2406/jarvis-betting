@@ -4,8 +4,8 @@ on:
   schedule:
     # Täglich um 08:00 UTC (09:00 Uhr MEZ) zum Auswerten von Nachtspielen
     - cron: '0 8 * * *'
-    # Täglich um 14:00 UTC (15:00 Uhr MEZ) zur Pick-Auswahl für den Abend
-    - cron: '0 14 * * *'
+    # Täglich um 17:00 UTC (18:00 Uhr MEZ) zur Pick-Auswahl für den Abend/Nacht
+    - cron: '0 17 * * *'
   workflow_dispatch: # Ermöglicht manuelles Starten per Klick
 
 permissions:
@@ -31,6 +31,7 @@ jobs:
 
       - name: Moneyrace ausführen
         env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
