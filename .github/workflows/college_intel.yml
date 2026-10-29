@@ -1,0 +1,46 @@
+name: JARVIS US College Intel
+
+on:
+  schedule:
+    # 1. MORGEN-RUN: 09:30 UTC (= 10:30 Uhr MEZ) für die Nacht-Abrechnung
+    - cron: '30 9 * * *'
+    # 2. ABEND-RUN: 19:30 UTC (= 20:30 Uhr MEZ) für das Nacht-Dossier
+    - cron: '30 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-college-intel:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: College Intel ausführen
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_COLLEGE_THREAD_ID: ${{ secrets.TELEGRAM_COLLEGE_THREAD_ID }}
+        run: python college_intel.py
+
+      - name: History committen und pushen
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add college_history.json || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update college history [skip ci]" && git push)
