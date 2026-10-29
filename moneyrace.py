@@ -56,17 +56,33 @@ def generate_progress_bar(current, target=100.0, length=7):
 
 def fetch_real_odds():
     sports = [
+        # US-Sport (Abend & Nacht)
         "basketball_nba",
+        "basketball_ncaab",
         "icehockey_nhl",
+        "americanfootball_nfl",
+        "soccer_usa_mls",
+
+        # Europäischer Spitzenfußball (Wochenende)
         "soccer_germany_bundesliga",
+        "soccer_germany_bundesliga2",
         "soccer_epl",
         "soccer_spain_la_liga",
         "soccer_italy_serie_a",
-        "soccer_usa_mls"
+        "soccer_france_ligue_one",
+        "soccer_austria_bundesliga",
+        "soccer_netherlands_eredivisie",
+
+        # Europapokal & EuroLeague (Dienstag bis Donnerstag)
+        "soccer_uefa_champs_league",
+        "soccer_uefa_europa_league",
+        "soccer_uefa_conference_league",
+        "basketball_euroleague"
     ]
     candidate_odds = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=28)
+    # 12 STUNDEN FILTER: Reicht bei 18:00 Uhr exakt bis 06:00 Uhr morgens
+    cutoff = now_utc + timedelta(hours=12)
 
     for sport in sports:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -104,7 +120,7 @@ def fetch_real_odds():
             print(f"Fehler bei {sport}: {e}")
 
     print(f"Geprüfte Quoten im Korridor gesammelt: {len(candidate_odds)}")
-    return "\n".join(candidate_odds[:45])
+    return "\n".join(candidate_odds[:50])
 
 def run_moneyrace():
     state = load_state()
