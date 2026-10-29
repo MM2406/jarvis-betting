@@ -6,7 +6,7 @@ on:
     - cron: '0 8 * * *'
     # Täglich um 17:00 UTC (18:00 Uhr MEZ) zur Pick-Auswahl für den Abend/Nacht
     - cron: '0 17 * * *'
-  workflow_dispatch: # Ermöglicht manuelles Starten per Klick
+  workflow_dispatch:
 
 permissions:
   contents: write
