@@ -16,6 +16,30 @@
       "odds": "1.91",
       "date": "2026-10-29",
       "status": "PENDING"
+    },
+    {
+      "match": "James Madison Dukes vs. Troy Trojans",
+      "sport": "NCAAF",
+      "pick": "James Madison Dukes -18.5",
+      "odds": "1.91",
+      "date": "2026-10-29",
+      "status": "PENDING"
+    },
+    {
+      "match": "North Texas Mean Green vs. Florida Atlantic Owls",
+      "sport": "NCAAF",
+      "pick": "North Texas Mean Green -14.5",
+      "odds": "1.96",
+      "date": "2026-10-29",
+      "status": "PENDING"
+    },
+    {
+      "match": "North Texas Mean Green vs. Florida Atlantic Owls",
+      "sport": "NCAAF",
+      "pick": "Under 77.5",
+      "odds": "1.91",
+      "date": "2026-10-29",
+      "status": "PENDING"
     }
   ]
 }
