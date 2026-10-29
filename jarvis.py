@@ -6,7 +6,6 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
-# API-Keys & Umgebungsvariablen
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -16,7 +15,6 @@ TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_SOCCER_THREAD_ID", "").strip()
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 HISTORY_FILE = "soccer_history.json"
 
-# Relevante Fußball-Ligen (Top 5 Europa + Pokal/CL/EL + MLS)
 SOCCER_LEAGUES = [
     "soccer_germany_bundesliga",
     "soccer_germany_bundesliga2",
@@ -32,7 +30,6 @@ SOCCER_LEAGUES = [
 ]
 
 def send_telegram(text):
-    """Sendet formatierte Nachrichten via Telegram Bot API mit Thread-Unterstützung."""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -48,14 +45,12 @@ def send_telegram(text):
     try:
         res = requests.post(url, json=payload, timeout=25)
         if res.status_code != 200:
-            # Fallback ohne HTML-Parsing bei Syntax-Fehlern
             payload.pop("parse_mode", None)
             requests.post(url, json=payload, timeout=25)
     except Exception as e:
         print(f"Telegram-Fehler: {e}")
 
 def load_history():
-    """Lädt die bisherige Wettauswertung und offene Wetten."""
     if not os.path.exists(HISTORY_FILE):
         return {"settled": [], "pending": []}
     try:
@@ -66,7 +61,6 @@ def load_history():
         return {"settled": [], "pending": []}
 
 def save_history(history):
-    """Speichert den aktuellen Wettverlauf ab."""
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
@@ -74,7 +68,6 @@ def save_history(history):
         print(f"Fehler beim Speichern der History: {e}")
 
 def settle_pending_picks(history):
-    """Wertet offene Tipps des Vortags via Gemini & Google Search aus."""
     pending = history.get("pending", [])
     if not pending:
         print("Keine offenen Soccer-Picks zur Abrechnung.")
@@ -144,10 +137,9 @@ INFO: Kurze Erklärung.
     return history
 
 def fetch_soccer_data():
-    """Holt geprüfte Live-Quoten der Odds-API im 12-Stunden-Fenster."""
     all_matches = []
     now_utc = datetime.now(timezone.utc)
-    # 12 STUNDEN FILTER: Reicht bei 17:00/18:00 Uhr exakt bis 05:00/06:00 Uhr morgens (perfekt für MLS)
+    # 12 STUNDEN FILTER: Reicht bei 18:00 Uhr exakt bis 06:00 Uhr morgens (deckt MLS vollständig ab, schließt Folgetag aus)
     cutoff = now_utc + timedelta(hours=12)
 
     for league in SOCCER_LEAGUES:
@@ -185,7 +177,6 @@ def fetch_soccer_data():
     return "\n".join(all_matches[:60])
 
 def generate_soccer_report():
-    """Erstellt den quantitativen Report via Gemini und Google Search."""
     history = load_history()
     settle_pending_picks(history)
 
