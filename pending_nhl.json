@@ -1,52 +1,52 @@
 {
-  "date": "2026-10-28",
+  "date": "2026-10-29",
   "potd": {
-    "match": "Seattle Kraken vs. Toronto Maple Leafs",
-    "pick": "Toronto Maple Leafs ML",
-    "odds": 1.74
+    "match": "Carolina Hurricanes vs. Columbus Blue Jackets",
+    "pick": "Carolina Hurricanes -1.5",
+    "odds": 2.02
   },
   "banker": {
-    "odds": 2.17,
+    "odds": 2.29,
     "picks": [
       {
-        "match": "Carolina Hurricanes vs. Columbus Blue Jackets",
-        "pick": "Carolina Hurricanes ML",
-        "odds": 1.43
+        "match": "Tampa Bay Lightning vs. Winnipeg Jets",
+        "pick": "Tampa Bay Lightning Moneyline",
+        "odds": 1.46
       },
       {
-        "match": "Edmonton Oilers vs. Calgary Flames",
-        "pick": "Edmonton Oilers ML",
-        "odds": 1.52
+        "match": "Dallas Stars vs. Montréal Canadiens",
+        "pick": "Dallas Stars Moneyline",
+        "odds": 1.57
       }
     ]
   },
   "totals": {
-    "odds": 3.7,
+    "odds": 3.51,
     "picks": [
       {
-        "match": "Colorado Avalanche vs. New Jersey Devils",
-        "pick": "Under 6.5",
-        "odds": 1.85
+        "match": "Detroit Red Wings vs. Chicago Blackhawks",
+        "pick": "Under 5.5",
+        "odds": 2.02
       },
       {
-        "match": "Minnesota Wild vs. New York Islanders",
-        "pick": "Under 5.5",
-        "odds": 2.0
+        "match": "Carolina Hurricanes vs. Columbus Blue Jackets",
+        "pick": "Over 5.5",
+        "odds": 1.74
       }
     ]
   },
   "player_props": {
-    "odds": 3.42,
+    "odds": 3.37,
     "picks": [
       {
-        "player": "Nathan MacKinnon (Colorado Avalanche)",
-        "pick": "Über 3.5 Torschüsse",
-        "odds": 1.8
+        "player": "Sebastian Aho (Carolina Hurricanes)",
+        "pick": "Über 2.5 Schüsse aufs Tor",
+        "odds": 1.82
       },
       {
-        "player": "Connor McDavid (Edmonton Oilers)",
-        "pick": "Über 1.5 Scorerpunkte",
-        "odds": 1.9
+        "player": "Nikita Kucherov (Tampa Bay Lightning)",
+        "pick": "Über 3.5 Schüsse aufs Tor",
+        "odds": 1.85
       }
     ]
   }
