@@ -3,9 +3,10 @@ import sys
 import json
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
@@ -45,11 +46,61 @@ def save_state(state):
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 def generate_progress_bar(current, target=100.0, length=7):
-    # Berechnet Fortschritt bezogen auf 7 Stufen / 100 €
     pct = min(1.0, max(0.0, current / target))
     filled = min(length, max(1, int(pct * length)))
     bar = "🟩" * filled + "⬜" * (length - filled)
     return bar, f"{pct * 100:.1f}%"
+
+def fetch_real_odds():
+    sports = [
+        "basketball_nba",
+        "icehockey_nhl",
+        "soccer_germany_bundesliga",
+        "soccer_epl",
+        "soccer_spain_la_liga",
+        "soccer_italy_serie_a",
+        "soccer_usa_mls"
+    ]
+    candidate_odds = []
+    now_utc = datetime.now(timezone.utc)
+    cutoff = now_utc + timedelta(hours=24)
+
+    for sport in sports:
+        url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
+        params = {
+            "apiKey": ODDS_API_KEY,
+            "regions": "eu",
+            "markets": "h2h,totals",
+            "oddsFormat": "decimal"
+        }
+        try:
+            res = requests.get(url, params=params, timeout=12)
+            if res.status_code == 200:
+                data = res.json()
+                for match in data:
+                    commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
+                    if now_utc <= commence_utc <= cutoff:
+                        bookies = match.get("bookmakers", [])
+                        if not bookies:
+                            continue
+                        time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
+                        
+                        # Suche gezielt nach Quoten zwischen 1.50 und 1.75
+                        for m in bookies[0].get("markets", []):
+                            m_key = m.get("key")
+                            for outcome in m.get("outcomes", []):
+                                price = outcome.get("price", 0.0)
+                                if 1.50 <= price <= 1.75:
+                                    market_desc = f"{outcome['name']}"
+                                    if m_key == "totals":
+                                        market_desc = f"{outcome['name']} {outcome.get('point', '')} Goals/Points"
+                                    candidate_odds.append(
+                                        f"Sport: {sport} | Match: {match['home_team']} vs. {match['away_team']} ({time_str}) | Tipp: {market_desc} | Reale Quote: {price}"
+                                    )
+        except Exception as e:
+            print(f"Fehler bei {sport}: {e}")
+
+    return "\n".join(candidate_odds[:40])
 
 def run_moneyrace():
     state = load_state()
@@ -115,8 +166,7 @@ INFO: Kurze Begründung mit dem exakten Endergebnis.
                 msg = f"""🏆 <b>MONEYRACE ERFOLGREICH BEENDET!</b> 🎯
 
 Endstand: <b>{state['bankroll']:.2f} €</b> (Start: 5.00 €)
-Ziel von 100.00 € geknackt!
-Alle Stufen fehlerfrei gemeistert."""
+Ziel von 100.00 € geknackt!"""
                 send_telegram(msg)
                 state["active"] = False
                 save_state(state)
@@ -161,27 +211,25 @@ Spiel: {pick['event']} wurde storniert. Einsatz bleibt bei {state['bankroll']:.2
             print("Spiel noch offen oder läuft. Keine Aktion.")
             return
 
-    # 2. NEUEN PICK AUSWÄHLEN (wenn kein Spiel aussteht)
+    # 2. NEUEN PICK AUS ECHTEN QUOTEN AUSWÄHLEN
+    available_odds_text = fetch_real_odds()
+
     prompt_pick = f"""
 Du bist 'JARVIS MONEYRACE QUANT'.
 Wir spielen ein Moneyrace von 5.00 € auf 100.00 €.
 Aktueller Status:
-- Stufe: {state['level']} (von ca. 7 Stufen)
+- Stufe: {state['level']}
 - Einsatz: {state['bankroll']:.2f} € (All-In)
-- Ziel: {state['target']:.2f} €
 
-Recherchiere via Google Search nach den realen Partien des heutigen Tages/Abends (Fussball, NBA, NHL, NFL, Darts oder Tennis).
-Wähle den EINEN Pick mit der höchsten statistischen Eintrittswahrscheinlichkeit (+EV).
+Hier sind reale, geprüfte Buchmacherquoten, die exakt im geforderten Korridor (1.50 bis 1.75) liegen:
+{available_odds_text}
 
-STRIKTE VORGABEN:
-1. Quote: Mindestens 1.50, Maximal 1.70 (optimaler Risiko-Korridor).
-2. Märkte: Moneyline (Sieg), Over/Under Tore/Punkte, Handicap / Spreads oder Doppelchance.
-3. Nur Spiele wählen, die innerhalb der nächsten 18 Stunden starten.
+Wähle aus DIESER Liste den mathematisch stärksten Pick (+EV). Übernimm die Quote EXAKT wie in der Liste angegeben (keine Quoten erfinden oder schätzen!).
 
 FORMATIERE AM ENDE EXAKT EIN JSON-OBJEKT:
 ---JSON---
 {{
-  "sport": "Fussball/NBA/NHL/NFL/Tennis/Darts",
+  "sport": "Sportart",
   "event": "Team A vs Team B",
   "start_time": "TT.MM. HH:MM Uhr",
   "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
@@ -227,7 +275,7 @@ Ziel:     <b>{state['target']:.2f} €</b> (Rest: {state['target'] - state['bank
 🏆 <b>Sport:</b>   {new_pick.get('sport')}
 ⏰ <b>Beginn:</b>  {new_pick.get('start_time', 'Heute')}
 🎯 <b>Tipp:</b>    <b>{new_pick.get('selection')}</b>
-📈 <b>Quote:</b>   {new_pick.get('odds')}
+📈 <b>Quote:</b>   {new_pick.get('odds')} (Geprüfte Buchmacherquote)
 💰 <b>Return:</b>  <b>{pot_return:.2f} €</b> (+{profit:.2f} €)
 
 ━━━━━━━━━━━━━━━━━━━━
