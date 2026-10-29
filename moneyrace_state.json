@@ -3,13 +3,6 @@
   "level": 1,
   "bankroll": 5.0,
   "target": 100.0,
-  "pending_pick": {
-    "sport": "NBA",
-    "event": "Atlanta Hawks vs Cleveland Cavaliers",
-    "date": "2026-10-29",
-    "selection": "Cleveland Cavaliers (Sieg inkl. OT / Moneyline)",
-    "odds": 1.58,
-    "reason": "Signifikanter Edge in der Interior-Defense und Rebound-Effizienz; Modell prognostiziert 67.4% Siegchance gegenüber einer 63.3% implizierten Wahrscheinlichkeit (+EV)."
-  },
+  "pending_pick": null,
   "history": []
 }
