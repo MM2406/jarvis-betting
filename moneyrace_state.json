@@ -3,6 +3,17 @@
   "level": 1,
   "bankroll": 5.0,
   "target": 100.0,
-  "pending_pick": null,
+  "pending_pick": {
+    "sport": "icehockey_nhl",
+    "event": "Carolina Hurricanes vs. Columbus Blue Jackets",
+    "start_time": "30.10. 00:10 Uhr",
+    "date": "2026-10-29",
+    "selection": "Carolina Hurricanes",
+    "odds": 1.68,
+    "model_prob": "65.8%",
+    "fair_odds": "1.52",
+    "edge": "+6.3%",
+    "reason": "Carolina dominiert im 5v5-Forechecking und in den erweiterten Besitzmetriken (xGF% Liga-Top-5). Columbus offenbart erhebliche defensive Lücken und lässt überdurchschnittlich viele High-Danger Scoring Chances zu. Starker Value auf den Heimsieg."
+  },
   "history": []
 }
