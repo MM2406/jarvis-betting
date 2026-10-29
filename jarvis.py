@@ -138,7 +138,7 @@ INFO: Kurze Begründung.
         msg = f"📊 <b>JARVIS SOCCER ABRECHNUNG</b>\nAusgewertete Tipps: <b>{won_count}/{total_count}</b> Treffer.\n"
         for p in settled_now:
             icon = "✅" if p["status"] == "WON" else ("❌" if p["status"] == "LOST" else "🟡")
-            msg += f"\n{icon} <b>{p['match']}</b>\nTipp: {p['pick']} (Quote: {p.get('odds', 'N/A')})"
+            msg += f"\n{icon} <b>{p['match']}</b>\nTipp: {p['pick']} (@ {p.get('odds', 'N/A')})"
         send_telegram(msg)
 
     return history
@@ -210,6 +210,8 @@ VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 RICHTLINIEN:
 - Wähle AUSNAHMSLOS Partien aus der obigen Liste. Erfinde niemals Partien oder Quoten.
 - Analysiere xG-Werte, Heim-/Auswärtstrends, defensive Stabilität und Quoten-Disbalancen (+EV).
+- Bei Quotenangaben immer das Format '@ X.XX' verwenden.
+- DIVERSIFIZIERUNG: Falls nur 1 Spiel in der Liste ist, darfst du im 'QUANT SPOTLIGHT' KEINESFALLS denselben Tipp wie im Pick of the Day wiederholen! Nutze dort stattdessen einen anderen Markt (z.B. Halbzeit-Tore, Beide Teams treffen oder Team-Tore).
 
 FORMATIERUNG & STRUKTUR:
 Erstelle ZUERST das HTML für Telegram und füge GANZ AM ENDE den JSON-Block für das Settlement-Tracking an.
@@ -220,21 +222,23 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
-- [Uhrzeit] [Liga] Heim vs. Gast ➔ <b>Pick: [Markt &amp; Tipp]</b> (Quote: X.XX)
-Modell-Chance: XX.X% | Fair Odds: ~X.XX
-Edge: [xG-Dominanz, Matchup-Analyse, Formkurve]
+• [Uhrzeit] | Heim vs. Gast
+  ➔ <b>Pick: [Markt &amp; Tipp]</b> @ X.XX
+<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (+X.X% EV)
+<b>Edge:</b> [Detaillierte Analyse: xG-Dominanz, Matchup-Analyse, Formkurve]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
-- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Tipp] (Quote: X.XX)
-- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Tipp] (Quote: X.XX)
+🔥 <b>VALUE DOUBLE TICKET (2er-Kombi oder Match-Kombi / SGM)</b>
+• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX
+• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX
 <b>Gesamtquote: X.XX</b>
-Rationale: [Kompakte taktische Begründung beider Auswahlen]
+<b>Rationale:</b> [Kompakte taktische Begründung beider Auswahlen]
 
 ━━━━━━━━━━━━━━━━━━━━
-🎯 <b>QUANT OVER/UNDER &amp; GOALS SPOTLIGHT</b>
-- [Uhrzeit] [Liga] Heim vs. Gast ➔ <b>Pick: [Over/Under / BTTS Tipp]</b> (Quote: X.XX)
-Rationale: [Pace, Torchancen-Kreation, Defensiv-Statistiken]
+🎯 <b>QUANT SPOTLIGHT: [THEMA / MARKT]</b>
+• [Uhrzeit] | Heim vs. Gast
+  ➔ <b>Pick: [Alternativer Tipp, z.B. 1. HZ Tore oder BTTS]</b> @ X.XX
+<b>Rationale:</b> [Pace, Torchancen-Kreation, Defensiv-Statistiken]
 
 ---JSON_TRACKING---
 [
