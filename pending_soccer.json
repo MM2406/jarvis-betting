@@ -1,62 +1,62 @@
 {
-  "date": "2026-10-28",
+  "date": "2026-10-30",
   "potd": {
-    "match": "AC Milan vs. Bologna",
-    "pick": "AC Milan -0.75",
-    "odds": 1.98
+    "match": "Villarreal vs. Espanyol",
+    "pick": "Villarreal -1.25 (Asian Handicap)",
+    "odds": 1.93
   },
   "banker": {
-    "odds": 2.38,
+    "odds": 2.41,
     "picks": [
       {
-        "match": "Venezia vs. Inter Milan",
-        "pick": "Inter Milan",
-        "odds": 1.36
+        "match": "Villarreal vs. Espanyol",
+        "pick": "Villarreal (1X2)",
+        "odds": 1.42
       },
       {
-        "match": "AC Milan vs. Bologna",
-        "pick": "AC Milan",
-        "odds": 1.75
+        "match": "Frosinone vs. Lecce",
+        "pick": "Frosinone (1X2)",
+        "odds": 1.7
       }
     ]
   },
   "goals": {
-    "odds": 3.29,
+    "odds": 3.76,
     "picks": [
       {
-        "match": "Fiorentina vs. Atalanta BC",
-        "pick": "Over 2.75 Tore",
-        "odds": 1.78
+        "match": "Frosinone vs. Lecce",
+        "pick": "Under 3.5 Tore",
+        "odds": 1.96
       },
       {
-        "match": "Charlotte FC vs. CF Montreal",
-        "pick": "Over 3.5 Tore",
-        "odds": 1.85
+        "match": "Fiorentina vs. Atalanta BC",
+        "pick": "Under 3.25 Tore",
+        "odds": 1.92
       }
     ]
   },
   "multi_league": {
-    "odds": 3.31,
+    "odds": 3.96,
     "picks": [
       {
-        "match": "Monza vs. Napoli",
-        "pick": "Napoli",
-        "odds": 1.79
+        "match": "Elversberg vs. FSV Mainz 05",
+        "pick": "FSV Mainz 05 -0.25 (Asian Handicap)",
+        "odds": 1.93
       },
       {
-        "match": "Seattle Sounders FC vs. Houston Dynamo",
-        "pick": "Seattle Sounders FC",
-        "odds": 1.85
+        "match": "Grazer AK vs. Hartberg",
+        "pick": "Grazer AK (1X2)",
+        "odds": 2.05
       }
     ]
   },
   "scorer": {
-    "odds": 2.05,
+    "odds": 2.1,
     "picks": [
       {
-        "player": "Lautaro Martínez",
-        "pick": "To score anytime",
-        "odds": 2.05
+        "player": "Ayoze Pérez",
+        "pick": "Trifft zu beliebigem Zeitpunkt",
+        "odds": 2.1
       }
     ]
   }
