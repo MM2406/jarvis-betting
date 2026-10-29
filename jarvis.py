@@ -6,169 +6,261 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+# API-Keys & Umgebungsvariablen
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_SOCCER_THREAD_ID", "").strip()
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
+HISTORY_FILE = "soccer_history.json"
 
-def send_telegram_message(text):
+# Relevante Fußball-Ligen (Top 5 Europa + Pokal/CL/EL + MLS)
+SOCCER_LEAGUES = [
+    "soccer_germany_bundesliga",
+    "soccer_germany_bundesliga2",
+    "soccer_germany_dfb_pokal",
+    "soccer_epl",
+    "soccer_spain_la_liga",
+    "soccer_italy_serie_a",
+    "soccer_france_ligue_one",
+    "soccer_uefa_champs_league",
+    "soccer_uefa_europa_league",
+    "soccer_austria_bundesliga",
+    "soccer_usa_mls"
+]
+
+def send_telegram(text):
+    """Sendet formatierte Nachrichten via Telegram Bot API mit Thread-Unterstützung."""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    max_len = 3800
-    chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
-
-    for chunk in chunks:
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
-        if TELEGRAM_THREAD_ID:
-            try:
-                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-            except ValueError:
-                pass
-
-        res = requests.post(url, json=payload, timeout=20)
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+    if TELEGRAM_THREAD_ID:
+        try:
+            payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+        except ValueError:
+            pass
+    try:
+        res = requests.post(url, json=payload, timeout=25)
         if res.status_code != 200:
+            # Fallback ohne HTML-Parsing bei Syntax-Fehlern
             payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=20)
-            if res2.status_code != 200:
-                print(f"Telegram Fehler: {res2.text}")
+            requests.post(url, json=payload, timeout=25)
+    except Exception as e:
+        print(f"Telegram-Fehler: {e}")
+
+def load_history():
+    """Lädt die bisherige Wettauswertung und offene Wetten."""
+    if not os.path.exists(HISTORY_FILE):
+        return {"settled": [], "pending": []}
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Fehler beim Laden der History: {e}")
+        return {"settled": [], "pending": []}
+
+def save_history(history):
+    """Speichert den aktuellen Wettverlauf ab."""
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Fehler beim Speichern der History: {e}")
+
+def settle_pending_picks(history):
+    """Wertet offene Tipps des Vortags via Gemini & Google Search aus."""
+    pending = history.get("pending", [])
+    if not pending:
+        print("Keine offenen Soccer-Picks zur Abrechnung.")
+        return history
+
+    still_pending = []
+    settled_now = []
+
+    for item in pending:
+        prompt_settle = f"""
+Recherchiere via Google Search das offizielle Endergebnis für folgende Fußballwette:
+Spiel: {item.get('match')}
+Tipp / Markt: {item.get('pick')}
+Datum: {item.get('date')}
+
+REGELN:
+1. Prüfe, ob die Partie bereits beendet ist. Falls noch nicht begonnen oder laufend, antworte mit PENDING.
+2. Markiere mit 'WON', wenn die Wette gewonnen hat, oder 'LOST', wenn sie verloren ging.
+3. Bei Spielabsage oder Push (z.B. Asian Handicap Draw) antworte mit VOID.
+
+Antworte strikt in diesem Format:
+RESULT: WON oder LOST oder PENDING oder VOID
+SCORE: Exaktes Endergebnis (z.B. 2:1)
+INFO: Kurze Erklärung.
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt_settle}]}],
+            "tools": [{"googleSearch": {}}],
+            "generationConfig": {"temperature": 0.1}
+        }
+
+        try:
+            res = requests.post(url, json=payload, timeout=60)
+            if res.status_code == 200:
+                text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                if "RESULT: WON" in text:
+                    item["status"] = "WON"
+                    settled_now.append(item)
+                elif "RESULT: LOST" in text:
+                    item["status"] = "LOST"
+                    settled_now.append(item)
+                elif "RESULT: VOID" in text:
+                    item["status"] = "VOID"
+                    settled_now.append(item)
+                else:
+                    still_pending.append(item)
+            else:
+                still_pending.append(item)
+        except Exception as e:
+            print(f"Fehler bei Abrechnung {item.get('match')}: {e}")
+            still_pending.append(item)
+
+    if settled_now:
+        history["settled"].extend(settled_now)
+        history["pending"] = still_pending
+        save_history(history)
+
+        won_count = sum(1 for p in settled_now if p["status"] == "WON")
+        total_count = len(settled_now)
+        settle_msg = f"📊 <b>JARVIS SOCCER ABRECHNUNG</b>\nAusgewertete Wetten: {won_count}/{total_count} gewonnen.\n"
+        for p in settled_now:
+            icon = "✅" if p["status"] == "WON" else ("❌" if p["status"] == "LOST" else "🟡")
+            settle_msg += f"\n{icon} <b>{p['match']}</b>: {p['pick']} (Quote: {p.get('odds', 'N/A')})"
+        send_telegram(settle_msg)
+
+    return history
 
 def fetch_soccer_data():
-    leagues = [
-        "soccer_germany_bundesliga",
-        "soccer_epl",
-        "soccer_spain_la_liga",
-        "soccer_italy_serie_a",
-        "soccer_france_ligue_one",
-        "soccer_austria_bundesliga",
-        "soccer_usa_mls"
-    ]
-    matches_summary = []
+    """Holt geprüfte Live-Quoten der Odds-API im 12-Stunden-Fenster."""
+    all_matches = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=36)
+    # 12 STUNDEN FILTER: Reicht bei 17:00/18:00 Uhr exakt bis 05:00/06:00 Uhr morgens (perfekt für MLS)
+    cutoff = now_utc + timedelta(hours=12)
 
-    for league in leagues:
+    for league in SOCCER_LEAGUES:
         url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
             "regions": "eu",
-            "markets": "h2h,spreads,totals",
+            "markets": "h2h,totals,spreads",
             "oddsFormat": "decimal"
         }
         try:
-            res = requests.get(url, params=params, timeout=15)
+            res = requests.get(url, params=params, timeout=12)
             if res.status_code == 200:
                 data = res.json()
                 for match in data:
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
+                        time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
                         bookies = match.get("bookmakers", [])
                         if not bookies:
                             continue
-                        time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
-                        details = []
+                        
+                        odds_summary = []
                         for m in bookies[0].get("markets", []):
                             m_key = m.get("key")
-                            if m_key == "h2h":
-                                details.append("1X2: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
-                            elif m_key == "spreads":
-                                details.append("Handicap: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-                            elif m_key == "totals":
-                                details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-                        matches_summary.append(f"[{league}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}")
+                            outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
+                            odds_summary.append(f"{m_key}: {', '.join(outcomes)}")
+
+                        all_matches.append(
+                            f"[{league}] {match['home_team']} vs. {match['away_team']} ({time_str}) | Quoten: {' // '.join(odds_summary)}"
+                        )
         except Exception as e:
             print(f"Fehler bei Liga {league}: {e}")
 
-    print(f"Fussball/Soccer-Partien gesammelt: {len(matches_summary)}")
-    return "\n".join(matches_summary)
+    return "\n".join(all_matches[:60])
 
-def analyze_soccer(matches_text):
+def generate_soccer_report():
+    """Erstellt den quantitativen Report via Gemini und Google Search."""
+    history = load_history()
+    settle_pending_picks(history)
+
+    odds_data = fetch_soccer_data()
+    if not odds_data:
+        print("Keine relevanten Fußballspiele im 12-Stunden-Fenster gefunden.")
+        return
+
+    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     prompt = f"""
-Du bist 'JARVIS SOCCER QUANT PRO', spezialisiert auf quantitative Fussball-Analysen (+EV, xG-Modelle, Ligen-Ineffizienzen).
-WICHTIG: Verwende in Überschriften und Text ausschließlich 'SOCCER' oder 'FUSSBALL' – NIEMALS 'Football', um jede Verwechslung mit American Football (NFL) auszuschließen!
+Du bist 'JARVIS SOCCER QUANT' – professioneller Sportwetten-Analyst für europäischen Spitzenfußball und MLS.
+Erstelle ein fundiertes Value- und Spieltags-Dossier für die heutigen Abend- und Nachtspiele ({today_str}).
 
-Hier sind die realen Partien mit Quoten (1X2, Spreads/Handicap, Over/Under inkl. MLS):
-{matches_text}
+STRIKTE ZEIT- & SPIELTAGSVORGABE:
+- Wähle AUSNAHMSLOS Partien aus der folgenden Liste, die HEUTE ABEND oder in der DIREKT FOLGENDEN NACHT (z.B. MLS bis max. 05:30 Uhr morgens MEZ) angepfiffen werden.
+- Partien des morgigen Abends sind STRIKT VERBOTEN und dürfen unter keinen Umständen im Report erscheinen.
 
-STRIKTE QUANTITATIVE LEITPLANKEN:
-1. MATHEMATISCHER VALUE (+EV): P(Win) > (1 / Quote).
-2. QUOTEN-KORRIDOR FÜR KOMBIS:
-   - Sowohl DYNAMIC GOALS als auch DYNAMIC MULTI-LEAGUE müssen eine Gesamtquote zwischen 2.75 und 4.50 anstreben.
-   - Baue bevorzugt extrem solide 2er-Kombis (z.B. ~1.80 x ~1.85 = ~3.33) oder 3er-Kombis mit sichereren Linien (z.B. Over 1.5, Doppelchance, Asian Handicap Puffer). Vermeide zwingend risikoreiche Kombis über Quote 5.00!
-3. MINDESTQUOTE BANKER: Jeder Pick im Banker-Ticket muss mindestens Quote 1.35 aufweisen (keine Minimalquoten unter 1.30). Gesamtquote 2.00 - 2.70.
+VERFÜGBARE PARTIEN & ECHTE QUOTEN:
+{odds_data}
 
-TICKET-STRUKTUR:
-- ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die absolut stärkste Einzelwette des Spieltags (1X2, Handicap oder Total).
-- 1. SOCCER BANKER TICKET (Strikt 2er-Double, Gesamtquote 2.00 - 2.70): Höchste Trefferwahrscheinlichkeit (1X2, Over 1.5, Doppelchance, Handicap; min. 1.35 pro Pick).
-- 2. DYNAMIC GOALS & BTTS VALUE TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Ineffiziente Tor-Märkte (Over/Under, BTTS) mit fundierter Rationale.
-- 3. DYNAMIC MULTI-LEAGUE VALUE TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Ligenübergreifende Kanten (inkl. MLS & europäische Ligen).
-- 4. VALUE TORSCHÜTZE / SPECIAL PICK: Ein fundierter Torschützen-Pick oder Match-Special (Quote 1.80 - 2.60) basierend auf aktueller Form und Startaufstellungen.
-
-FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
-<b>⚽ JARVIS SOCCER INTEL & VALUE REPORT</b>
+FORMATIERUNG & STRUKTUR (Exaktes HTML für Telegram):
+⚽ <b>JARVIS SOCCER INTEL &amp; VALUE REPORT</b>
 <i>Quantitatives Dossier • +EV Filter • Spieltags-Analysen</i>
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
+━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>PICK OF THE DAY (Single Bet)</b>
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<i>Fair Odds:</i> ~[Faire Quote] | <i>Chance:</i> [X]%
-<i>Edge:</i> [Begründung mit xG / Matchup / Handicap]
+- [Uhrzeit] [Liga] Heim vs. Gast ➔ <b>Pick: [Markt &amp; Tipp]</b> (Quote: X.XX)
+Fair Odds: ~X.XX | Chance: XX.X%
+Edge: [Präzise quantitative Begründung: xG-Vorteil, Spielstil, Pressing-Resistenz, taktische Kante]
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>SOCCER BANKER TICKET (2er-Double)</b>
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<b>Gesamtquote: [Produkt aller Quoten]</b>
-<i>Modell-Edge:</i> [Begründung]
+━━━━━━━━━━━━━━━━━━━━
+1️⃣ <b>SOCCER BANKER TICKET (2er-Double)</b>
+- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Tipp] (Quote: X.XX)
+- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Tipp] (Quote: X.XX)
+<b>Gesamtquote: X.XX</b>
+Modell-Edge: [Kompakte Begründung]
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC GOALS & BTTS VALUE TICKET ([Anzahl]-Kombi)</b>
-[Für jedes Spiel:]
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<b>Gesamtquote: [Produkt aller Quoten]</b>
+━━━━━━━━━━━━━━━━━━━━
+2️⃣ <b>DYNAMIC GOALS &amp; BTTS VALUE TICKET (2er-Kombi)</b>
+- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Under/Over/BTTS] (Quote: X.XX)
+- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Under/Over/BTTS] (Quote: X.XX)
+<b>Gesamtquote: X.XX</b>
+Modell-Edge: [xG-Verteilung, defensive Matchups]
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC MULTI-LEAGUE VALUE TICKET ([Anzahl]-Kombi)</b>
-[Für jedes Spiel:]
-- <b>[Uhrzeit] [Liga] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<b>Gesamtquote: [Produkt aller Quoten]</b>
+━━━━━━━━━━━━━━━━━━━━
+3️⃣ <b>DYNAMIC MULTI-LEAGUE / MLS VALUE TICKET (2er-Kombi)</b>
+- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Tipp] (Quote: X.XX)
+- [Uhrzeit] [Liga] Heim vs. Gast ➔ Pick: [Tipp] (Quote: X.XX)
+<b>Gesamtquote: X.XX</b>
+Modell-Edge: [Kompakte Begründung]
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-4. <b>VALUE TORSCHÜTZE / SPECIAL PICK</b>
-- <b>[Spieler / Pick]</b> (Quote: [Quote])
-<i>Spotlight:</i> [Begründung]
+━━━━━━━━━━━━━━━━━━━━
+4️⃣ <b>VALUE TORSCHÜTZE / SPECIAL PICK</b>
+- Spieler (Team) – [Markt z. B. Trifft zu beliebigem Zeitpunkt] (Quote: X.XX)
+Spotlight: [xG/90min, Strafraumpräsenz, gegnerische Defensivschwächen]
 
----JSON_DATA---
-{{
-  "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
-  "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
-  "banker": {{"odds": 2.20, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.48}}, {{"match": "M2", "pick": "Pick", "odds": 1.49}}]}},
-  "goals": {{"odds": 3.40, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.80}}, {{"match": "M2", "pick": "Pick", "odds": 1.88}}]}},
-  "multi_league": {{"odds": 3.30, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.80}}, {{"match": "M2", "pick": "Pick", "odds": 1.83}}]}},
-  "scorer": {{"odds": 2.10, "picks": [{{"player": "Spieler", "pick": "Pick", "odds": 2.10}}]}}
-}}
+Gib AUSSCHLIESSLICH den fertigen HTML-Report aus (kein einleitendes Bla-Bla, kein Markdown, keine Backticks ```html).
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.2}}
+    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=){GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"googleSearch": {}}],
+        "generationConfig": {"temperature": 0.2}
+    }
 
     for attempt in range(1, 4):
         try:
-            res = requests.post(url, json=payload, timeout=120)
+            res = requests.post(url, json=payload, timeout=90)
             if res.status_code == 200:
-                return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                report = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                report = report.replace("```html", "").replace("```", "").strip()
+                send_telegram(report)
+                print("Soccer Report erfolgreich generiert und versendet.")
+                return
             elif res.status_code in [500, 502, 503, 504]:
-                print(f"Versuch {attempt}/3: Gemini Server Status {res.status_code}. Warte 6 Sekunden...")
                 time.sleep(6)
             else:
                 res.raise_for_status()
@@ -177,32 +269,7 @@ FORMAT-VORGABE (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
             if attempt < 3:
                 time.sleep(6)
             else:
-                return "ERROR"
-    return "ERROR"
-
-def parse_and_save_bets(full_text):
-    if "---JSON_DATA---" in full_text:
-        parts = full_text.split("---JSON_DATA---")
-        report_text = parts[0].strip()
-        try:
-            bet_data = json.loads(parts[1].strip())
-            with open("pending_soccer.json", "w", encoding="utf-8") as f:
-                json.dump(bet_data, f, ensure_ascii=False, indent=2)
-            print("Picks in pending_soccer.json gespeichert.")
-        except Exception as e:
-            print(f"JSON Parsing-Fehler: {e}")
-        return report_text
-    return full_text
+                sys.exit(1)
 
 if __name__ == "__main__":
-    matches = fetch_soccer_data()
-    if not matches:
-        send_telegram_message("⚽ <b>Jarvis Soccer Status:</b> Keine Spiele im Zeitfenster.")
-    else:
-        raw_output = analyze_soccer(matches)
-        if raw_output != "ERROR":
-            send_telegram_message(parse_and_save_bets(raw_output))
-            print("✅ Soccer Report erfolgreich gesendet.")
-        else:
-            send_telegram_message("⚠️ <b>Jarvis Soccer Error:</b> KI-Generierung fehlgeschlagen.")
-            sys.exit(1)
+    generate_soccer_report()
