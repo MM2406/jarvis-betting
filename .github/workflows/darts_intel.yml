@@ -4,7 +4,7 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
-    # 2. AFTERNOON-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> Puffer fuer fruehe 12:45/13:00 Uhr Sessions
+    # 2. AFTERNOON-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> Puffer fuer 12:45/13:00 Uhr Sessions
     - cron: '15 10 * * *'
     # 3. EVENING-PICKS: 15:45 UTC (= 16:45 Uhr MEZ) -> Puffer fuer 19:00 Uhr Abendsessions
     - cron: '45 15 * * *'
@@ -16,7 +16,6 @@ permissions:
 jobs:
   run-darts-intel:
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
@@ -37,7 +36,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_DARTS_THREAD_ID: ${{ secrets.TELEGRAM_DARTS_THREAD_ID }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_DARTS_THREAD_ID || secrets.TELEGRAM_THREAD_DARTS }}
+          TELEGRAM_DARTS_THREAD_ID: ${{ secrets.TELEGRAM_DARTS_THREAD_ID || secrets.TELEGRAM_THREAD_DARTS }}
         run: python darts_intel.py
 
       - name: History committen und pushen
