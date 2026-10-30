@@ -204,6 +204,12 @@ RICHTLINIEN & MÄRKTE:
   * Value Acca: 0.5 bis 1.0 Units
   * Special Matchup Spotlight: 0.5 bis 1.0 Units
 
+FORMATIERUNGS-REGELN FÜR TELEGRAM:
+- Keine doppelten Leerzeilen.
+- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
+- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+
 REPORT-HTML:
 🇪🇺 <b>JARVIS EURO-HOOPS &amp; ICE DOSSIER</b>
 <i>EuroLeague • DEL • SHL Advanced Quant-Models</i>
