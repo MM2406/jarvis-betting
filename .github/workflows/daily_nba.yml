@@ -2,12 +2,11 @@ name: NBA Betting Jarvis
 
 on:
   schedule:
-    # Montag bis Freitag: 19:30 UTC
+    # Mo-Fr: 19:30 UTC (= 20:30 MEZ)
     - cron: '30 19 * * 1-5'
-    # Samstag: Early Slate (15:30 UTC) & Nacht-Slate (19:30 UTC)
+    # Sa & So: Early Slate (15:30 UTC = 16:30 MEZ) & Nacht-Slate (19:30 UTC = 20:30 MEZ)
     - cron: '30 15 * * 6'
     - cron: '30 19 * * 6'
-    # Sonntag: Early Slate (15:30 UTC) & Nacht-Slate (19:30 UTC)
     - cron: '30 15 * * 0'
     - cron: '30 19 * * 0'
   workflow_dispatch:
@@ -35,7 +34,9 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA || secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA || secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_THREAD_NBA: ${{ secrets.TELEGRAM_THREAD_NBA || secrets.TELEGRAM_US_THREAD_ID }}
         run: python jarvis_nba.py
 
       - name: Save pending NBA bets
