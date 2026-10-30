@@ -166,7 +166,7 @@ def fetch_college_odds():
             print(f"Fehler bei {sport}: {e}")
 
     print(f"Gefundene College-Partien: {len(all_events)}")
-    return "\n".join(all_events[:45])
+    return "\n".join(all_events[:50])
 
 def run_college_report():
     history = load_history()
@@ -187,44 +187,53 @@ def run_college_report():
 
     prompt = f"""
 Du bist 'JARVIS US COLLEGE QUANT' – Experte für NCAA Basketball & Football.
-Erstelle für heute ({today_str}) ein präzises Value-Dossier.
+Erstelle für heute ({today_str}) ein quantitatives Value-Dossier.
 
 VERFÜGBARE PARTIEN & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+RICHTLINIEN & MÄRKTE:
 - Wähle ausschließlich Partien aus der obigen Liste.
-- Analysiere KenPom/Torvik-Trends, Home-Court Advantage und Spreads.
-- Gib immer eine Standard-Buchmacher-Alternative an.
-- Weise immer eine Value-Grenze ('Spielbar bis @ X.XX') und Units (1.0 bis 2.0) aus.
-- Telegram-HTML ZUERST, danach der exakte JSON-Block.
+- Analysiere KenPom/Torvik-Trends, Home-Court Advantage, Pace und Spreads via Google Search.
+- DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 5 Partien mit rechnerischem Vorteil (+EV). Kein starres 2-Spiele-Limit.
+- BUCHMACHER-ALTERNATIVE: Gib immer eine Standard-Alternative an (z. B. Moneyline statt Spread oder Standard-Total).
+- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
+- UNITS:
+  * Pick of the Day: 1.0 bis 2.0 Units
+  * Value Acca: 0.5 bis 1.0 Units
+  * Spotlight Pick: 0.5 bis 1.0 Units
 
 REPORT-HTML:
 🎓 <b>JARVIS US COLLEGE INTEL DOSSIER</b>
 <i>NCAA Analytics • KenPom Edge • Market Discrepancies</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>COLLEGE PICK OF THE DAY</b>
-• [Uhrzeit] | [Sport] Heim vs. Gast
-  ➔ <b>Pick: [Spread / Total / Moneyline]</b> @ X.XX
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
-<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
-<b>Edge:</b> [Effizienz-Ratings, Tempo-Matchup, Turnover-Rates]
+⭐ <b>COLLEGE PICK OF THE DAY (Single Bet)</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Sport] [Heimteam] vs. [Auswärtsteam]
+➔ <b>Haupt-Pick:</b> <b>[Spread / Total / Moneyline]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
+📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+🔍 <b>Edge:</b> [Effizienz-Ratings, Tempo-Matchup, Turnover-Rates, Rebounding Edge]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
-• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
-• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
-<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Kompakte taktische Begründung beider Auswahlen]
+🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+[... ggf. Bein 4 und 5 ergänzen falls Value vorhanden ...]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
+⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
+💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>TEMPO &amp; UPSET SPOTLIGHT</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Tipp]</b> @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Mismatches im Rebounding / 3PT-Defense]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Over/Under / Moneyline Dog]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [Mismatches im Rebounding, Transition-Points, 3PT-Defense]
 
 ---JSON_TRACKING---
 [
