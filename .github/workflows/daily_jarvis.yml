@@ -1,20 +1,24 @@
-name: Soccer Betting Jarvis
+name: JARVIS Daily Soccer Intel
 
 on:
   schedule:
-    # 1. MORGEN-RUN: 08:00 UTC (= 09:00 Uhr MEZ) für Auswertungen
-    - cron: '0 8 * * *'
-    # 2. ABEND-RUN: 17:00 UTC (= 18:00 Uhr MEZ) für 12h-Abend- & MLS-Nachtspiele
-    - cron: '0 17 * * *'
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
+    - cron: '45 6 * * *'
+    # 2. MITTAGS-PICKS: 11:00 UTC (= 12:00 Uhr MEZ)
+    - cron: '0 11 * * *'
+    # 3. ABEND-PICKS: 16:30 UTC (= 17:30 Uhr MEZ)
+    - cron: '30 16 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  run-soccer-jarvis:
+  run-soccer:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+
     steps:
-      - name: Code laden
+      - name: Code auschecken
         uses: actions/checkout@v4
 
       - name: Python einrichten
@@ -22,23 +26,23 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Pakete installieren
-        run: pip install requests google-genai
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Soccer Jarvis starten
+      - name: Soccer Jarvis ausführen
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
+          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_SOCCER_THREAD_ID }}
         run: python jarvis.py
 
-      - name: Save pending soccer bets
+      - name: History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add pending_soccer.json soccer_history.json || true
-          git commit -m "Save pending soccer bets [skip ci]" || exit 0
-          git pull --rebase origin main
-          git push origin main
+          git add soccer_history.json || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update soccer history [skip ci]" && git pull --rebase origin main && git push)
