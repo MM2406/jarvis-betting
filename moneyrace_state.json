@@ -1,27 +1,28 @@
 {
-  "active": true,
-  "level": 1,
-  "bankroll": 5.0,
-  "target": 100.0,
-  "pending_pick": {
-    "sport": "icehockey_nhl",
-    "event": "Carolina Hurricanes vs. Columbus Blue Jackets",
-    "start_time": "30.10. 00:10 Uhr",
-    "date": "2026-10-29",
-    "selection": "Carolina Hurricanes",
-    "odds": 1.68,
-    "model_prob": "65.8%",
-    "fair_odds": "1.52",
-    "edge": "+6.3%",
-    "reason": "Carolina dominiert im 5v5-Forechecking und in den erweiterten Besitzmetriken (xGF% Liga-Top-5). Columbus offenbart erhebliche defensive Lücken und lässt überdurchschnittlich viele High-Danger Scoring Chances zu. Starker Value auf den Heimsieg."
-  },
-  "history": [],
-  "current_bet": {
-    "match": "Villarreal vs. Espanyol",
-    "sport": "Fußball (La Liga)",
-    "pick": "Under (3.5)",
-    "odds": 1.75,
-    "stake": 5.0,
-    "date": "2026-10-30"
-  }
+  "current_step": 2,
+  "bankroll": 13.27,
+  "start_amount": 5.00,
+  "target_amount": 100.00,
+  "history": [
+    {
+      "step": 1,
+      "match": "Carolina Hurricanes",
+      "pick": "Sieg Carolina Hurricanes",
+      "odds": 1.68,
+      "stake": 5.0,
+      "return": 8.4,
+      "status": "WON"
+    },
+    {
+      "step": 2,
+      "match": "FC Barcelona Bàsquet vs. Valencia Basket",
+      "pick": "FC Barcelona Bàsquet",
+      "odds": 1.58,
+      "stake": 8.4,
+      "return": 13.27,
+      "status": "WON"
+    }
+  ],
+  "active_pick": null,
+  "last_run_date": "2026-10-30"
 }
