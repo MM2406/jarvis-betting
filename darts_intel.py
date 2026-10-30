@@ -139,8 +139,6 @@ def fetch_darts_odds(already_tracked_matches):
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
 
-    # Fenster: Vor 15 Uhr = Nachmittagssession (nächste 6 Std)
-    # Nach 15 Uhr = Abendsession (nächste 9 Std)
     window_hours = 6 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
@@ -214,6 +212,12 @@ RICHTLINIEN & MÄRKTE:
   * Match of the Day: 1.0 bis 2.0 Units
   * Value Acca: 0.5 bis 1.0 Units
   * 180s / Special Spotlight: 0.5 bis 1.0 Units
+
+FORMATIERUNGS-REGELN FÜR TELEGRAM:
+- Keine doppelten Leerzeilen.
+- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
+- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
 REPORT-HTML:
 🎯 <b>JARVIS PDC DARTS INTEL • {session_name}</b>
