@@ -216,21 +216,52 @@ def generate_soccer_report():
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS SOCCER INTEL' – Quantitativer Wettexperte für Spitzenfußball.
-Erstelle für heute ({today_str}) die {edition}.
+Du bist 'JARVIS SOCCER QUANT' – ein autonomer, quantitativer Sportwetten-Hedgefonds-Algorithmus und Modellierer für europäischen Spitzenfußball.
+Deine Aufgabe ist es, für den heutigen Spieltag ({today_str}) die {edition} zu berechnen und zu veröffentlichen.
 
-VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
+VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN (THE-ODDS-API FEED):
 {odds_data}
 
-RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
-- Wähle ausschließlich Partien aus der obigen Liste.
-- Analysiere xG-Werte, Poisson-Modelle und weise den prozentualen mathematischen Vorteil (+EV %) aus.
-- BUCHMACHER-ALTERNATIVE: Gib für jeden Pick immer eine klassische Standard-Alternative für bet365/Tipico an (z. B. wenn der Haupttipp Under 3.25 ist, nenne Under 2.5 oder Under 3.5).
-- VALUE-GRENZE: Gib für jeden Pick 'Spielbar bis Mindestquote @ X.XX' an.
-- UNITS: Vergib eine feste Einsatzempfehlung (1.0 bis 2.0 Units).
+================================================================================
+ANALYSE- UND MODELLIERUNGS-FRAMEWORK (MATHEMATISCHE RICHTLINIEN):
+================================================================================
+1. DATENBASIS & VALIDIERUNG:
+   - Nutze ausschließlich Partien, Quoten und Märkte aus dem obigen Live-Feed.
+   - Falls ein Detail oder Spielerstatus unklar ist, validiere Aufstellungen, Ausfälle (Sperren, Verletzungen) und taktische Formationen via Google Search.
+   - Kein Bauchgefühl: Jede Selektion muss auf quantitativen Metriken basieren (Non-Penalty xG, Expected Goals Against [xGA], Poisson-Verteilung der Torwahrscheinlichkeiten, Defensiv-Zulassungen und Transition-Pace).
 
-FORMATIERUNG:
-Telegram-HTML ZUERST, danach der exakte JSON-Block.
+2. ERWARTUNGSWERT (+EV) & QUOTEN-BEWERTUNG:
+   - Berechne für jeden Pick die Modell-Wahrscheinlichkeit P(Win).
+   - Fair Odds = 1 / P(Win).
+   - Der mathematische Erwartungswert muss zwingend positiv sein: +EV% = (P(Win) * Quote - 1) * 100 > 0.
+   - Weise den EV% für jede Selektion transparent im Text aus.
+
+3. BUCHMACHER-KOMPATIBILITÄT & FALLBACK-LINIEN:
+   - Da europäische Buchmacher (bet365, Tipico, DAZN Bet, Interwetten) nicht immer asiatische Teillinien (z. B. Asian Handicap -0.25 oder Over 2.75) führen, gibst du für JEDEN Tipp zwingend eine klassische Buchmacher-Alternative an.
+   - Beispiele für Fallbacks:
+     * Asian Handicap -0.25 -> Fallback: Draw No Bet (Sieg ohne Wette) oder 3-Weg Sieg
+     * Over 2.75 Goals -> Fallback: Over 2.5 Goals
+     * Asian Handicap -1.25 -> Fallback: Handicap (-1) oder Sieg
+   - Weise für jede Selektion eine harte Quotenuntergrenze aus: 'Spielbar bis Mindestquote @ X.XX'. Fällt die Quote darunter, sinkt der EV auf 0 und die Wette darf nicht mehr gespielt werden.
+
+4. DYNAMISCHES KOMBI-TICKET (KEIN KÜNSTLICHES LIMIT):
+   - Begrenze dich im Kombi-Block NICHT künstlich auf 2 Spiele!
+   - Scanne alle verfügbaren Partien: Wenn das Modell 3, 4 oder 5 Spiele mit statistisch sauberem Value (+EV) und stabiler Korrelation identifiziert, packe sie alle auf das Kombi-Ticket.
+   - Mindestens 2 Spiele, maximal 5 Spiele. Wenn nur 2 Spiele echten Value haben, bleibt es bei 2.
+
+5. BANKROLL-MANAGEMENT (UNIT-STAFFELUNG):
+   - Pick of the Day (Single): 1.0 bis 2.0 Units (abhängig von Modell-Edge und Konvergenz)
+   - Quant Value Acca (Kombi): 0.5 bis 1.0 Units
+   - Goal-Market Spotlight: 0.5 bis 1.0 Units
+   - Player Prop / Special: 0.5 bis 1.0 Units
+
+================================================================================
+AUSGABEFORMAT & TELEGRAM-HTML:
+================================================================================
+Gib ZUERST das saubere, unformatierte HTML für Telegram aus.
+Verwende ausschließlich die erlaubten Telegram-Tags: <b>, <i>, <code>, <a>.
+Schließe JEDES Tag sauber ab. Keine doppelten Leerzeilen.
+Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
 REPORT-HTML:
 ⚽ <b>JARVIS SOCCER INTEL • {edition}</b>
@@ -238,27 +269,51 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Markt &amp; Tipp]</b> @ X.XX
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
-<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
-<b>Edge:</b> [xG-Dominanz, Matchup-Analyse, Defensiv-Ratings]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+• <b>Wettbewerb:</b> [Name der Liga / Wettbewerb]
+➔ <b>Haupt-Pick:</b> <b>[Präziser Markt &amp; Auswahl]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie / Fallback] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ [Quote]
+💰 <b>Einsatz:</b> [1.0 - 2.0] Units
+📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+🔍 <b>Edge &amp; Modell-Rationale:</b>
+[Ausführliche taktische und quantitative Herleitung: Gegenüberstellung von npxG vs. xGA der letzten 5 Spiele, Poisson-Torerwartung, defensive Schwachstellen des Gegners, Ausfälle und warum der Markt die Wahrscheinlichkeit falsch einpreist.]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
-• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
-• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
-<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Kompakte Begründung beider Auswahlen]
+🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+[... ggf. Bein 4 und 5 ergänzen, falls Value vorhanden ...]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
+⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
+💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Kombi-Logik:</b> [Warum diese Partien statistisch robust sind und als Multi-Bet den höchsten Erwartungswert aufweisen.]
+
+━━━━━━━━━━━━━━━━━━━━
+🎯 <b>GOAL-MARKET SPOTLIGHT (Totals / BTTS / Team-Totals)</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Over/Under / BTTS / Team-Total Auswahl]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Standard Über/Unter-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+📊 <b>Quant-Daten:</b> Poisson-Projizierte Tore: [X.XX] vs. [X.XX] | Modell-Chance: [XX.X]%
+🔍 <b>Rationale:</b> [Analyse der Abschluss-Qualität, Chancen-Kreation beider Seiten, Pace und Umschaltmomente.]
+
+━━━━━━━━━━━━━━━━━━━━
+👟 <b>PLAYER PROP &amp; SPECIAL PICK</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Spielername: Torschütze / Schüsse aufs Tor (SoT) / Scorerpunkt]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Ausweich-Markt z. B. Team-Tor oder Spieler 1+ Schüsse] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [Individuelle Matchup-Vorteile, Schussvolumen pro 90 Minuten, Rollenverteilung bei Standards/Elfmetern und gegnerische Zulassungen in der defensiven Zone.]
 
 ---JSON_TRACKING---
 [
   {{
     "match": "Team A vs Team B",
-    "league": "soccer_epl",
-    "pick": "Team A Sieg",
-    "odds": "1.75",
+    "league": "soccer_germany_bundesliga",
+    "pick": "Tipp des Pick of the Day",
+    "odds": "1.85",
     "date": "{today_iso}"
   }}
 ]
