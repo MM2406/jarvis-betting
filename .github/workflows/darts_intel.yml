@@ -4,9 +4,9 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
-    # 2. AFTERNOON-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> 2h Puffer für 13:00 Uhr Matches
+    # 2. AFTERNOON-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> Puffer fuer fruehe 12:45/13:00 Uhr Sessions
     - cron: '15 10 * * *'
-    # 3. EVENING-PICKS: 15:45 UTC (= 16:45 Uhr MEZ) -> Puffer für 19:00 Uhr Abendsessions
+    # 3. EVENING-PICKS: 15:45 UTC (= 16:45 Uhr MEZ) -> Puffer fuer 19:00 Uhr Abendsessions
     - cron: '45 15 * * *'
   workflow_dispatch:
 
@@ -26,12 +26,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Abhängigkeiten installieren
+      - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Darts Intel ausführen
+      - name: Darts Intel ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
