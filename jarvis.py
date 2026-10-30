@@ -148,9 +148,6 @@ def fetch_soccer_odds(already_tracked_matches):
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
 
-    # Fenster je nach Schicht:
-    # Vor 15 Uhr: Nachmittagsspiele (nächste 7 Std)
-    # Nach 15 Uhr: Abendschlager (nächste 9 Std)
     window_hours = 7 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
@@ -168,7 +165,6 @@ def fetch_soccer_odds(already_tracked_matches):
                 data = res.json()
                 for match in data:
                     match_name = f"{match['home_team']} vs. {match['away_team']}"
-                    # Bereits getrackte Partien nicht nochmals analysieren
                     if match_name in already_tracked_matches:
                         continue
 
@@ -199,7 +195,6 @@ def generate_soccer_report():
     settle_pending_picks(history)
 
     now_hour = datetime.now(LOCAL_TZ).hour
-    # Morgens vor 10:00 Uhr: Nur Abrechnung
     if now_hour < 10:
         print("Morgen-Run: Abrechnung erledigt. Keine Picks vor 11:00 Uhr.")
         return
@@ -228,7 +223,7 @@ ANALYSE- UND MODELLIERUNGS-FRAMEWORK (MATHEMATISCHE RICHTLINIEN):
 1. DATENBASIS & VALIDIERUNG:
    - Nutze ausschließlich Partien, Quoten und Märkte aus dem obigen Live-Feed.
    - Falls ein Detail oder Spielerstatus unklar ist, validiere Aufstellungen, Ausfälle (Sperren, Verletzungen) und taktische Formationen via Google Search.
-   - Kein Bauchgefühl: Jede Selektion muss auf quantitativen Metriken basieren (Non-Penalty xG, Expected Goals Against [xGA], Poisson-Verteilung der Torwahrscheinlichkeiten, Defensiv-Zulassungen und Transition-Pace).
+   - Jede Selektion muss auf quantitativen Metriken basieren (Non-Penalty xG, Expected Goals Against [xGA], Poisson-Verteilung, Defensiv-Zulassungen).
 
 2. ERWARTUNGSWERT (+EV) & QUOTEN-BEWERTUNG:
    - Berechne für jeden Pick die Modell-Wahrscheinlichkeit P(Win).
@@ -237,31 +232,26 @@ ANALYSE- UND MODELLIERUNGS-FRAMEWORK (MATHEMATISCHE RICHTLINIEN):
    - Weise den EV% für jede Selektion transparent im Text aus.
 
 3. BUCHMACHER-KOMPATIBILITÄT & FALLBACK-LINIEN:
-   - Da europäische Buchmacher (bet365, Tipico, DAZN Bet, Interwetten) nicht immer asiatische Teillinien (z. B. Asian Handicap -0.25 oder Over 2.75) führen, gibst du für JEDEN Tipp zwingend eine klassische Buchmacher-Alternative an.
-   - Beispiele für Fallbacks:
-     * Asian Handicap -0.25 -> Fallback: Draw No Bet (Sieg ohne Wette) oder 3-Weg Sieg
-     * Over 2.75 Goals -> Fallback: Over 2.5 Goals
-     * Asian Handicap -1.25 -> Fallback: Handicap (-1) oder Sieg
-   - Weise für jede Selektion eine harte Quotenuntergrenze aus: 'Spielbar bis Mindestquote @ X.XX'. Fällt die Quote darunter, sinkt der EV auf 0 und die Wette darf nicht mehr gespielt werden.
+   - Gib für JEDEN Tipp zwingend eine klassische Buchmacher-Alternative an (z. B. Draw No Bet statt Asian Handicap, oder Over 2.5 statt Over 2.75).
+   - Weise für jede Selektion eine Quotenuntergrenze aus: 'Spielbar bis Mindestquote @ X.XX'.
 
 4. DYNAMISCHES KOMBI-TICKET (KEIN KÜNSTLICHES LIMIT):
    - Begrenze dich im Kombi-Block NICHT künstlich auf 2 Spiele!
-   - Scanne alle verfügbaren Partien: Wenn das Modell 3, 4 oder 5 Spiele mit statistisch sauberem Value (+EV) und stabiler Korrelation identifiziert, packe sie alle auf das Kombi-Ticket.
-   - Mindestens 2 Spiele, maximal 5 Spiele. Wenn nur 2 Spiele echten Value haben, bleibt es bei 2.
+   - Wenn das Modell 3, 4 oder 5 Spiele mit statistisch sauberem Value (+EV) und stabiler Korrelation identifiziert, packe sie alle auf das Kombi-Ticket (mindestens 2, maximal 5 Spiele).
 
 5. BANKROLL-MANAGEMENT (UNIT-STAFFELUNG):
-   - Pick of the Day (Single): 1.0 bis 2.0 Units (abhängig von Modell-Edge und Konvergenz)
+   - Pick of the Day (Single): 1.0 bis 2.0 Units
    - Quant Value Acca (Kombi): 0.5 bis 1.0 Units
    - Goal-Market Spotlight: 0.5 bis 1.0 Units
    - Player Prop / Special: 0.5 bis 1.0 Units
 
 ================================================================================
-AUSGABEFORMAT & TELEGRAM-HTML:
+FORMATIERUNGS-REGELN FÜR TELEGRAM:
 ================================================================================
-Gib ZUERST das saubere, unformatierte HTML für Telegram aus.
-Verwende ausschließlich die erlaubten Telegram-Tags: <b>, <i>, <code>, <a>.
-Schließe JEDES Tag sauber ab. Keine doppelten Leerzeilen.
-Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+- Keine doppelten Leerzeilen.
+- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
+- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
 REPORT-HTML:
 ⚽ <b>JARVIS SOCCER INTEL • {edition}</b>
@@ -277,14 +267,14 @@ REPORT-HTML:
 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
 📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
 🔍 <b>Edge &amp; Modell-Rationale:</b>
-[Ausführliche taktische und quantitative Herleitung: Gegenüberstellung von npxG vs. xGA der letzten 5 Spiele, Poisson-Torerwartung, defensive Schwachstellen des Gegners, Ausfälle und warum der Markt die Wahrscheinlichkeit falsch einpreist.]
+[Ausführliche taktische und quantitative Herleitung: Gegenüberstellung von npxG vs. xGA der letzten 5 Spiele, Poisson-Torerwartung, defensive Schwachstellen des Gegners und Modell-Vorteil.]
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
 • [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 • [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 • [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 und 5 ergänzen, falls Value vorhanden ...]
+[... ggf. Bein 4 und 5 ergänzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -305,7 +295,7 @@ REPORT-HTML:
 ➔ <b>Pick:</b> <b>[Spielername: Torschütze / Schüsse aufs Tor (SoT) / Scorerpunkt]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Ausweich-Markt z. B. Team-Tor oder Spieler 1+ Schüsse] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Rationale:</b> [Individuelle Matchup-Vorteile, Schussvolumen pro 90 Minuten, Rollenverteilung bei Standards/Elfmetern und gegnerische Zulassungen in der defensiven Zone.]
+🔍 <b>Rationale:</b> [Individuelle Matchup-Vorteile, Schussvolumen pro 90 Minuten, Rollenverteilung bei Standards/Elfmetern.]
 
 ---JSON_TRACKING---
 [
