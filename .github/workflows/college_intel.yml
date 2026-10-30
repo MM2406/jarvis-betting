@@ -4,8 +4,10 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
-    # 2. ABEND-PICKS: 19:30 UTC (= 20:30 Uhr MEZ)
-    - cron: '30 19 * * *'
+    # 2. SAMSTAG/SONNTAG: Grosse Slates (15:00 UTC = 16:00 Uhr MEZ)
+    - cron: '0 15 * * 6,0'
+    # 3. DIENSTAG-FREITAG: Midweek Hoops (17:00 UTC = 18:00 Uhr MEZ)
+    - cron: '0 17 * * 2-5'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +16,6 @@ permissions:
 jobs:
   run-college-intel:
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
@@ -24,18 +25,19 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Abhängigkeiten installieren
+      - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: College Intel ausführen
+      - name: College Intel ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_COLLEGE_THREAD_ID: ${{ secrets.TELEGRAM_COLLEGE_THREAD_ID }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_COLLEGE_THREAD_ID || secrets.TELEGRAM_THREAD_COLLEGE }}
+          TELEGRAM_COLLEGE_THREAD_ID: ${{ secrets.TELEGRAM_COLLEGE_THREAD_ID || secrets.TELEGRAM_THREAD_COLLEGE }}
         run: python college_intel.py
 
       - name: History committen und pushen
