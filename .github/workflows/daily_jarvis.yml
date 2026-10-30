@@ -4,10 +4,10 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
-    # 2. MITTAGS-PICKS: 11:00 UTC (= 12:00 Uhr MEZ)
-    - cron: '0 11 * * *'
-    # 3. ABEND-PICKS: 16:30 UTC (= 17:30 Uhr MEZ)
-    - cron: '30 16 * * *'
+    # 2. MITTAGS-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> Puffer für 13:00/13:30 Uhr Spiele
+    - cron: '15 10 * * *'
+    # 3. ABEND-PICKS: 15:45 UTC (= 16:45 Uhr MEZ) -> Puffer für frühe Abendspiele (18:30/19:00 Uhr)
+    - cron: '45 15 * * *'
   workflow_dispatch:
 
 permissions:
