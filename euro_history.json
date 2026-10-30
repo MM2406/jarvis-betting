@@ -1,0 +1,37 @@
+{
+  "settled": [],
+  "pending": [
+    {
+      "match": "Žalgiris vs. KK Partizan NIS",
+      "sport": "basketball_euroleague",
+      "pick": "Žalgiris (-6.5)",
+      "odds": "1.91",
+      "date": "2026-10-30",
+      "status": "PENDING"
+    },
+    {
+      "match": "Olympiacos vs. Pallacanestro Olimpia Milano",
+      "sport": "basketball_euroleague",
+      "pick": "Olympiacos ML",
+      "odds": "1.26",
+      "date": "2026-10-30",
+      "status": "PENDING"
+    },
+    {
+      "match": "FC Barcelona Bàsquet vs. Valencia Basket",
+      "sport": "basketball_euroleague",
+      "pick": "FC Barcelona Bàsquet ML",
+      "odds": "1.58",
+      "date": "2026-10-30",
+      "status": "PENDING"
+    },
+    {
+      "match": "ASVEL Lyon Villeurbanne vs. Saski Baskonia",
+      "sport": "basketball_euroleague",
+      "pick": "Under (175.5)",
+      "odds": "1.91",
+      "date": "2026-10-30",
+      "status": "PENDING"
+    }
+  ]
+}
