@@ -90,13 +90,13 @@ Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Prüfe, ob das Match bereits regulär beendet ist (nach 90 Min). Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Prüfe, ob das Match regulär beendet ist (nach 90 Min). Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
-3. Bei Spielabsage oder Push (z.B. Handicap Unentschieden / Draw No Bet Push) gib 'VOID' aus.
+3. Bei Push (z.B. Handicap Unentschieden / Draw No Bet Push) gib 'VOID' aus.
 
-Antworte exakt in diesem Format:
+Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Offizielles Endergebnis (z.B. 2:1)
+SCORE: Endergebnis (z.B. 2:1)
 INFO: Kurze Begründung.
 """
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
@@ -194,27 +194,28 @@ def generate_soccer_report():
 
     odds_data = fetch_soccer_odds()
     if not odds_data:
-        print("Keine relevanten Fußballspiele für das heutige Zeitfenster gefunden.")
+        print("Keine relevanten Fußballspiele für das Zeitfenster gefunden.")
         return
 
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS SOCCER INTEL' – Quantitativer Wettexperte für europäischen und internationalen Spitzenfußball.
-Erstelle für heute ({today_str}) ein präzises Value-Dossier für die heutigen Spiele.
+Du bist 'JARVIS SOCCER INTEL' – Quantitativer Wettexperte für Spitzenfußball.
+Erstelle für heute ({today_str}) ein präzises Value-Dossier.
 
 VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
 
-RICHTLINIEN:
-- Wähle AUSNAHMSLOS Partien aus der obigen Liste. Erfinde niemals Partien oder Quoten.
-- Analysiere xG-Werte, Heim-/Auswärtstrends, defensive Stabilität und Quoten-Disbalancen (+EV).
-- Bei Quotenangaben immer das Format '@ X.XX' verwenden.
-- DIVERSIFIZIERUNG: Falls nur 1 Spiel in der Liste ist, darfst du im 'QUANT SPOTLIGHT' KEINESFALLS denselben Tipp wie im Pick of the Day wiederholen! Nutze dort stattdessen einen anderen Markt (z.B. Halbzeit-Tore, Beide Teams treffen oder Team-Tore).
+RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+- Wähle ausschließlich Partien aus der obigen Liste.
+- Analysiere xG-Werte, Poisson-Modelle und weise den prozentualen mathematischen Vorteil (+EV %) aus.
+- BUCHMACHER-ALTERNATIVE: Gib für jeden Pick immer eine klassische Standard-Alternative für bet365/Tipico an (z. B. wenn der Haupttipp Under 3.25 ist, nenne Under 2.5 oder Under 3.5).
+- VALUE-GRENZE: Gib für jeden Pick 'Spielbar bis Mindestquote @ X.XX' an.
+- UNITS: Vergib eine Einsatzempfehlung (1.0 bis 2.0 Units).
 
 FORMATIERUNG & STRUKTUR:
-Erstelle ZUERST das HTML für Telegram und füge GANZ AM ENDE den JSON-Block für das Settlement-Tracking an.
+Erstelle ZUERST das HTML für Telegram und füge GANZ AM ENDE den JSON-Block für das Settlement an.
 
 REPORT-HTML:
 ⚽ <b>JARVIS SOCCER INTEL DOSSIER</b>
@@ -224,20 +225,23 @@ REPORT-HTML:
 ⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
 • [Uhrzeit] | Heim vs. Gast
   ➔ <b>Pick: [Markt &amp; Tipp]</b> @ X.XX
-<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (+X.X% EV)
-<b>Edge:</b> [Detaillierte Analyse: xG-Dominanz, Matchup-Analyse, Formkurve]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
+<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
+<b>Edge:</b> [Detaillierte Analyse: xG-Dominanz, Matchup-Analyse, Poisson-Projektion]
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>VALUE DOUBLE TICKET (2er-Kombi oder Match-Kombi / SGM)</b>
-• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX
-• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX
-<b>Gesamtquote: X.XX</b>
-<b>Rationale:</b> [Kompakte taktische Begründung beider Auswahlen]
+• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Standard-Tipp])
+• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Standard-Tipp])
+<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
+<b>Rationale:</b> [Kompakte Begründung beider Auswahlen]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>QUANT SPOTLIGHT: [THEMA / MARKT]</b>
 • [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Alternativer Tipp, z.B. 1. HZ Tore oder BTTS]</b> @ X.XX
+  ➔ <b>Pick: [Alternativer Markt, z.B. Halbzeit-Tore oder BTTS]</b> @ X.XX
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
 <b>Rationale:</b> [Pace, Torchancen-Kreation, Defensiv-Statistiken]
 
 ---JSON_TRACKING---
@@ -274,7 +278,7 @@ REPORT-HTML:
                             np["status"] = "PENDING"
                         history["pending"].extend(new_picks)
                         save_history(history)
-                        print(f"{len(new_picks)} Soccer-Picks zur Historie hinzugefügt.")
+                        print(f"{len(new_picks)} Soccer-Picks hinzugefügt.")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
