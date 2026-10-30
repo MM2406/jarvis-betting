@@ -148,7 +148,9 @@ def fetch_soccer_odds(already_tracked_matches):
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
 
-    window_hours = 7 if now_hour < 15 else 9
+    # Vor 15 Uhr: Nachmittagsspiele (nächste 8 Std ab 11:15 -> deckt bis 19:15 Uhr ab)
+    # Nach 15 Uhr: Abendschlager (nächste 9 Std ab 16:45 -> deckt bis 01:45 Uhr ab)
+    window_hours = 8 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
     for sport in SOCCER_LEAGUES:
@@ -196,7 +198,7 @@ def generate_soccer_report():
 
     now_hour = datetime.now(LOCAL_TZ).hour
     if now_hour < 10:
-        print("Morgen-Run: Abrechnung erledigt. Keine Picks vor 11:00 Uhr.")
+        print("Morgen-Run: Abrechnung erledigt. Keine Picks vor 10:30 Uhr.")
         return
 
     tracked_matches = {p.get("match") for p in history.get("pending", [])}
