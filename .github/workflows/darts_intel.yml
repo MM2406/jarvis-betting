@@ -4,7 +4,9 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
-    # 2. VORABEND-PICKS: 16:00 UTC (= 17:00 Uhr MEZ)
+    # 2. NACHMITTAGS-SESSION: 11:00 UTC (= 12:00 Uhr MEZ)
+    - cron: '0 11 * * *'
+    # 3. ABEND-SESSION: 16:00 UTC (= 17:00 Uhr MEZ)
     - cron: '0 16 * * *'
   workflow_dispatch:
 
