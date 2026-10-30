@@ -1,24 +1,25 @@
-name: NFL Betting Jarvis
+name: JARVIS NFL Intel
 
 on:
   schedule:
-    # Donnerstag (TNF): 17:00 UTC
-    - cron: '0 17 * * 4'
-    # Sonntag Early Slate (19:00 Uhr Kickoffs): 15:30 UTC
-    - cron: '30 15 * * 0'
-    # Sonntag Late Slate (22:05/22:25 Uhr & Sunday Night): 18:45 UTC
-    - cron: '45 18 * * 0'
-    # Montag (MNF): 17:00 UTC
-    - cron: '0 17 * * 1'
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
+    - cron: '45 6 * * *'
+    # 2. DONNERSTAG: Thursday Night Football (16:45 UTC = 17:45 MEZ)
+    - cron: '45 16 * * 4'
+    # 3. SONNTAG: Early Slate & Main Slate (16:00 UTC = 17:00 MEZ)
+    - cron: '0 16 * * 0'
+    # 4. MONTAG: Monday Night Football (17:45 UTC = 18:45 MEZ)
+    - cron: '45 17 * * 1'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   run-nfl-jarvis:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Code laden
+      - name: Code auschecken
         uses: actions/checkout@v4
 
       - name: Python einrichten
@@ -26,23 +27,25 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Pakete installieren
-        run: pip install requests
+      - name: Abhaengigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: NFL Jarvis starten
+      - name: NFL Jarvis ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
-        run: python jarvis_nfl.py
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL || secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL || secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL || secrets.TELEGRAM_US_THREAD_ID }}
+        run: python nfl_jarvis.py
 
-      - name: Save pending NFL bets
+      - name: History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nfl.json || true
-          git commit -m "Save pending NFL bets [skip ci]" || exit 0
-          git pull --rebase origin main
-          git push origin main
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NFL pending bets [skip ci]" && git pull --rebase origin main && git push)
