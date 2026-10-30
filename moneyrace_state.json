@@ -15,5 +15,13 @@
     "edge": "+6.3%",
     "reason": "Carolina dominiert im 5v5-Forechecking und in den erweiterten Besitzmetriken (xGF% Liga-Top-5). Columbus offenbart erhebliche defensive Lücken und lässt überdurchschnittlich viele High-Danger Scoring Chances zu. Starker Value auf den Heimsieg."
   },
-  "history": []
+  "history": [],
+  "current_bet": {
+    "match": "Villarreal vs. Espanyol",
+    "sport": "Fußball (La Liga)",
+    "pick": "Under (3.5)",
+    "odds": 1.75,
+    "stake": 5.0,
+    "date": "2026-10-30"
+  }
 }
