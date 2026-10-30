@@ -74,21 +74,21 @@ def settle_pending_picks(history):
 
     for item in pending:
         prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis für folgendes Darts-Match:
+Recherchiere via Google Search das offizielle Endergebnis fuer folgendes Darts-Match:
 Match: {item.get('match')}
 Turnier: PDC Darts
 Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Prüfe, ob das Match bereits beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Pruefe, ob das Match bereits beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Spielabsage oder Push gib 'VOID' aus.
 
 Antworte exakt:
 RESULT: WON oder LOST oder PENDING oder VOID
 SCORE: Offizielles Endergebnis (z.B. 6:4 Legs)
-INFO: Kurze Begründung.
+INFO: Kurze Begruendung.
 """
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
@@ -139,7 +139,9 @@ def fetch_darts_odds(already_tracked_matches):
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
 
-    window_hours = 6 if now_hour < 15 else 9
+    # Vor 15 Uhr: Nachmittagssession (8 Std Puffer ab 11:15 -> bis 19:15 Uhr)
+    # Nach 15 Uhr: Abendsession (9 Std Puffer ab 16:45 -> bis 01:45 Uhr)
+    window_hours = 8 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
     for sport in DARTS_SPORTS:
@@ -181,14 +183,14 @@ def run_darts_report():
 
     now_hour = datetime.now(LOCAL_TZ).hour
     if now_hour < 10:
-        print("Morgen-Run: Nur Abrechnung durchgeführt.")
+        print("Morgen-Run: Nur Abrechnung durchgefuehrt.")
         return
 
     tracked_matches = {p.get("match") for p in history.get("pending", [])}
     odds_data = fetch_darts_odds(tracked_matches)
 
     if not odds_data:
-        print(f"Keine relevanten Darts-Matches für dieses Zeitfenster ({now_hour} Uhr) gefunden.")
+        print(f"Keine relevanten Darts-Matches fuer dieses Zeitfenster ({now_hour} Uhr) gefunden.")
         return
 
     session_name = "AFTERNOON SESSION" if now_hour < 15 else "EVENING SESSION"
@@ -196,26 +198,26 @@ def run_darts_report():
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS DARTS QUANT' – Experte für PDC Darts (3-Dart-Averages, 180s-Statistiken, Checkout-Percentages).
-Erstelle für heute ({today_str}) die {session_name}.
+Du bist 'JARVIS DARTS QUANT' – Experte fuer PDC Darts (3-Dart-Averages, 180s-Statistiken, Checkout-Percentages).
+Erstelle fuer heute ({today_str}) die {session_name}.
 
-VERFÜGBARE MATCHES & QUOTEN:
+VERFUEGBARE MATCHES & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & MÄRKTE:
-- Wähle ausschließlich Matches aus der obigen Liste.
-- Analysiere Scoring-Power, Leg-Handicaps, 180s-Märkte und Quoten-Diskrepanzen via Google Search.
+RICHTLINIEN & MAERKTE:
+- Waehle ausschliesslich Matches aus der obigen Liste.
+- Analysiere Scoring-Power, Leg-Handicaps, 180s-Maerkte und Quoten-Diskrepanzen via Google Search.
 - DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 4 Matches mit rechnerischem Vorteil (+EV). Kein starres 2-Matches-Limit.
-- BUCHMACHER-ALTERNATIVE: Gib für jeden Tipp immer eine klassische Standard-Alternative an (z. B. Match-Sieg statt Leg-Handicap).
-- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
+- BUCHMACHER-ALTERNATIVE: Gib fuer jeden Tipp immer eine klassische Standard-Alternative an (z. B. Match-Sieg statt Leg-Handicap).
+- VALUE-GRENZE: Weise fuer jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
 - UNITS:
   * Match of the Day: 1.0 bis 2.0 Units
   * Value Acca: 0.5 bis 1.0 Units
   * 180s / Special Spotlight: 0.5 bis 1.0 Units
 
-FORMATIERUNGS-REGELN FÜR TELEGRAM:
+FORMATIERUNGS-REGELN FUER TELEGRAM:
 - Keine doppelten Leerzeilen.
-- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
+- Beginne jede Aufzaehlung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
 - Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
 - Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
@@ -237,19 +239,19 @@ REPORT-HTML:
 • [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 • [Uhrzeit] Uhr | [Spieler C] vs. [Spieler D] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 • [Uhrzeit] Uhr | [Spieler E] vs. [Spieler F] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
+[... ggf. Bein 4 ergaenzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhaengig starken Value bietet]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>180s &amp; SCORING SPOTLIGHT</b>
 • <b>Match:</b> [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B]
-➔ <b>Pick:</b> <b>[Over/Under 180s / Leg-Total / Höchstes Checkout]</b> @ [Quote]
+➔ <b>Pick:</b> <b>[Over/Under 180s / Leg-Total / Hoechstes Checkout]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Rationale:</b> [T19/T20 Präferenzen, Pace des Spiels, Matchlänge]
+🔍 <b>Rationale:</b> [T19/T20 Praeferenzen, Pace des Spiels, Matchlaenge]
 
 ---JSON_TRACKING---
 [
@@ -285,7 +287,7 @@ REPORT-HTML:
                             np["status"] = "PENDING"
                         history["pending"].extend(new_picks)
                         save_history(history)
-                        print(f"{len(new_picks)} Darts-Picks hinzugefügt.")
+                        print(f"{len(new_picks)} Darts-Picks hinzugefuegt.")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
