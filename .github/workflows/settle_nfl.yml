@@ -1,18 +1,20 @@
-name: Settle NFL Bets
+name: JARVIS NFL Settle
 
 on:
   schedule:
-    # Freitag, Montag und Dienstag jeweils um 09:30 UTC
-    - cron: '30 9 * * 1,2,5'
+    # 06:45 UTC = 07:45 Uhr MEZ
+    - cron: '45 6 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   settle-nfl:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+
     steps:
-      - name: Code laden
+      - name: Code auschecken
         uses: actions/checkout@v4
 
       - name: Python einrichten
@@ -20,24 +22,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Pakete installieren
-        run: pip install requests
+      - name: Abhängigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: NFL Wetten abrechnen
+      - name: NFL Settle ausführen
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
+          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_US_THREAD_ID }}
         run: python settle_nfl.py
 
-      - name: Pending-Datei entfernen und pushen
+      - name: Pending NFL committen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          if [ ! -f pending_nfl.json ]; then
-            git add -A
-            git commit -m "Remove settled pending_nfl.json [skip ci]" || echo "No changes to commit"
-            git pull --rebase origin main
-            git push origin main
-          fi
+          git add pending_nfl.json || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update settled NFL bets [skip ci]" && git push)
