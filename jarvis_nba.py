@@ -99,23 +99,29 @@ def run_nba_intel():
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS NBA QUANT' – Hochspezialisierter Analyst für NBA-Basketball und quantitative Wettmodelle.
-Erstelle für die heutige Nacht ({today_str}) das umfassende NBA-Dossier.
+Du bist 'JARVIS NBA QUANT' – Spezialist für quantitative NBA-Modellierung, Possession-Analytics und Quoten-Diskrepanzen.
+Erstelle für heute ({today_str}) das NBA-Dossier.
 
-VERFÜGBARE PARTIEN & QUOTEN:
+VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
 
 RICHTLINIEN & MÄRKTE:
 - Wähle ausschließlich Partien aus der obigen Liste.
 - Analysiere Pace, Offensive/Defensive Ratings, Net-Rating Edge, Rest Advantage (Back-to-Back) und Lineup-News via Google Search.
-- DYNAMISCHE ACCA: Beschränke dich beim Kombi-Ticket NICHT auf 2 Spiele. Wenn du 3 oder 4 Spiele mit klarem Value (+EV) findest, packe sie alle auf das Ticket (mindestens 2, maximal 4 Beine).
-- BUCHMACHER-ALTERNATIVE: Gib für jeden Spread/Total-Pick eine klassische Standard-Linie für europäische Bookies an.
+- DYNAMISCHE ACCA: Begrenze dich beim Kombi-Ticket NICHT auf 2 Spiele. Kombiniere 2 bis 4 Spiele mit klarem mathematischem Vorteil (+EV).
+- BUCHMACHER-ALTERNATIVE: Gib für jeden Spread/Total-Pick immer eine Standard-Linie für europäische Bookies an (z.B. bet365/Tipico).
 - VALUE-GRENZE: Weise für jeden Single-Tipp und für die Kombi eine Mindestquote aus ('Spielbar bis @ X.XX').
 - UNITS:
   * Pick of the Day: 1.0 bis 2.0 Units
   * Value Acca: 0.5 bis 1.0 Units
   * Totals Spotlight: 0.5 bis 1.0 Units
   * Player Prop: 0.5 bis 1.0 Units
+
+FORMATIERUNGS-REGELN FÜR TELEGRAM:
+- Keine doppelten Leerzeilen.
+- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
+- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
 REPORT-HTML:
 🏀 <b>JARVIS NBA INTEL DOSSIER</b>
