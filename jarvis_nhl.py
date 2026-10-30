@@ -10,41 +10,55 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_US_THREAD_ID", "").strip()
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
+PENDING_FILE = "pending_nhl.json"
 
-def send_telegram_message(text):
+def send_telegram(text):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("Telegram Credentials fehlen.")
+        return
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    max_len = 3800
-    chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+    if TELEGRAM_THREAD_ID:
+        try:
+            payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+        except ValueError:
+            pass
 
-    for chunk in chunks:
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
-        if TELEGRAM_THREAD_ID:
-            try:
-                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-            except ValueError:
-                pass
-
-        res = requests.post(url, json=payload, timeout=20)
+    try:
+        res = requests.post(url, json=payload, timeout=25)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=20)
-            if res2.status_code != 200:
-                print(f"Telegram Fehler: {res2.text}")
+            requests.post(url, json=payload, timeout=25)
+    except Exception as e:
+        print(f"Telegram-Fehler: {e}")
 
-def fetch_nhl_data():
+def load_pending():
+    if not os.path.exists(PENDING_FILE):
+        return []
+    try:
+        with open(PENDING_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
+        return []
+
+def save_pending(pending_list):
+    try:
+        with open(PENDING_FILE, "w", encoding="utf-8") as f:
+            json.dump(pending_list, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
+
+def fetch_nhl_odds():
     url = "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
@@ -52,98 +66,90 @@ def fetch_nhl_data():
         "markets": "h2h,spreads,totals",
         "oddsFormat": "decimal"
     }
-    matches_summary = []
-    now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=36)
-
     try:
         res = requests.get(url, params=params, timeout=15)
         if res.status_code == 200:
-            data = res.json()
-            for match in data:
-                commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
-                if now_utc <= commence_utc <= cutoff:
-                    bookies = match.get("bookmakers", [])
+            events = []
+            now_utc = datetime.now(timezone.utc)
+            cutoff = now_utc + timedelta(hours=18)
+            for m in res.json():
+                commence = datetime.fromisoformat(m["commence_time"].replace("Z", "+00:00"))
+                if now_utc <= commence <= cutoff:
+                    time_str = commence.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
+                    bookies = m.get("bookmakers", [])
                     if not bookies:
                         continue
-                    time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
-                    details = []
-                    for m in bookies[0].get("markets", []):
-                        m_key = m.get("key")
-                        if m_key == "h2h":
-                            details.append("Moneyline: " + ", ".join([f"{o['name']} ({o['price']})" for o in m.get("outcomes", [])]))
-                        elif m_key == "spreads":
-                            details.append("Puckline: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-                        elif m_key == "totals":
-                            details.append("Totals: " + ", ".join([f"{o['name']} {o.get('point', '')} ({o['price']})" for o in m.get("outcomes", [])]))
-                    matches_summary.append(f"{match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(details)}")
+                    m_details = []
+                    for mk in bookies[0].get("markets", []):
+                        outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in mk.get("outcomes", [])]
+                        m_details.append(f"{mk.get('key')}: {', '.join(outcomes)}")
+                    events.append(f"{m['home_team']} vs. {m['away_team']} ({time_str}) | {' // '.join(m_details)}")
+            return "\n".join(events[:35])
     except Exception as e:
-        print(f"Fehler bei NHL Odds API: {e}")
+        print(f"Fehler bei NHL Odds: {e}")
+    return ""
 
-    print(f"NHL-Partien gesammelt: {len(matches_summary)}")
-    return "\n".join(matches_summary)
+def run_nhl_intel():
+    odds_data = fetch_nhl_odds()
+    if not odds_data:
+        print("Keine NHL-Spiele im Zeitfenster gefunden.")
+        return
 
-def analyze_nhl(matches_text):
+    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+
     prompt = f"""
-Du bist 'JARVIS NHL QUANT PRO', spezialisiert auf quantitative NHL-Analysen (Starting Goalie Confirmation, Expected Goals [xGF%], Powerplay vs Penalty Kill Matchups).
-Recherchiere via Google Search nach den bestätigten Starting Goalies (Daily Faceoff / Goalie Post) und Injury Updates für die anstehenden NHL-Spiele.
+Du bist 'JARVIS NHL QUANT' – Spezialist für NHL-Eishockey und fortschrittliche Analytics (Corsi, Fenwick, xGF, Goalie GSAx).
+Erstelle für heute ({today_str}) ein präzises Value-Dossier.
 
-Hier sind die realen NHL-Partien mit aktuellen Quoten:
-{matches_text}
+VERFÜGBARE PARTIEN & QUOTEN:
+{odds_data}
 
-STRIKTE QUANTITATIVE LEITPLANKEN:
-1. MATHEMATISCHER VALUE (+EV): P(Win) > (1 / Quote).
-2. QUOTEN-KORRIDOR FÜR KOMBIS:
-   - Sowohl DYNAMIC TOTALS als auch DYNAMIC PLAYER PROPS müssen eine Gesamtquote zwischen 2.75 und 4.50 anstreben.
-   - Baue bevorzugt extrem solide 2er-Kombis (z.B. ~1.80 x ~1.85 = ~3.33) oder 3er-Kombis mit sichereren Linien. Vermeide zwingend risikoreiche 3er-Kombis über Quote 5.00!
-3. MINDESTQUOTE BANKER: Jeder Pick im Banker-Ticket muss mindestens Quote 1.35 aufweisen (keine Minimalquoten). Gesamtquote 2.00 - 2.70.
-4. STARTING GOALIES: Berücksichtige zwingend die bestätigten oder wahrscheinlichen Starting Goalies und deren Save Percentage (SV%).
+RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+- Wähle ausschließlich Partien aus der obigen Liste.
+- Berücksichtige Starting Goalies, Back-to-Back-Faktoren und Special-Teams-Effizienz.
+- EISHOCKEY-REGEL: Weise IMMER aus, ob der Tipp 'inkl. OT/SO (Moneyline)' oder 'Reguläre Spielzeit (60 Min / 3-Weg)' ist.
+- Gib immer eine Buchmacher-Alternative (z.B. ML statt 60-Minuten oder Standard Puckline +/-1.5) an.
+- Weise immer eine Value-Grenze ('Spielbar bis @ X.XX') und Units (1.0 bis 2.0) aus.
+- Telegram-HTML ZUERST, danach der exakte JSON-Block.
 
-TICKET-STRUKTUR:
-- ⭐ PICK OF THE DAY (Single Bet, Quote 1.70 - 2.25): Die stärkste Kante der Slate (Moneyline oder Puckline).
-- 1. NHL BANKER TICKET (Strikt 2er-Double, Gesamtquote 2.00 - 2.70): Picks mit extrem hoher Erfolgswahrscheinlichkeit (Min. 1.35 pro Pick).
-- 2. DYNAMIC TOTALS COMBO (2 bis 4 Picks, Zielquote 2.75 - 4.50): Solide Over/Under-Picks basierend auf Goalie-Form und Torstatistiken.
-- 3. DYNAMIC NHL PLAYER PROPS MULTI-TICKET (2 bis 4 Picks, Zielquote 2.75 - 4.50): Anytime Goalscorer, Shots on Goal oder Scorerpunkte (G+A) mit starkem Matchup.
+REPORT-HTML:
+🏒 <b>JARVIS NHL INTEL DOSSIER</b>
+<i>Advanced Hockey Analytics • Goalie Matchups • Value-Picks</i>
 
-FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
-<b>🏒 JARVIS NHL INTEL & VALUE REPORT</b>
-<i>Quantitatives NHL-Dossier • Goalie Matchups & xGF% • Marktanalyse</i>
+━━━━━━━━━━━━━━━━━━━━
+⭐ <b>NHL PICK OF THE DAY</b>
+• [Uhrzeit] | Heim vs. Gast
+  ➔ <b>Pick: [Moneyline inkl. OT / Puckline / 60 Min]</b> @ X.XX
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
+<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
+<b>Edge:</b> [Goalie GSAx Matchup, 5v5 High-Danger Chancen, Form]
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY (Single Bet)</b>
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<i>Fair Odds:</i> ~[Faire Quote] | <i>Modell-Kante:</i> +[X]%
-<i>Goalie / Matchup Edge:</i> [Ausführliche Begründung mit Goalie Matchup]
+━━━━━━━━━━━━━━━━━━━━
+🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
+• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
+• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
+<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
+<b>Rationale:</b> [Kompakte taktische Begründung]
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NHL BANKER TICKET (2er-Double)</b>
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<b>Gesamtquote: [Produkt aller Quoten]</b>
-<i>Modell-Edge:</i> [Begründung]
+━━━━━━━━━━━━━━━━━━━━
+🎯 <b>TOTALS &amp; GOALIE SPOTLIGHT</b>
+• [Uhrzeit] | Heim vs. Gast
+  ➔ <b>Pick: [Over/Under Wette]</b> @ X.XX
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
+<b>Rationale:</b> [Goalie Save %, Powerplay vs Penalty Kill Matchup]
 
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS COMBO ([Anzahl]-Kombi)</b>
-[Für jedes Spiel:]
-- <b>[Uhrzeit] Heim vs. Auswärts</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<i>Rationale:</i> [Begründung mit Goalie & Tor-Trends]
-<b>Gesamtquote: [Produkt aller Quoten]</b>
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC NHL PLAYER PROPS MULTI-TICKET ([Anzahl]-Kombi)</b>
-[Für jeden Spieler:]
-- <b>[Spielername] ([Team])</b> -> Pick: <b>[Pick]</b> (Quote: [Quote])
-<i>Matchup Edge:</i> [Begründung via Ice-Time, Powerplay-Rolle, Schussvolumen]
-<b>Gesamtquote: [Produkt aller Quoten]</b>
-
----JSON_DATA---
-{{
-  "date": "{datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')}",
-  "potd": {{"match": "Heim vs Auswärts", "pick": "Pick", "odds": 1.90}},
-  "banker": {{"odds": 2.30, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.50}}, {{"match": "M2", "pick": "Pick", "odds": 1.53}}]}},
-  "totals": {{"odds": 3.40, "picks": [{{"match": "M1", "pick": "Pick", "odds": 1.85}}, {{"match": "M2", "pick": "Pick", "odds": 1.84}}]}},
-  "player_props": {{"odds": 3.40, "picks": [{{"player": "P1", "pick": "Pick", "odds": 1.85}}, {{"player": "P2", "pick": "Pick", "odds": 1.84}}]}}
-}}
+---JSON_TRACKING---
+[
+  {{
+    "match": "Team A vs Team B",
+    "sport": "NHL",
+    "pick": "Team A Sieg (inkl. OT)",
+    "odds": "1.85",
+    "date": "{today_iso}"
+  }}
+]
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
@@ -154,11 +160,29 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
 
     for attempt in range(1, 4):
         try:
-            res = requests.post(url, json=payload, timeout=120)
+            res = requests.post(url, json=payload, timeout=90)
             if res.status_code == 200:
-                return res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                report = full_reply
+                if "---JSON_TRACKING---" in full_reply:
+                    parts = full_reply.split("---JSON_TRACKING---")
+                    report = parts[0].strip()
+                    json_str = parts[1].replace("```json", "").replace("```", "").strip()
+                    try:
+                        new_picks = json.loads(json_str)
+                        pending = load_pending()
+                        for np in new_picks:
+                            np["status"] = "PENDING"
+                        pending.extend(new_picks)
+                        save_pending(pending)
+                        print(f"{len(new_picks)} NHL-Picks getrackt.")
+                    except Exception as je:
+                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
+
+                report = report.replace("```html", "").replace("```", "").strip()
+                send_telegram(report)
+                return
             elif res.status_code in [500, 502, 503, 504]:
-                print(f"Versuch {attempt}/3: Gemini Server Status {res.status_code}. Warte 6 Sekunden...")
                 time.sleep(6)
             else:
                 res.raise_for_status()
@@ -167,32 +191,7 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
             if attempt < 3:
                 time.sleep(6)
             else:
-                return "ERROR"
-    return "ERROR"
-
-def parse_and_save_bets(full_text):
-    if "---JSON_DATA---" in full_text:
-        parts = full_text.split("---JSON_DATA---")
-        report_text = parts[0].strip()
-        try:
-            bet_data = json.loads(parts[1].strip())
-            with open("pending_nhl.json", "w", encoding="utf-8") as f:
-                json.dump(bet_data, f, ensure_ascii=False, indent=2)
-            print("NHL Wetten in pending_nhl.json gespeichert.")
-        except Exception as e:
-            print(f"JSON Parsing-Fehler: {e}")
-        return report_text
-    return full_text
+                sys.exit(1)
 
 if __name__ == "__main__":
-    matches = fetch_nhl_data()
-    if not matches:
-        send_telegram_message("🏒 <b>Jarvis NHL Status:</b> Keine Spiele im Zeitfenster.")
-    else:
-        raw_output = analyze_nhl(matches)
-        if raw_output != "ERROR":
-            send_telegram_message(parse_and_save_bets(raw_output))
-            print("✅ NHL Report erfolgreich gesendet.")
-        else:
-            send_telegram_message("⚠️ <b>Jarvis NHL Error:</b> KI-Generierung fehlgeschlagen.")
-            sys.exit(1)
+    run_nhl_intel()
