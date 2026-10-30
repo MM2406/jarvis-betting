@@ -2,9 +2,9 @@ name: JARVIS PDC Darts Intel
 
 on:
   schedule:
-    # 1. MORGEN-RUN: 08:30 UTC (= 09:30 Uhr MEZ) zum Auswerten beendeter Partien
-    - cron: '30 8 * * *'
-    # 2. VORABEND-RUN: 16:00 UTC (= 17:00 Uhr MEZ) für Spieltags-Analysen
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
+    - cron: '45 6 * * *'
+    # 2. VORABEND-PICKS: 16:00 UTC (= 17:00 Uhr MEZ)
     - cron: '0 16 * * *'
   workflow_dispatch:
 
