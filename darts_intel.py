@@ -182,7 +182,6 @@ def run_darts_report():
     settle_pending_picks(history)
 
     now_hour = datetime.now(LOCAL_TZ).hour
-    # Morgens vor 10:00 Uhr: Nur Abrechnung
     if now_hour < 10:
         print("Morgen-Run: Nur Abrechnung durchgeführt.")
         return
@@ -205,32 +204,48 @@ Erstelle für heute ({today_str}) die {session_name}.
 VERFÜGBARE MATCHES & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+RICHTLINIEN & MÄRKTE:
 - Wähle ausschließlich Matches aus der obigen Liste.
-- Analysiere Scoring-Power, Leg-Handicaps und Quoten-Diskrepanzen.
-- Gib immer eine Standard-Buchmacher-Alternative (z.B. Match-Sieg statt Leg-Handicap) an.
-- Weise immer eine Value-Grenze ('Spielbar bis @ X.XX') und Units (1.0 bis 2.0) aus.
-- Telegram-HTML ZUERST, danach der exakte JSON-Block.
+- Analysiere Scoring-Power, Leg-Handicaps, 180s-Märkte und Quoten-Diskrepanzen via Google Search.
+- DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 4 Matches mit rechnerischem Vorteil (+EV). Kein starres 2-Matches-Limit.
+- BUCHMACHER-ALTERNATIVE: Gib für jeden Tipp immer eine klassische Standard-Alternative an (z. B. Match-Sieg statt Leg-Handicap).
+- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
+- UNITS:
+  * Match of the Day: 1.0 bis 2.0 Units
+  * Value Acca: 0.5 bis 1.0 Units
+  * 180s / Special Spotlight: 0.5 bis 1.0 Units
 
 REPORT-HTML:
 🎯 <b>JARVIS PDC DARTS INTEL • {session_name}</b>
 <i>3-Dart Average Edge • Checkout Efficiency • Value-Picks</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>DARTS MATCH OF THE DAY</b>
-• [Uhrzeit] | Spieler A vs. Spieler B
-  ➔ <b>Pick: [Match-Sieg / Leg-Handicap / 180s]</b> @ X.XX
-🔄 <b>Buchmacher-Alternative:</b> [Klassischer 2-Weg Sieg] @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
-<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
-<b>Edge:</b> [Scoring-Konstanz, First 9 Average, Checkout-Quote unter Druck]
+⭐ <b>DARTS MATCH OF THE DAY (Single Bet)</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B]
+➔ <b>Haupt-Pick:</b> <b>[Match-Sieg / Leg-Handicap / 180s]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassischer 2-Weg Sieg] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
+📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+🔍 <b>Edge:</b> [Scoring-Konstanz, First 9 Average, Checkout-Quote unter Druck]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
-• Spieler A vs. Spieler B ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
-• Spieler C vs. Spieler D ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
-<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Kompakte Begründung beider Auswahlen]
+🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
+• [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Spieler C] vs. [Spieler D] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Spieler E] vs. [Spieler F] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
+⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
+💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
+
+━━━━━━━━━━━━━━━━━━━━
+🎯 <b>180s &amp; SCORING SPOTLIGHT</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B]
+➔ <b>Pick:</b> <b>[Over/Under 180s / Leg-Total / Höchstes Checkout]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [T19/T20 Präferenzen, Pace des Spiels, Matchlänge]
 
 ---JSON_TRACKING---
 [
