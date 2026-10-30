@@ -74,21 +74,21 @@ def settle_pending_picks(history):
 
     for item in pending:
         prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis für folgendes NCAA College-Match:
+Recherchiere via Google Search das offizielle Endergebnis für folgendes College-Spiel:
 Match: {item.get('match')}
-Sportart: {item.get('sport')}
-Tipp / Markt: {item.get('pick')}
+Sport: {item.get('sport')}
+Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Prüfe, ob die Partie beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
-2. Markiere mit 'WON', wenn der Tipp (Moneyline, Spread oder Total Points) aufgegangen ist, sonst 'LOST'.
-3. Bei Push oder Absage gib 'VOID' aus.
+1. Prüfe, ob das Match bereits regulär beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
+2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
+3. Bei Push (z.B. Spread genau getroffen) gib 'VOID' aus.
 
-Antworte strikt in diesem Format:
+Antworte exakt:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Exaktes Endergebnis (z.B. 78:71)
-INFO: Kurze Erklärung.
+SCORE: Endergebnis
+INFO: Kurze Begründung.
 """
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
@@ -115,7 +115,7 @@ INFO: Kurze Erklärung.
             else:
                 still_pending.append(item)
         except Exception as e:
-            print(f"Fehler bei Abrechnung {item.get('match')}: {e}")
+            print(f"Fehler bei College-Settle {item.get('match')}: {e}")
             still_pending.append(item)
 
     if settled_now:
@@ -126,10 +126,10 @@ INFO: Kurze Erklärung.
         won_count = sum(1 for p in settled_now if p["status"] == "WON")
         total_count = len(settled_now)
 
-        msg = f"📊 <b>JARVIS NCAA COLLEGE ABRECHNUNG</b>\nAusgewertete Tipps: <b>{won_count}/{total_count}</b> Treffer.\n"
+        msg = f"📊 <b>JARVIS US COLLEGE ABRECHNUNG</b>\nAusgewertete Tipps: <b>{won_count}/{total_count}</b> Treffer.\n"
         for p in settled_now:
             icon = "✅" if p["status"] == "WON" else ("❌" if p["status"] == "LOST" else "🟡")
-            msg += f"\n{icon} <b>{p['match']}</b>\nTipp: {p['pick']} (Quote: {p.get('odds', 'N/A')})"
+            msg += f"\n{icon} <b>{p['match']}</b>\nTipp: {p['pick']} (@ {p.get('odds', 'N/A')})"
         send_telegram(msg)
 
     return history
@@ -137,8 +137,7 @@ INFO: Kurze Erklärung.
 def fetch_college_odds():
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    # 12 Stunden Scan-Fenster für die College-Nacht
-    cutoff = now_utc + timedelta(hours=12)
+    cutoff = now_utc + timedelta(hours=18)
 
     for sport in COLLEGE_SPORTS:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -149,91 +148,90 @@ def fetch_college_odds():
             "oddsFormat": "decimal"
         }
         try:
-            res = requests.get(url, params=params, timeout=14)
+            res = requests.get(url, params=params, timeout=12)
             if res.status_code == 200:
-                data = res.json()
-                for match in data:
+                for match in res.json():
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
                         time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
                         bookies = match.get("bookmakers", [])
                         if not bookies:
                             continue
-
                         odds_details = []
                         for m in bookies[0].get("markets", []):
-                            m_key = m.get("key")
                             outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
-                            odds_details.append(f"{m_key}: {', '.join(outcomes)}")
-
-                        all_events.append(
-                            f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | Quoten: {' // '.join(odds_details)}"
-                        )
+                            odds_details.append(f"{m.get('key')}: {', '.join(outcomes)}")
+                        all_events.append(f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
         except Exception as e:
             print(f"Fehler bei {sport}: {e}")
 
-    print(f"Gefundene College-Partien im Fenster: {len(all_events)}")
-    return "\n".join(all_events[:60])
+    print(f"Gefundene College-Partien: {len(all_events)}")
+    return "\n".join(all_events[:45])
 
-def generate_college_report():
+def run_college_report():
     history = load_history()
     settle_pending_picks(history)
 
     now_hour = datetime.now(LOCAL_TZ).hour
-    if now_hour < 15:
-        print("Morgen-Run: Nur Abrechnung durchgeführt. Der Analyse-Report folgt am Abend.")
+    if now_hour < 12:
+        print("Morgen-Run: Nur Abrechnung durchgeführt.")
         return
 
     odds_data = fetch_college_odds()
     if not odds_data:
-        print("Heute keine anstehenden College-Spiele im 12-Stunden-Fenster.")
+        print("Keine relevanten College-Partien gefunden.")
         return
 
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS NCAA QUANT' – Spezialist für US College Basketball (NCAAB) und College Football (NCAAF).
-Erstelle für die heutige Nacht ({today_str}) ein datengestütztes Value-Dossier.
+Du bist 'JARVIS US COLLEGE QUANT' – Experte für NCAA Basketball & Football.
+Erstelle für heute ({today_str}) ein präzises Value-Dossier.
 
-VERFÜGBARE PARTIEN & BUCHMACHERQUOTEN:
+VERFÜGBARE PARTIEN & QUOTEN:
 {odds_data}
 
-RICHTLINIEN:
-- Wähle AUSNAHMSLOS Partien aus der obigen Liste.
-- College-Märkte weisen oft Marktdisbalancen bei Spreads und Over/Under-Linien auf (Pace of Play, Home-Court Advantage, Foul Rates).
-
-FORMATIERUNG & STRUKTUR:
-Erstelle ZUERST das Telegram-HTML und AM ENDE den JSON-Block für das Settlement-Tracking.
+RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+- Wähle ausschließlich Partien aus der obigen Liste.
+- Analysiere KenPom/Torvik-Trends, Home-Court Advantage und Spreads.
+- Gib immer eine Standard-Buchmacher-Alternative an.
+- Weise immer eine Value-Grenze ('Spielbar bis @ X.XX') und Units (1.0 bis 2.0) aus.
+- Telegram-HTML ZUERST, danach der exakte JSON-Block.
 
 REPORT-HTML:
-🎓 <b>JARVIS US COLLEGE CIRCUIT</b>
-<i>NCAAB • NCAAF • Spread Inefficiencies • Totals Value</i>
+🎓 <b>JARVIS US COLLEGE INTEL DOSSIER</b>
+<i>NCAA Analytics • KenPom Edge • Market Discrepancies</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>NCAA LOCK OF THE NIGHT (Top Spread/ML Value)</b>
-- [Uhrzeit] [NCAAB/NCAAF] Heim vs. Gast ➔ <b>Pick: [Markt &amp; Tipp]</b> (Quote: X.XX)
-Modell-Chance: XX.X% | Fair Odds: ~X.XX
-Edge: [Detaillierte Analyse: Offensiv-Rating, Tempo/Possessions, Heimstärke, Matchup-Mismatch]
+⭐ <b>COLLEGE PICK OF THE DAY</b>
+• [Uhrzeit] | [Sport] Heim vs. Gast
+  ➔ <b>Pick: [Spread / Total / Moneyline]</b> @ X.XX
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
+<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
+<b>Edge:</b> [Effizienz-Ratings, Tempo-Matchup, Turnover-Rates]
 
 ━━━━━━━━━━━━━━━━━━━━
-🏈🏀 <b>COLLEGE DUAL TICKET (2er-Kombi)</b>
-- [Uhrzeit] [Sportart] Heim vs. Gast ➔ Pick: [Tipp / Spread / Total] (Quote: X.XX)
-- [Uhrzeit] [Sportart] Heim vs. Gast ➔ Pick: [Tipp / Spread / Total] (Quote: X.XX)
-<b>Gesamtquote: X.XX</b>
-Rationale: [Kompakte Begründung beider Auswahlen]
+🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
+• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
+• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
+<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
+<b>Rationale:</b> [Kompakte taktische Begründung beider Auswahlen]
 
 ━━━━━━━━━━━━━━━━━━━━
-🎯 <b>QUANT TOTALS / PACE SPOTLIGHT</b>
-- [Uhrzeit] [Sportart] Match ➔ <b>Pick: [Over/Under Total Points]</b> (Quote: X.XX)
-Rationale: [Pace-Projektion, Ballbesitz-Zahlen, Freiwurfquoten bzw. Turnovers]
+🎯 <b>TEMPO &amp; UPSET SPOTLIGHT</b>
+• [Uhrzeit] | Heim vs. Gast
+  ➔ <b>Pick: [Tipp]</b> @ X.XX
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
+<b>Rationale:</b> [Mismatches im Rebounding / 3PT-Defense]
 
 ---JSON_TRACKING---
 [
   {{
-    "match": "College A vs College B",
-    "sport": "NCAAB",
-    "pick": "College A -3.5",
+    "match": "Team A vs Team B",
+    "sport": "basketball_ncaab",
+    "pick": "Team A -4.5",
     "odds": "1.90",
     "date": "{today_iso}"
   }}
@@ -262,13 +260,12 @@ Rationale: [Pace-Projektion, Ballbesitz-Zahlen, Freiwurfquoten bzw. Turnovers]
                             np["status"] = "PENDING"
                         history["pending"].extend(new_picks)
                         save_history(history)
-                        print(f"{len(new_picks)} College-Picks gespeichert.")
+                        print(f"{len(new_picks)} College-Picks hinzugefügt.")
                     except Exception as je:
-                        print(f"Fehler beim Parsen der College-Picks: {je}")
+                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
                 send_telegram(report)
-                print("College Report erfolgreich versendet.")
                 return
             elif res.status_code in [500, 502, 503, 504]:
                 time.sleep(6)
@@ -282,4 +279,4 @@ Rationale: [Pace-Projektion, Ballbesitz-Zahlen, Freiwurfquoten bzw. Turnovers]
                 sys.exit(1)
 
 if __name__ == "__main__":
-    generate_college_report()
+    run_college_report()
