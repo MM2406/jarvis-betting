@@ -1,13 +1,12 @@
 {
-  "settled": [],
-  "pending": [
+  "settled": [
     {
       "match": "Fiorentina vs Atalanta BC",
       "league": "soccer_italy_serie_a",
       "pick": "Under 3.25 Tore",
       "odds": "1.97",
       "date": "2026-10-29",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "Fiorentina vs Atalanta BC",
@@ -15,7 +14,8 @@
       "pick": "Atalanta BC (+0.25)",
       "odds": "1.85",
       "date": "2026-10-29",
-      "status": "PENDING"
+      "status": "WON"
     }
-  ]
+  ],
+  "pending": []
 }
