@@ -4,8 +4,8 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
-    # 2. VORABEND-PICKS: 15:30 UTC (= 16:30 Uhr MEZ)
-    - cron: '30 15 * * *'
+    # 2. PICKS: 14:45 UTC (= 15:45 Uhr MEZ) -> Puffer fuer fruehe DEL/SHL (16:30 Uhr) und fruehe EuroLeague (18:30 Uhr)
+    - cron: '45 14 * * *'
   workflow_dispatch:
 
 permissions:
@@ -24,12 +24,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Abhängigkeiten installieren
+      - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Euro Intel ausführen
+      - name: Euro Intel ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
