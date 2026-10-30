@@ -1,13 +1,12 @@
 {
-  "settled": [],
-  "pending": [
+  "settled": [
     {
       "match": "James Madison Dukes vs. Troy Trojans",
       "sport": "NCAAF",
       "pick": "James Madison Dukes -18.5",
       "odds": "1.88",
       "date": "2026-10-29",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "North Texas Mean Green vs. Florida Atlantic Owls",
@@ -15,7 +14,7 @@
       "pick": "Under 77.5",
       "odds": "1.91",
       "date": "2026-10-29",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "James Madison Dukes vs. Troy Trojans",
@@ -23,7 +22,7 @@
       "pick": "James Madison Dukes -18.5",
       "odds": "1.91",
       "date": "2026-10-29",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "North Texas Mean Green vs. Florida Atlantic Owls",
@@ -31,7 +30,7 @@
       "pick": "North Texas Mean Green -14.5",
       "odds": "1.96",
       "date": "2026-10-29",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "North Texas Mean Green vs. Florida Atlantic Owls",
@@ -39,6 +38,40 @@
       "pick": "Under 77.5",
       "odds": "1.91",
       "date": "2026-10-29",
+      "status": "LOST"
+    }
+  ],
+  "pending": [
+    {
+      "match": "Charlotte 49ers vs Tulane Green Wave",
+      "sport": "americanfootball_ncaaf",
+      "pick": "Tulane Green Wave -8.5",
+      "odds": "1.95",
+      "date": "2026-10-30",
+      "status": "PENDING"
+    },
+    {
+      "match": "UCF Knights vs Baylor Bears",
+      "sport": "americanfootball_ncaaf",
+      "pick": "Baylor Bears -2.5",
+      "odds": "1.88",
+      "date": "2026-10-30",
+      "status": "PENDING"
+    },
+    {
+      "match": "UCF Knights vs Baylor Bears",
+      "sport": "americanfootball_ncaaf",
+      "pick": "Over 48.5",
+      "odds": "1.87",
+      "date": "2026-10-30",
+      "status": "PENDING"
+    },
+    {
+      "match": "Sacramento State Hornets vs Kent State Golden Flashes",
+      "sport": "americanfootball_ncaaf",
+      "pick": "Kent State Golden Flashes ML",
+      "odds": "1.38",
+      "date": "2026-10-30",
       "status": "PENDING"
     }
   ]
