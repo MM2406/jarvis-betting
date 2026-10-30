@@ -75,21 +75,21 @@ def settle_pending_picks(history):
 
     for item in pending:
         prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis für folgendes Spiel:
+Recherchiere via Google Search das offizielle Endergebnis fuer folgendes Spiel:
 Match: {item.get('match')}
 Wettbewerb: {item.get('sport')}
 Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Prüfe, ob das Match bereits regulär beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Pruefe, ob das Match bereits regulaer beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Push (z.B. Handicap Unentschieden) gib 'VOID' aus.
 
 Antworte exakt:
 RESULT: WON oder LOST oder PENDING oder VOID
 SCORE: Endergebnis
-INFO: Kurze Begründung.
+INFO: Kurze Begruendung.
 """
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
@@ -138,7 +138,8 @@ INFO: Kurze Begründung.
 def fetch_euro_odds():
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=14)
+    # Fenster auf 15 Std setzen (ab 15:45 Uhr deckt es bis 06:45 Uhr morgens ab)
+    cutoff = now_utc + timedelta(hours=15)
 
     for sport in EURO_SPORTS:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -175,38 +176,38 @@ def run_euro_report():
 
     now_hour = datetime.now(LOCAL_TZ).hour
     if now_hour < 12:
-        print("Morgen-Run: Nur Abrechnung durchgeführt.")
+        print("Morgen-Run: Nur Abrechnung durchgefuehrt.")
         return
 
     odds_data = fetch_euro_odds()
     if not odds_data:
-        print("Keine europäischen Basketball- oder Eishockeyspiele heute.")
+        print("Keine europaeischen Basketball- oder Eishockeyspiele heute.")
         return
 
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS EURO INTEL' – Experte für EuroLeague Basketball sowie deutsches (DEL) und schwedisches (SHL) Eishockey.
-Erstelle für heute ({today_str}) ein quantitatives Value-Dossier.
+Du bist 'JARVIS EURO INTEL' – Experte fuer EuroLeague Basketball sowie deutsches (DEL) und schwedisches (SHL) Eishockey.
+Erstelle fuer heute ({today_str}) ein quantitatives Value-Dossier.
 
-VERFÜGBARE PARTIEN & QUOTEN:
+VERFUEGBARE PARTIEN & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & MÄRKTE:
-- Wähle ausschließlich Partien aus der obigen Liste.
-- Bei Eishockey klar deklarieren: Reguläre Spielzeit (3-Weg) oder inkl. Overtime.
+RICHTLINIEN & MAERKTE:
+- Waehle ausschliesslich Partien aus der obigen Liste.
+- Bei Eishockey klar deklarieren: Regulaere Spielzeit (3-Weg) oder inkl. Overtime.
 - DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 4 Spiele mit rechnerischem Vorteil (+EV). Kein starres 2-Spiele-Limit.
-- BUCHMACHER-ALTERNATIVE: Gib für jeden Haupttipp immer eine Standard-Alternative an.
-- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
+- BUCHMACHER-ALTERNATIVE: Gib fuer jeden Haupttipp immer eine Standard-Alternative an.
+- VALUE-GRENZE: Weise fuer jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
 - UNITS:
   * Pick of the Day: 1.0 bis 2.0 Units
   * Value Acca: 0.5 bis 1.0 Units
   * Special Matchup Spotlight: 0.5 bis 1.0 Units
 
-FORMATIERUNGS-REGELN FÜR TELEGRAM:
+FORMATIERUNGS-REGELN FUER TELEGRAM:
 - Keine doppelten Leerzeilen.
-- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
+- Beginne jede Aufzaehlung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
 - Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
 - Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
@@ -216,27 +217,27 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>EURO PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Heimteam] vs. [Auswärtsteam]
+• <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Heimteam] vs. [Auswaertsteam]
 ➔ <b>Haupt-Pick:</b> <b>[Markt &amp; Tipp]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
 📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [Defensiv-Ratings, Formkurve, Heimstärke in europäischen Hallen]
+🔍 <b>Edge:</b> [Defensiv-Ratings, Formkurve, Heimstaerke in europaeischen Hallen]
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
 • [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 • [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 • [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
+[... ggf. Bein 4 ergaenzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhaengig starken Value bietet]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>SPECIAL MATCHUP SPOTLIGHT</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswaertsteam]
 ➔ <b>Pick:</b> <b>[Over/Under / Handicap / Team Total]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -276,7 +277,7 @@ REPORT-HTML:
                             np["status"] = "PENDING"
                         history["pending"].extend(new_picks)
                         save_history(history)
-                        print(f"{len(new_picks)} Euro-Picks hinzugefügt.")
+                        print(f"{len(new_picks)} Euro-Picks hinzugefuegt.")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
