@@ -84,7 +84,7 @@ def fetch_nba_odds():
                         outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in mk.get("outcomes", [])]
                         m_details.append(f"{mk.get('key')}: {', '.join(outcomes)}")
                     events.append(f"{m['home_team']} vs. {m['away_team']} ({time_str}) | {' // '.join(m_details)}")
-            return "\n".join(events[:35])
+            return "\n".join(events[:40])
     except Exception as e:
         print(f"Fehler bei NBA Odds: {e}")
     return ""
@@ -99,45 +99,63 @@ def run_nba_intel():
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS NBA QUANT' – Hochspezialisierter Analyst für NBA-Basketball.
-Erstelle für die heutigen Spiele ({today_str}) ein präzises Value-Dossier.
+Du bist 'JARVIS NBA QUANT' – Hochspezialisierter Analyst für NBA-Basketball und quantitative Wettmodelle.
+Erstelle für die heutige Nacht ({today_str}) das umfassende NBA-Dossier.
 
 VERFÜGBARE PARTIEN & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+RICHTLINIEN & MÄRKTE:
 - Wähle ausschließlich Partien aus der obigen Liste.
-- Analysiere Pace, Offensive/Defensive Ratings, Lineup-Trends und Quoten-Disbalancen.
-- Gib für jeden Tipp eine klassische Buchmacher-Alternative (Standard Spread/Total) an.
-- Weise immer eine Value-Grenze ('Spielbar bis @ X.XX') und Units (1.0 bis 2.0) aus.
-- Telegram-HTML ZUERST, danach der exakte JSON-Block.
+- Analysiere Pace, Offensive/Defensive Ratings, Net-Rating Edge, Rest Advantage (Back-to-Back) und Lineup-News via Google Search.
+- DYNAMISCHE ACCA: Beschränke dich beim Kombi-Ticket NICHT auf 2 Spiele. Wenn du 3 oder 4 Spiele mit klarem Value (+EV) findest, packe sie alle auf das Ticket (mindestens 2, maximal 4 Beine).
+- BUCHMACHER-ALTERNATIVE: Gib für jeden Spread/Total-Pick eine klassische Standard-Linie für europäische Bookies an.
+- VALUE-GRENZE: Weise für jeden Single-Tipp und für die Kombi eine Mindestquote aus ('Spielbar bis @ X.XX').
+- UNITS:
+  * Pick of the Day: 1.0 bis 2.0 Units
+  * Value Acca: 0.5 bis 1.0 Units
+  * Totals Spotlight: 0.5 bis 1.0 Units
+  * Player Prop: 0.5 bis 1.0 Units
 
 REPORT-HTML:
 🏀 <b>JARVIS NBA INTEL DOSSIER</b>
 <i>Quantitative Match-Modelle • Net-Rating Edge • Value-Picks</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>NBA PICK OF THE DAY</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Spread / Total / Moneyline]</b> @ X.XX
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
-<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
-<b>Edge:</b> [Pace, Rest Advantage, Matchup-Vorteile, Schussqualität]
+⭐ <b>NBA PICK OF THE DAY (Single Bet)</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Haupt-Pick:</b> <b>[Spread / Total / Moneyline]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
+📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+🔍 <b>Edge:</b> [Pace-Projektion, Matchup-Vorteile, Rest Advantage, Schussqualität]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
-• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
-• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
-<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Kompakte taktische Begründung]
+🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
+⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
+💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>PACE &amp; TOTALS SPOTLIGHT</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Over/Under Tipp]</b> @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Possessions-Projektion, Transition-Defense, Shooting-Splits]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Over/Under / Team-Total]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [Possessions-Projektion, Transition-Defense, Shooting-Splits]
+
+━━━━━━━━━━━━━━━━━━━━
+👟 <b>NBA PLAYER PROP SPOTLIGHT</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Spielername: Punkte / Rebounds / Assists / 3PT Made]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie / Markt-Fallback] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [Usage-Rate, Matchup gegen gegnerische Defense-Position, Minuten-Projektion]
 
 ---JSON_TRACKING---
 [
