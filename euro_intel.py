@@ -167,7 +167,7 @@ def fetch_euro_odds():
             print(f"Fehler bei {sport}: {e}")
 
     print(f"Gefundene Euro-Partien: {len(all_events)}")
-    return "\n".join(all_events[:40])
+    return "\n".join(all_events[:45])
 
 def run_euro_report():
     history = load_history()
@@ -188,44 +188,53 @@ def run_euro_report():
 
     prompt = f"""
 Du bist 'JARVIS EURO INTEL' – Experte für EuroLeague Basketball sowie deutsches (DEL) und schwedisches (SHL) Eishockey.
-Erstelle für heute ({today_str}) ein präzises Value-Dossier.
+Erstelle für heute ({today_str}) ein quantitatives Value-Dossier.
 
 VERFÜGBARE PARTIEN & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+RICHTLINIEN & MÄRKTE:
 - Wähle ausschließlich Partien aus der obigen Liste.
 - Bei Eishockey klar deklarieren: Reguläre Spielzeit (3-Weg) oder inkl. Overtime.
-- Gib immer eine Standard-Buchmacher-Alternative an.
-- Weise immer eine Value-Grenze ('Spielbar bis @ X.XX') und Units (1.0 bis 2.0) aus.
-- Telegram-HTML ZUERST, danach der exakte JSON-Block.
+- DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 4 Spiele mit rechnerischem Vorteil (+EV). Kein starres 2-Spiele-Limit.
+- BUCHMACHER-ALTERNATIVE: Gib für jeden Haupttipp immer eine Standard-Alternative an.
+- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
+- UNITS:
+  * Pick of the Day: 1.0 bis 2.0 Units
+  * Value Acca: 0.5 bis 1.0 Units
+  * Special Matchup Spotlight: 0.5 bis 1.0 Units
 
 REPORT-HTML:
 🇪🇺 <b>JARVIS EURO-HOOPS &amp; ICE DOSSIER</b>
 <i>EuroLeague • DEL • SHL Advanced Quant-Models</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>EURO PICK OF THE DAY</b>
-• [Uhrzeit] | [Liga] Heim vs. Gast
-  ➔ <b>Pick: [Markt &amp; Tipp]</b> @ X.XX
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
-<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
-<b>Edge:</b> [Defensiv-Ratings, Form, Heimvorteil in europäischen Hallen]
+⭐ <b>EURO PICK OF THE DAY (Single Bet)</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Heimteam] vs. [Auswärtsteam]
+➔ <b>Haupt-Pick:</b> <b>[Markt &amp; Tipp]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
+📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+🔍 <b>Edge:</b> [Defensiv-Ratings, Formkurve, Heimstärke in europäischen Hallen]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
-• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
-• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
-<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Kompakte taktische Begründung beider Auswahlen]
+🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
+⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
+💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>SPECIAL MATCHUP SPOTLIGHT</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Tipp]</b> @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Taktische Besonderheit / Quoten-Diskrepanz]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Over/Under / Handicap / Team Total]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [Taktische Besonderheit, Matchup-Vorteile, Quoten-Diskrepanz]
 
 ---JSON_TRACKING---
 [
