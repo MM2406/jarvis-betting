@@ -143,10 +143,16 @@ INFO: Kurze Begründung.
 
     return history
 
-def fetch_soccer_odds():
+def fetch_soccer_odds(already_tracked_matches):
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=14)
+    now_hour = datetime.now(LOCAL_TZ).hour
+
+    # Fenster je nach Schicht:
+    # Vor 15 Uhr: Nachmittagsspiele (nächste 7 Std)
+    # Nach 15 Uhr: Abendschlager (nächste 9 Std)
+    window_hours = 7 if now_hour < 15 else 9
+    cutoff = now_utc + timedelta(hours=window_hours)
 
     for sport in SOCCER_LEAGUES:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -161,6 +167,11 @@ def fetch_soccer_odds():
             if res.status_code == 200:
                 data = res.json()
                 for match in data:
+                    match_name = f"{match['home_team']} vs. {match['away_team']}"
+                    # Bereits getrackte Partien nicht nochmals analysieren
+                    if match_name in already_tracked_matches:
+                        continue
+
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
                         time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
@@ -175,34 +186,38 @@ def fetch_soccer_odds():
                             odds_details.append(f"{m_key}: {', '.join(outcomes)}")
 
                         all_events.append(
-                            f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | Quoten: {' // '.join(odds_details)}"
+                            f"[{sport}] {match_name} ({time_str}) | Quoten: {' // '.join(odds_details)}"
                         )
         except Exception as e:
             print(f"Fehler bei {sport}: {e}")
 
-    print(f"Gefundene Fußball-Partien: {len(all_events)}")
-    return "\n".join(all_events[:50])
+    print(f"Gefundene Fußball-Partien für dieses Zeitfenster: {len(all_events)}")
+    return "\n".join(all_events[:45])
 
 def generate_soccer_report():
     history = load_history()
     settle_pending_picks(history)
 
     now_hour = datetime.now(LOCAL_TZ).hour
+    # Morgens vor 10:00 Uhr: Nur Abrechnung
     if now_hour < 10:
-        print("Morgen-Run: Nur Abrechnung durchgeführt.")
+        print("Morgen-Run: Abrechnung erledigt. Keine Picks vor 11:00 Uhr.")
         return
 
-    odds_data = fetch_soccer_odds()
+    tracked_matches = {p.get("match") for p in history.get("pending", [])}
+    odds_data = fetch_soccer_odds(tracked_matches)
+
     if not odds_data:
-        print("Keine relevanten Fußballspiele für das Zeitfenster gefunden.")
+        print(f"Keine passenden Fußballspiele für dieses Zeitfenster ({now_hour} Uhr) gefunden.")
         return
 
+    edition = "MITTAGS-EDITION (Nachmittagsspiele)" if now_hour < 15 else "ABEND-EDITION (Flutlicht & Topspiele)"
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
 Du bist 'JARVIS SOCCER INTEL' – Quantitativer Wettexperte für Spitzenfußball.
-Erstelle für heute ({today_str}) ein präzises Value-Dossier.
+Erstelle für heute ({today_str}) die {edition}.
 
 VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
@@ -212,13 +227,13 @@ RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
 - Analysiere xG-Werte, Poisson-Modelle und weise den prozentualen mathematischen Vorteil (+EV %) aus.
 - BUCHMACHER-ALTERNATIVE: Gib für jeden Pick immer eine klassische Standard-Alternative für bet365/Tipico an (z. B. wenn der Haupttipp Under 3.25 ist, nenne Under 2.5 oder Under 3.5).
 - VALUE-GRENZE: Gib für jeden Pick 'Spielbar bis Mindestquote @ X.XX' an.
-- UNITS: Vergib eine Einsatzempfehlung (1.0 bis 2.0 Units).
+- UNITS: Vergib eine feste Einsatzempfehlung (1.0 bis 2.0 Units).
 
-FORMATIERUNG & STRUKTUR:
-Erstelle ZUERST das HTML für Telegram und füge GANZ AM ENDE den JSON-Block für das Settlement an.
+FORMATIERUNG:
+Telegram-HTML ZUERST, danach der exakte JSON-Block.
 
 REPORT-HTML:
-⚽ <b>JARVIS SOCCER INTEL DOSSIER</b>
+⚽ <b>JARVIS SOCCER INTEL • {edition}</b>
 <i>Quantitative Match-Modelle • xG Edge • Value-Picks</i>
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -228,21 +243,14 @@ REPORT-HTML:
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
 <b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
-<b>Edge:</b> [Detaillierte Analyse: xG-Dominanz, Matchup-Analyse, Poisson-Projektion]
+<b>Edge:</b> [xG-Dominanz, Matchup-Analyse, Defensiv-Ratings]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi oder Match-Kombi / SGM)</b>
-• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Standard-Tipp])
-• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Standard-Tipp])
+🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
+• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
+• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
 <b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
 <b>Rationale:</b> [Kompakte Begründung beider Auswahlen]
-
-━━━━━━━━━━━━━━━━━━━━
-🎯 <b>QUANT SPOTLIGHT: [THEMA / MARKT]</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Alternativer Markt, z.B. Halbzeit-Tore oder BTTS]</b> @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Pace, Torchancen-Kreation, Defensiv-Statistiken]
 
 ---JSON_TRACKING---
 [
@@ -278,13 +286,12 @@ REPORT-HTML:
                             np["status"] = "PENDING"
                         history["pending"].extend(new_picks)
                         save_history(history)
-                        print(f"{len(new_picks)} Soccer-Picks hinzugefügt.")
+                        print(f"{len(new_picks)} Soccer-Picks getrackt.")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
                 send_telegram(report)
-                print("Soccer Report erfolgreich versendet.")
                 return
             elif res.status_code in [500, 502, 503, 504]:
                 time.sleep(6)
