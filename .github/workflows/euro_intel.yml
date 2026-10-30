@@ -2,9 +2,9 @@ name: JARVIS Euro-Hoops & Ice Intel
 
 on:
   schedule:
-    # 1. MORGEN-RUN: 08:00 UTC (= 09:00 Uhr MEZ) für die Spieltags-Abrechnung
-    - cron: '0 8 * * *'
-    # 2. NACHMITTAGS-RUN: 15:30 UTC (= 16:30 Uhr MEZ) für den tagesaktuellen Vorabend-Report
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
+    - cron: '45 6 * * *'
+    # 2. VORABEND-PICKS: 15:30 UTC (= 16:30 Uhr MEZ)
     - cron: '30 15 * * *'
   workflow_dispatch:
 
