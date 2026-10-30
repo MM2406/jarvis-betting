@@ -84,7 +84,7 @@ def fetch_nhl_odds():
                         outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in mk.get("outcomes", [])]
                         m_details.append(f"{mk.get('key')}: {', '.join(outcomes)}")
                     events.append(f"{m['home_team']} vs. {m['away_team']} ({time_str}) | {' // '.join(m_details)}")
-            return "\n".join(events[:35])
+            return "\n".join(events[:40])
     except Exception as e:
         print(f"Fehler bei NHL Odds: {e}")
     return ""
@@ -105,40 +105,58 @@ Erstelle für heute ({today_str}) ein präzises Value-Dossier.
 VERFÜGBARE PARTIEN & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
+RICHTLINIEN & MÄRKTE:
 - Wähle ausschließlich Partien aus der obigen Liste.
-- Berücksichtige Starting Goalies, Back-to-Back-Faktoren und Special-Teams-Effizienz.
+- Berücksichtige bestätigte Starting Goalies, Back-to-Back-Faktoren und Special-Teams-Effizienz via Google Search.
 - EISHOCKEY-REGEL: Weise IMMER aus, ob der Tipp 'inkl. OT/SO (Moneyline)' oder 'Reguläre Spielzeit (60 Min / 3-Weg)' ist.
-- Gib immer eine Buchmacher-Alternative (z.B. ML statt 60-Minuten oder Standard Puckline +/-1.5) an.
-- Weise immer eine Value-Grenze ('Spielbar bis @ X.XX') und Units (1.0 bis 2.0) aus.
-- Telegram-HTML ZUERST, danach der exakte JSON-Block.
+- DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 4 Spiele mit rechnerischem Vorteil (+EV). Kein starres 2-Spiele-Limit.
+- BUCHMACHER-ALTERNATIVE: Gib immer eine Standard-Alternative an (z. B. ML inkl. OT statt Puckline -1.5).
+- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
+- UNITS:
+  * Pick of the Day: 1.0 bis 2.0 Units
+  * Value Acca: 0.5 bis 1.0 Units
+  * Totals/Goalie Spotlight: 0.5 bis 1.0 Units
+  * Player Point / Goal Prop: 0.5 bis 1.0 Units
 
 REPORT-HTML:
 🏒 <b>JARVIS NHL INTEL DOSSIER</b>
 <i>Advanced Hockey Analytics • Goalie Matchups • Value-Picks</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>NHL PICK OF THE DAY</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Moneyline inkl. OT / Puckline / 60 Min]</b> @ X.XX
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> [1.0 - 2.0] Units
-<b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX (<b>+X.X% EV</b>)
-<b>Edge:</b> [Goalie GSAx Matchup, 5v5 High-Danger Chancen, Form]
+⭐ <b>NHL PICK OF THE DAY (Single Bet)</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Haupt-Pick:</b> <b>[Moneyline inkl. OT / Puckline / 60 Min]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
+📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+🔍 <b>Edge:</b> [Goalie GSAx Matchup, 5v5 High-Danger Chancen, Form, Special Teams]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>VALUE DOUBLE TICKET (2er-Kombi)</b>
-• Heim vs. Gast ➔ <b>[Tipp 1]</b> @ X.XX (Alt: [Alternative])
-• Heim vs. Gast ➔ <b>[Tipp 2]</b> @ X.XX (Alt: [Alternative])
-<b>Gesamtquote: X.XX</b> | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Kompakte taktische Begründung]
+🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
+⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
+💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>TOTALS &amp; GOALIE SPOTLIGHT</b>
-• [Uhrzeit] | Heim vs. Gast
-  ➔ <b>Pick: [Over/Under Wette]</b> @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ X.XX | <b>Einsatz:</b> 1.0 Units
-<b>Rationale:</b> [Goalie Save %, Powerplay vs Penalty Kill Matchup]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Over/Under Wette]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Alternative Over/Under Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [Goalie Save %, Powerplay vs Penalty Kill Matchup, High-Danger xG]
+
+━━━━━━━━━━━━━━━━━━━━
+👟 <b>NHL PLAYER PROP SPOTLIGHT</b>
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+➔ <b>Pick:</b> <b>[Spielername: Scorerpunkt (Punkte in der NHL) / Torschütze / Schüsse aufs Tor]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie / Markt-Fallback] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
+🔍 <b>Rationale:</b> [Eiszeit, PP1-Rolle, gegnerische Defensiv-Zulassungen auf dieser Position]
 
 ---JSON_TRACKING---
 [
