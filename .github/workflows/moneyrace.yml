@@ -2,11 +2,14 @@ name: JARVIS Moneyrace
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
-    - cron: '45 6 * * *'
-    # 2. ABEND-PICK: 17:00 UTC (= 18:00 Uhr MEZ)
+    # Täglicher Run um 17:00 UTC (= 18:00 Uhr MEZ)
     - cron: '0 17 * * *'
   workflow_dispatch:
+
+# Verhindert, dass zwei Moneyrace-Läufe jemals gleichzeitig laufen
+concurrency:
+  group: moneyrace-execution
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -14,10 +17,11 @@ permissions:
 jobs:
   run-moneyrace:
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Python einrichten
         uses: actions/setup-python@v5
@@ -35,7 +39,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_MONEYRACE_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID || secrets.TELEGRAM_THREAD_MONEYRACE }}
         run: python moneyrace.py
 
       - name: State committen und pushen
@@ -43,4 +47,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add moneyrace_state.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update moneyrace state [skip ci]" && git pull --rebase origin main && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Moneyrace state [skip ci]" && git pull --rebase origin main && git push origin main)
