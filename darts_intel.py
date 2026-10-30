@@ -81,7 +81,7 @@ Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Prüfe, ob das Match bereits regulär beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Prüfe, ob das Match bereits beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Spielabsage oder Push gib 'VOID' aus.
 
@@ -134,10 +134,15 @@ INFO: Kurze Begründung.
 
     return history
 
-def fetch_darts_odds():
+def fetch_darts_odds(already_tracked_matches):
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=24)
+    now_hour = datetime.now(LOCAL_TZ).hour
+
+    # Fenster: Vor 15 Uhr = Nachmittagssession (nächste 6 Std)
+    # Nach 15 Uhr = Abendsession (nächste 9 Std)
+    window_hours = 6 if now_hour < 15 else 9
+    cutoff = now_utc + timedelta(hours=window_hours)
 
     for sport in DARTS_SPORTS:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -151,6 +156,10 @@ def fetch_darts_odds():
             res = requests.get(url, params=params, timeout=12)
             if res.status_code == 200:
                 for match in res.json():
+                    match_name = f"{match['home_team']} vs. {match['away_team']}"
+                    if match_name in already_tracked_matches:
+                        continue
+
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
                         time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
@@ -161,7 +170,7 @@ def fetch_darts_odds():
                         for m in bookies[0].get("markets", []):
                             outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
                             odds_details.append(f"{m.get('key')}: {', '.join(outcomes)}")
-                        all_events.append(f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
+                        all_events.append(f"[{sport}] {match_name} ({time_str}) | {' // '.join(odds_details)}")
         except Exception as e:
             print(f"Fehler bei {sport}: {e}")
 
@@ -173,21 +182,25 @@ def run_darts_report():
     settle_pending_picks(history)
 
     now_hour = datetime.now(LOCAL_TZ).hour
-    if now_hour < 12:
+    # Morgens vor 10:00 Uhr: Nur Abrechnung
+    if now_hour < 10:
         print("Morgen-Run: Nur Abrechnung durchgeführt.")
         return
 
-    odds_data = fetch_darts_odds()
+    tracked_matches = {p.get("match") for p in history.get("pending", [])}
+    odds_data = fetch_darts_odds(tracked_matches)
+
     if not odds_data:
-        print("Heute keine PDC Darts Events im Angebot.")
+        print(f"Keine relevanten Darts-Matches für dieses Zeitfenster ({now_hour} Uhr) gefunden.")
         return
 
+    session_name = "AFTERNOON SESSION" if now_hour < 15 else "EVENING SESSION"
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
 Du bist 'JARVIS DARTS QUANT' – Experte für PDC Darts (3-Dart-Averages, 180s-Statistiken, Checkout-Percentages).
-Erstelle für heute ({today_str}) ein präzises Value-Dossier.
+Erstelle für heute ({today_str}) die {session_name}.
 
 VERFÜGBARE MATCHES & QUOTEN:
 {odds_data}
@@ -200,7 +213,7 @@ RICHTLINIEN & BUCHMACHER-KOMPATIBILITÄT:
 - Telegram-HTML ZUERST, danach der exakte JSON-Block.
 
 REPORT-HTML:
-🎯 <b>JARVIS PDC DARTS INTEL DOSSIER</b>
+🎯 <b>JARVIS PDC DARTS INTEL • {session_name}</b>
 <i>3-Dart Average Edge • Checkout Efficiency • Value-Picks</i>
 
 ━━━━━━━━━━━━━━━━━━━━
