@@ -2,9 +2,9 @@ name: JARVIS Moneyrace
 
 on:
   schedule:
-    # Täglich um 08:00 UTC (09:00 Uhr MEZ) zum Auswerten von Nachtspielen
-    - cron: '0 8 * * *'
-    # Täglich um 17:00 UTC (18:00 Uhr MEZ) zur Pick-Auswahl für den Abend/Nacht
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
+    - cron: '45 6 * * *'
+    # 2. ABEND-PICK: 17:00 UTC (= 18:00 Uhr MEZ)
     - cron: '0 17 * * *'
   workflow_dispatch:
 
@@ -42,5 +42,5 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add moneyrace_state.json
+          git add moneyrace_state.json || true
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update moneyrace state [skip ci]" && git push)
