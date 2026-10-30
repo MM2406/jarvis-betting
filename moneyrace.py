@@ -10,7 +10,11 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_MONEYRACE_THREAD_ID", "").strip()
+TELEGRAM_THREAD_ID = (
+    os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_MONEYRACE_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_MONEYRACE", "").strip()
+)
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 STATE_FILE = "moneyrace_state.json"
@@ -22,22 +26,16 @@ MONEYRACE_SPORTS = [
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
     "soccer_france_ligue_one",
-    "soccer_austria_bundesliga",
     "soccer_uefa_champs_league",
     "soccer_uefa_europa_league",
-    "soccer_uefa_europa_conference_league",
-    "soccer_usa_mls",
-    "basketball_nba",
     "basketball_euroleague",
-    "icehockey_nhl",
-    "icehockey_germany_del",
-    "icehockey_sweden_shl"
+    "basketball_nba"
 ]
 
-def send_telegram(text, pin=False):
+def send_telegram(text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram Credentials fehlen.")
-        return None
+        return
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
@@ -52,44 +50,32 @@ def send_telegram(text, pin=False):
         except ValueError:
             pass
 
-    message_id = None
     try:
         res = requests.post(url, json=payload, timeout=25)
-        if res.status_code == 200:
-            message_id = res.json().get("result", {}).get("message_id")
-        else:
+        if res.status_code != 200:
             payload.pop("parse_mode", None)
-            res_retry = requests.post(url, json=payload, timeout=25)
-            if res_retry.status_code == 200:
-                message_id = res_retry.json().get("result", {}).get("message_id")
+            requests.post(url, json=payload, timeout=25)
     except Exception as e:
         print(f"Telegram-Fehler: {e}")
 
-    if pin and message_id:
-        try:
-            pin_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/pinChatMessage"
-            requests.post(pin_url, json={"chat_id": TELEGRAM_CHAT_ID, "message_id": message_id, "disable_notification": True}, timeout=15)
-        except Exception as pe:
-            print(f"Pin-Fehler: {pe}")
-
-    return message_id
-
 def load_state():
+    default_state = {
+        "current_step": 0,
+        "bankroll": 5.00,
+        "start_amount": 5.00,
+        "target_amount": 100.00,
+        "history": [],
+        "active_pick": None,
+        "last_run_date": ""
+    }
     if not os.path.exists(STATE_FILE):
-        return {
-            "active": True,
-            "step": 1,
-            "bankroll": 5.00,
-            "target": 100.00,
-            "history": [],
-            "current_bet": None
-        }
+        return default_state
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         print(f"Fehler beim Laden von {STATE_FILE}: {e}")
-        return {"active": True, "step": 1, "bankroll": 5.00, "target": 100.00, "history": [], "current_bet": None}
+        return default_state
 
 def save_state(state):
     try:
@@ -98,33 +84,35 @@ def save_state(state):
     except Exception as e:
         print(f"Fehler beim Speichern von {STATE_FILE}: {e}")
 
-def render_progress_bar(step, total=7):
-    filled = max(0, min(step, total))
-    return "🟩" * filled + "⬜" * (total - filled)
+def make_progress_bar(step, total_steps=7):
+    filled = min(step, total_steps)
+    empty = total_steps - filled
+    return f"[{'🟩' * filled}{'⬜' * empty}]"
 
-def settle_current_bet(state):
-    bet = state.get("current_bet")
-    if not bet:
-        print("Keine offene Moneyrace-Wette zur Abrechnung.")
+def settle_active_pick(state):
+    active = state.get("active_pick")
+    if not active:
+        print("Kein aktiver Moneyrace-Pick zur Auswertung vorhanden.")
         return state
 
+    print(f"Prüfe Abrechnung für Stufe {active.get('step')}: {active.get('match')}...")
+    
     prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis für folgendes Spiel:
-Match: {bet.get('match')}
-Sportart: {bet.get('sport')}
-Tipp: {bet.get('pick')}
-Datum: {bet.get('date')}
+Recherchiere via Google Search das offizielle Endergebnis für folgende Sportwette:
+Match: {active.get('match')}
+Tipp: {active.get('pick')}
+Datum: {active.get('date')}
 
-WICHTIGE REGELN:
-1. Prüfe, ob das Match bereits beendet ist. Falls noch nicht begonnen oder live, antworte zwingend mit PENDING.
+REGELN:
+1. Prüfe sorgfältig, ob das Spiel bereits regulär beendet ist. Falls noch nicht begonnen, verschoben oder live, antworte zwingend mit PENDING.
 2. Wenn der Tipp gewonnen hat, antworte mit 'RESULT: WON'.
 3. Wenn der Tipp verloren hat, antworte mit 'RESULT: LOST'.
-4. Bei Spielabsage oder Push (z.B. Draw No Bet Unentschieden) antworte mit 'RESULT: VOID'.
+4. Bei Push / Void / Absage (Quote 1.0) antworte mit 'RESULT: VOID'.
 
 Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Offizielles Endergebnis
-INFO: Kurze Erklärung
+SCORE: Endergebnis (z.B. 102:99)
+INFO: Kurze Begründung.
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
@@ -137,78 +125,87 @@ INFO: Kurze Erklärung
         res = requests.post(url, json=payload, timeout=60)
         if res.status_code == 200:
             text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-            odds = float(bet.get("odds", 1.0))
-            stake = float(state.get("bankroll", 5.0))
-
+            
             if "RESULT: WON" in text:
-                new_bankroll = round(stake * odds, 2)
-                step = state.get("step", 1)
-                state["bankroll"] = new_bankroll
-                state["history"].append({**bet, "status": "WON", "return": new_bankroll})
-                state["current_bet"] = None
-
-                if new_bankroll >= state.get("target", 100.0):
-                    msg = (
-                        f"🏆 <b>MONEYRACE ERFOLGREICH BEENDET!</b>\n\n"
-                        f"Ziel von {state.get('target', 100.0):.2f} € erreicht!\n"
-                        f"Endstand nach Stufe {step}: <b>{new_bankroll:.2f} €</b>\n"
-                        f"Herzlichen Glückwunsch an die Community!"
-                    )
-                    send_telegram(msg)
-                    state["active"] = False
-                else:
-                    state["step"] = step + 1
-                    bar = render_progress_bar(state["step"])
-                    msg = (
-                        f"✅ <b>MONEYRACE • STUFE {step} GEWONNEN!</b>\n\n"
-                        f"Progress: [{bar}] (Stufe {state['step']}/7)\n"
-                        f"📌 Match: <b>{bet.get('match')}</b>\n"
-                        f"🎯 Tipp: {bet.get('pick')} (@ {odds:.2f})\n"
-                        f"💰 Neuer Kontostand: <b>{new_bankroll:.2f} €</b>\n\n"
-                        f"➔ Weiter geht es heute verlässlich um 18:00 Uhr mit <b>Stufe {state['step']}</b>!"
-                    )
-                    send_telegram(msg)
-
+                ret = round(active["stake"] * active["odds"], 2)
+                profit = round(ret - active["stake"], 2)
+                step_done = active["step"]
+                
+                state["bankroll"] = ret
+                state["current_step"] = step_done
+                active["status"] = "WON"
+                active["return"] = ret
+                state["history"].append(active)
+                state["active_pick"] = None
                 save_state(state)
+
+                pct = round((ret / state["target_amount"]) * 100, 1)
+                bar = make_progress_bar(step_done)
+
+                if ret >= state["target_amount"]:
+                    msg = (
+                        f"🏆 <b>MONEYRACE ZIEL ERREICHT!</b>\n\n"
+                        f"Stufe {step_done} mit Bravour gemeistert!\n"
+                        f"📌 Letzter Tipp: {active['pick']} (@ {active['odds']}) ➔ TREFFER!\n"
+                        f"💰 Endstand: <b>{ret:.2f} €</b>\n\n"
+                        f"Die 100 € Challenge wurde erfolgreich abgeschlossen! 🎉"
+                    )
+                else:
+                    msg = (
+                        f"✅ <b>MONEYRACE STUFE {step_done} GEWONNEN!</b>\n\n"
+                        f"• <b>Tipp:</b> {active['pick']} (@ {active['odds']}) ➔ <b>TREFFER!</b>\n"
+                        f"• <b>Rücklauf:</b> +{profit:.2f} €\n"
+                        f"• <b>Neuer Kontostand:</b> <b>{ret:.2f} €</b>\n\n"
+                        f"Progress: {bar} {pct}%\n"
+                        f"➔ Weiter mit Stufe {step_done + 1}!"
+                    )
+                send_telegram(msg)
 
             elif "RESULT: LOST" in text:
-                step = state.get("step", 1)
-                state["history"].append({**bet, "status": "LOST", "return": 0.0})
-                state["current_bet"] = None
-                state["active"] = True
-                state["step"] = 1
-                state["bankroll"] = 5.00
+                step_lost = active["step"]
+                active["status"] = "LOST"
+                active["return"] = 0.0
+                state["history"].append(active)
+                
+                # Reset auf Neustart
+                state["active_pick"] = None
+                state["bankroll"] = state["start_amount"]
+                state["current_step"] = 0
+                save_state(state)
 
                 msg = (
-                    f"❌ <b>MONEYRACE • STUFE {step} LEIDER VERLOREN</b>\n\n"
-                    f"📌 Match: {bet.get('match')}\n"
-                    f"🎯 Tipp: {bet.get('pick')} (@ {odds:.2f})\n\n"
-                    f"Der Schein ging leider nicht auf. Das Moneyrace startet heute um 18:00 Uhr neu mit Stufe 1 (5.00 € Start-Bankroll)."
+                    f"❌ <b>MONEYRACE STUFE {step_lost} LEIDER VERLOREN</b>\n\n"
+                    f"• <b>Match:</b> {active['match']}\n"
+                    f"• <b>Tipp:</b> {active['pick']} (@ {active['odds']})\n\n"
+                    f"Die Challenge wird zurückgesetzt. Wir starten beim nächsten Durchlauf frisch mit Stufe 1 ({state['start_amount']:.2f} €)."
                 )
                 send_telegram(msg)
-                save_state(state)
 
             elif "RESULT: VOID" in text:
-                step = state.get("step", 1)
-                state["current_bet"] = None
+                # Push: Geld bleibt erhalten, derselbe Step wird wiederholt
+                active["status"] = "VOID"
+                state["active_pick"] = None
+                save_state(state)
+
                 msg = (
-                    f"🟡 <b>MONEYRACE • STUFE {step} PUSH / UNENTSCHIEDEN</b>\n\n"
-                    f"📌 Match: {bet.get('match')}\n"
-                    f"Einsatz von {stake:.2f} € zurückerhalten. Die Stufe wird um 18:00 Uhr mit einem neuen Pick wiederholt."
+                    f"🟡 <b>MONEYRACE STUFE {active['step']} UNENTSCHIEDEN / VOID</b>\n\n"
+                    f"• <b>Match:</b> {active['match']}\n"
+                    f"• <b>Tipp:</b> {active['pick']}\n"
+                    f"Einsatz von {active['stake']:.2f} € wurde erstattet. Stufe {active['step']} wird wiederholt."
                 )
                 send_telegram(msg)
-                save_state(state)
             else:
-                print("Partie noch nicht beendet (PENDING).")
+                print("Spielergebnis noch nicht final oder unklar. Bleibt PENDING.")
     except Exception as e:
         print(f"Fehler bei Abrechnung: {e}")
 
     return state
 
-def fetch_moneyrace_candidates():
-    candidates = []
+def fetch_moneyrace_odds():
+    all_events = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=14)
+    # Fenster: Sucht Matches in den nächsten 10 Stunden
+    cutoff = now_utc + timedelta(hours=10)
 
     for sport in MONEYRACE_SPORTS:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -221,117 +218,113 @@ def fetch_moneyrace_candidates():
         try:
             res = requests.get(url, params=params, timeout=12)
             if res.status_code == 200:
-                data = res.json()
-                for match in data:
+                for match in res.json():
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
                         time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
-                        for bookie in match.get("bookmakers", []):
-                            for market in bookie.get("markets", []):
-                                m_key = market.get("key")
-                                for outcome in market.get("outcomes", []):
-                                    price = outcome.get("price", 0)
-                                    if 1.50 <= price <= 1.75:
-                                        point_str = f" ({outcome.get('point')})" if "point" in outcome else ""
-                                        candidates.append({
-                                            "sport": sport,
-                                            "match": f"{match['home_team']} vs. {match['away_team']}",
-                                            "time": time_str,
-                                            "market": m_key,
-                                            "name": outcome.get("name"),
-                                            "detail": point_str,
-                                            "price": price
-                                        })
+                        bookies = match.get("bookmakers", [])
+                        if not bookies:
+                            continue
+                        odds_details = []
+                        for m in bookies[0].get("markets", []):
+                            outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
+                            odds_details.append(f"{m.get('key')}: {', '.join(outcomes)}")
+                        all_events.append(f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
         except Exception as e:
-            print(f"Fehler beim Laden von {sport}: {e}")
+            print(f"Fehler bei {sport}: {e}")
 
-    print(f"Gefundene Kandidaten im 1.50-1.75 Korridor: {len(candidates)}")
-    return candidates
+    print(f"Gefundene Moneyrace-Kandidaten: {len(all_events)}")
+    return "\n".join(all_events[:45])
 
-def generate_moneyrace_pick():
+def run_moneyrace():
     state = load_state()
-    settle_current_bet(state)
-
-    if not state.get("active", True):
-        print("Moneyrace pausiert oder beendet.")
-        return
+    state = settle_active_pick(state)
 
     now_hour = datetime.now(LOCAL_TZ).hour
-    if now_hour < 17:
-        print(f"Morgen-Run ({now_hour} Uhr): Abrechnung abgeschlossen. Neuer Pick folgt verlässlich abends um 18:00 Uhr.")
+
+    # WICHTIGE WEICHE: Morgens (vor 12:00 Uhr MEZ) nur Abrechnung, kein neuer Pick
+    if now_hour < 12:
+        print("Morgen-Run: Abrechnung abgeschlossen. Tipp-Generierung folgt planmäßig am Nachmittag.")
         return
 
-    if state.get("current_bet"):
-        print("Aktuell läuft noch eine Wette für diese Stufe.")
+    # Wenn bereits ein Pick aktiv ist, keinen zweiten starten
+    if state.get("active_pick"):
+        print(f"Es läuft bereits ein aktiver Pick für Stufe {state['active_pick'].get('step')}. Abbruch.")
         return
 
-    candidates = fetch_moneyrace_candidates()
-    if not candidates:
-        print("Heute keine soliden Quoten im Zielkorridor 1.50 - 1.75 gefunden.")
+    next_step = state.get("current_step", 0) + 1
+    stake = round(state.get("bankroll", 5.00), 2)
+    target = state.get("target_amount", 100.00)
+
+    odds_data = fetch_moneyrace_odds()
+    if not odds_data:
+        print("Keine passenden Partien im Zeitfenster gefunden.")
         return
 
-    formatted_candidates = "\n".join([
-        f"[{c['sport']}] {c['match']} ({c['time']}) | Markt: {c['market']} -> {c['name']}{c['detail']} @ {c['price']}"
-        for c in candidates[:45]
-    ])
-
-    step = state.get("step", 1)
-    stake = state.get("bankroll", 5.0)
-    target = state.get("target", 100.0)
+    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
-    progress_bar = render_progress_bar(step)
+    bar = make_progress_bar(state.get("current_step", 0))
 
     prompt = f"""
-Du bist 'JARVIS MONEYRACE QUANT' – ein risikobewusster Stufenwetten-Algorithmus.
-Ziel: Aus {stake:.2f} € Schritt für Schritt {target:.2f} € machen.
-Aktuelle Stufe: {step} / 7
-Aktueller Einsatz (All-In): {stake:.2f} €
-Balken: [{progress_bar}]
+Du bist 'JARVIS MONEYRACE QUANT' – ein hochkonservativer Hedgefonds-Algorithmus.
+Ziel: Wir verdoppeln schrittweise das Startkapital in 7 Stufen bis zu einem Ziel von {target:.2f} €.
+Aktueller Status:
+- Stufe: {next_step} von 7
+- Aktueller Einsatz (All-In): {stake:.2f} €
+- Ziel: {target:.2f} €
 
-VERFÜGBARE PARTIEN IM ZIELKORRIDOR (1.50 - 1.75):
-{formatted_candidates}
+VERFÜGBARE PARTIEN & BUCHMACHERQUOTEN:
+{odds_data}
 
-AUFGABE:
-Wähle den stabilsten Pick mit dem höchsten Erwartungswert (+EV).
-BUCHMACHER-KOMPATIBILITÄT:
-- Nenne für den Pick immer eine klassische Standard-Alternative (z.B. für bet365/Tipico, falls Asian Lines fehlen).
-- Weise immer eine Value-Grenze aus ('Spielbar bis @ X.XX').
-
-Telegram-HTML ZUERST, danach der exakte JSON-Block.
+================================================================================
+ANALYSE-REGELN FÜR DAS MONEYRACE:
+================================================================================
+1. SICHERHEIT VOR HOHEM ERTRAG:
+   - Wähle DIE stabilste mathematische Bank aus der Liste (+EV).
+   - Ideale Quoten-Spanne: 1.35 bis 1.70 (maximal 1.80 bei überragendem Value).
+   - Bevorzuge hochverlässliche Favoriten-Märkte: Heimsieg, Draw No Bet (DNB), Doppelte Chance (1X/X2) oder conservative Over/Under-Linien (z. B. Über 1.5 oder Unter 3.5).
+2. TRANSPARENTER VALUE:
+   - Berechne die Modell-Chance und begründe die Edge (Warum ist das Verlustrisiko minimal?).
+   - Gib immer eine Buchmacher-Alternative an.
+   - Gib eine Mindestquote an: 'Spielbar bis Mindestquote @ X.XX'.
+3. FORMATIERUNG:
+   - Beginne Aufzählungen direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch danach!
+   - Ganz am Ende MUSS der exakte Tracking-Block '---JSON_TRACKING---' folgen.
 
 REPORT-HTML:
-🎯 <b>JARVIS MONEYRACE • STUFE {step} / 7</b>
-Progress: [{progress_bar}] ({stake:.2f} € / {target:.2f} €)
+🎯 <b>JARVIS MONEYRACE • STUFE {next_step} / 7</b>
+Progress: {bar} ({stake:.2f} € / {target:.2f} €)
 
-<b>Einsatz:</b>  {stake:.2f} € (All-In)
-<b>Ziel:</b>     {target:.2f} €
+Einsatz:  <b>{stake:.2f} €</b> (All-In)
+Ziel:     <b>{target:.2f} €</b>
 
 ━━━━━━━━━━━━━━━━━━━━
-📌 <b>Match:</b>   [Heim vs. Gast]
-🏆 <b>Sport:</b>   [Sportart]
-⏰ <b>Beginn:</b>  [Datum &amp; Uhrzeit]
-🎯 <b>Tipp:</b>    <b>[Präziser Markt &amp; Auswahl]</b> @ X.XX
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
-⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ X.XX
-💰 <b>Return:</b>  [Möglicher Return] € (+[Reingewinn] €)
+📌 <b>Match:</b>   [Heimteam] vs. [Auswärtsteam]
+🏆 <b>Sport:</b>   [Sportart / Liga]
+⏰ <b>Beginn:</b>  [Uhrzeit] Uhr
+🎯 <b>Tipp:</b>    <b>[Präziser Markt &amp; Auswahl]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ [Quote]
+💰 <b>Return:</b>  <b>[Einsatz * Quote] €</b> (+[Reingewinn] €)
 
 ━━━━━━━━━━━━━━━━━━━━
 🔍 <b>EDGE &amp; QUANT-ANALYSE</b>
-• <b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX
-• <b>Mathematischer Edge:</b> +X.X% EV
-• <b>Rationale:</b> [Taktische Begründung: Matchup, Defensiv-Ratings, Form, warum das Risiko minimal ist]
+• <b>Modell-Chance:</b> [XX.X]% | <b>Fair Odds:</b> ~[X.XX]
+• <b>Mathematischer Edge:</b> +[X.X]% EV
+• <b>Rationale:</b> [Detaillierte taktische und statistische Herleitung: Warum diese Auswahl als absolut risikoärmster Spot des Tages gewählt wurde.]
 
 ━━━━━━━━━━━━━━━━━━━━
 🗺️ <b>NÄCHSTER SCHRITT</b>
-Bei Win geht es mit [Return] € direkt in Stufe {step + 1}.
+Bei Win geht es mit [Return] € direkt in Stufe {next_step + 1}.
 
 ---JSON_TRACKING---
 {{
+  "step": {next_step},
   "match": "Team A vs Team B",
-  "sport": "Sportart",
-  "pick": "Präziser Tipp",
-  "odds": 1.65,
-  "stake": {stake:.2f},
+  "pick": "Auswahl",
+  "odds": 1.50,
+  "stake": {stake},
+  "expected_return": {round(stake * 1.50, 2)},
   "date": "{today_iso}"
 }}
 """
@@ -353,15 +346,16 @@ Bei Win geht es mit [Return] € direkt in Stufe {step + 1}.
                     report = parts[0].strip()
                     json_str = parts[1].replace("```json", "").replace("```", "").strip()
                     try:
-                        new_bet = json.loads(json_str)
-                        state["current_bet"] = new_bet
+                        pick_data = json.loads(json_str)
+                        state["active_pick"] = pick_data
+                        state["last_run_date"] = today_iso
                         save_state(state)
-                        print("Neue Moneyrace-Wette erfolgreich getrackt.")
+                        print(f"Moneyrace Stufe {next_step} gespeichert.")
                     except Exception as je:
-                        print(f"Fehler beim Speichern der Moneyrace-Wette: {je}")
+                        print(f"Fehler beim Parsen des Moneyrace-Trackings: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
-                send_telegram(report, pin=True)
+                send_telegram(report)
                 return
             elif res.status_code in [500, 502, 503, 504]:
                 time.sleep(6)
@@ -375,4 +369,4 @@ Bei Win geht es mit [Return] € direkt in Stufe {step + 1}.
                 sys.exit(1)
 
 if __name__ == "__main__":
-    generate_moneyrace_pick()
+    run_moneyrace()
