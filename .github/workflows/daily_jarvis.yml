@@ -4,9 +4,9 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
-    # 2. MITTAGS-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> Puffer für 13:00/13:30 Uhr Spiele
+    # 2. MITTAGS-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> Puffer fuer 13:00/13:30 Uhr Anstoesse
     - cron: '15 10 * * *'
-    # 3. ABEND-PICKS: 15:45 UTC (= 16:45 Uhr MEZ) -> Puffer für frühe Abendspiele (18:30/19:00 Uhr)
+    # 3. ABEND-PICKS: 15:45 UTC (= 16:45 Uhr MEZ) -> Puffer fuer 18:30/19:00 Uhr Topspiele
     - cron: '45 15 * * *'
   workflow_dispatch:
 
@@ -16,7 +16,6 @@ permissions:
 jobs:
   run-soccer:
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
@@ -26,18 +25,19 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Abhängigkeiten installieren
+      - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Soccer Jarvis ausführen
+      - name: Soccer Jarvis ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_SOCCER_THREAD_ID }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_SOCCER_THREAD_ID || secrets.TELEGRAM_THREAD_SOCCER }}
+          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_SOCCER_THREAD_ID || secrets.TELEGRAM_THREAD_SOCCER }}
         run: python jarvis.py
 
       - name: History committen und pushen
