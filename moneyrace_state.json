@@ -1,6 +1,6 @@
 {
   "current_step": 2,
-  "bankroll": 13.27,
+  "bankroll": 8.40,
   "start_amount": 5.00,
   "target_amount": 100.00,
   "history": [
@@ -12,17 +12,16 @@
       "stake": 5.0,
       "return": 8.4,
       "status": "WON"
-    },
-    {
-      "step": 2,
-      "match": "FC Barcelona Bàsquet vs. Valencia Basket",
-      "pick": "FC Barcelona Bàsquet",
-      "odds": 1.58,
-      "stake": 8.4,
-      "return": 13.27,
-      "status": "WON"
     }
   ],
-  "active_pick": null,
+  "active_pick": {
+    "step": 2,
+    "match": "FC Barcelona Bàsquet vs. Valencia Basket",
+    "pick": "FC Barcelona Bàsquet",
+    "odds": 1.58,
+    "stake": 8.40,
+    "expected_return": 13.27,
+    "date": "2026-10-30"
+  },
   "last_run_date": "2026-10-30"
 }
