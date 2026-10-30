@@ -34,10 +34,10 @@ MONEYRACE_SPORTS = [
     "icehockey_sweden_shl"
 ]
 
-def send_telegram(text):
+def send_telegram(text, pin=False):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram Credentials fehlen.")
-        return
+        return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
@@ -52,13 +52,27 @@ def send_telegram(text):
         except ValueError:
             pass
 
+    message_id = None
     try:
         res = requests.post(url, json=payload, timeout=25)
-        if res.status_code != 200:
+        if res.status_code == 200:
+            message_id = res.json().get("result", {}).get("message_id")
+        else:
             payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=25)
+            res_retry = requests.post(url, json=payload, timeout=25)
+            if res_retry.status_code == 200:
+                message_id = res_retry.json().get("result", {}).get("message_id")
     except Exception as e:
         print(f"Telegram-Fehler: {e}")
+
+    if pin and message_id:
+        try:
+            pin_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/pinChatMessage"
+            requests.post(pin_url, json={"chat_id": TELEGRAM_CHAT_ID, "message_id": message_id, "disable_notification": True}, timeout=15)
+        except Exception as pe:
+            print(f"Pin-Fehler: {pe}")
+
+    return message_id
 
 def load_state():
     if not os.path.exists(STATE_FILE):
@@ -84,6 +98,10 @@ def save_state(state):
     except Exception as e:
         print(f"Fehler beim Speichern von {STATE_FILE}: {e}")
 
+def render_progress_bar(step, total=7):
+    filled = max(0, min(step, total))
+    return "🟩" * filled + "⬜" * (total - filled)
+
 def settle_current_bet(state):
     bet = state.get("current_bet")
     if not bet:
@@ -98,11 +116,10 @@ Tipp: {bet.get('pick')}
 Datum: {bet.get('date')}
 
 WICHTIGE REGELN:
-1. Prüfe, ob das Match bereits regulär beendet ist. Falls es noch nicht begonnen hat oder live läuft, antworte zwingend mit PENDING.
-2. EISHOCKEY / BASKETBALL: Beachte, ob der Tipp reguläre Spielzeit oder inkl. Overtime war.
-3. Wenn der Tipp gewonnen hat, antworte mit 'RESULT: WON'.
-4. Wenn der Tipp verloren hat, antworte mit 'RESULT: LOST'.
-5. Bei Spielabsage oder Push (z.B. Draw No Bet Unentschieden) antworte mit 'RESULT: VOID'.
+1. Prüfe, ob das Match bereits beendet ist. Falls noch nicht begonnen oder live, antworte zwingend mit PENDING.
+2. Wenn der Tipp gewonnen hat, antworte mit 'RESULT: WON'.
+3. Wenn der Tipp verloren hat, antworte mit 'RESULT: LOST'.
+4. Bei Spielabsage oder Push (z.B. Draw No Bet Unentschieden) antworte mit 'RESULT: VOID'.
 
 Format:
 RESULT: WON oder LOST oder PENDING oder VOID
@@ -135,18 +152,20 @@ INFO: Kurze Erklärung
                         f"🏆 <b>MONEYRACE ERFOLGREICH BEENDET!</b>\n\n"
                         f"Ziel von {state.get('target', 100.0):.2f} € erreicht!\n"
                         f"Endstand nach Stufe {step}: <b>{new_bankroll:.2f} €</b>\n"
-                        f"Herzlichen Glückwunsch an alle, die mitgezogen sind!"
+                        f"Herzlichen Glückwunsch an die Community!"
                     )
                     send_telegram(msg)
                     state["active"] = False
                 else:
                     state["step"] = step + 1
+                    bar = render_progress_bar(state["step"])
                     msg = (
                         f"✅ <b>MONEYRACE • STUFE {step} GEWONNEN!</b>\n\n"
+                        f"Progress: [{bar}] (Stufe {state['step']}/7)\n"
                         f"📌 Match: <b>{bet.get('match')}</b>\n"
                         f"🎯 Tipp: {bet.get('pick')} (@ {odds:.2f})\n"
                         f"💰 Neuer Kontostand: <b>{new_bankroll:.2f} €</b>\n\n"
-                        f"➔ Weiter geht es heute um 18:00 Uhr mit <b>Stufe {state['step']}</b>!"
+                        f"➔ Weiter geht es heute verlässlich um 18:00 Uhr mit <b>Stufe {state['step']}</b>!"
                     )
                     send_telegram(msg)
 
@@ -164,7 +183,7 @@ INFO: Kurze Erklärung
                     f"❌ <b>MONEYRACE • STUFE {step} LEIDER VERLOREN</b>\n\n"
                     f"📌 Match: {bet.get('match')}\n"
                     f"🎯 Tipp: {bet.get('pick')} (@ {odds:.2f})\n\n"
-                    f"Der Schein ging leider nicht auf. Das Moneyrace wird heute um 18:00 Uhr mit Stufe 1 (5.00 € Start-Bankroll) neu gestartet."
+                    f"Der Schein ging leider nicht auf. Das Moneyrace startet heute um 18:00 Uhr neu mit Stufe 1 (5.00 € Start-Bankroll)."
                 )
                 send_telegram(msg)
                 save_state(state)
@@ -237,10 +256,9 @@ def generate_moneyrace_pick():
         print("Moneyrace pausiert oder beendet.")
         return
 
-    # ZEITSCHRANKE: Vor 17:00 Uhr MEZ wird KEIN neuer Pick generiert
     now_hour = datetime.now(LOCAL_TZ).hour
     if now_hour < 17:
-        print(f"Morgen-Run ({now_hour} Uhr): Abrechnung abgeschlossen. Der nächste Pick wird verlässlich um 18:00 Uhr analysiert.")
+        print(f"Morgen-Run ({now_hour} Uhr): Abrechnung abgeschlossen. Neuer Pick folgt verlässlich abends um 18:00 Uhr.")
         return
 
     if state.get("current_bet"):
@@ -261,26 +279,29 @@ def generate_moneyrace_pick():
     stake = state.get("bankroll", 5.0)
     target = state.get("target", 100.0)
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+    progress_bar = render_progress_bar(step)
 
     prompt = f"""
-Du bist 'JARVIS MONEYRACE QUANT' – ein extrem risikobewusster Stufenwetten-Algorithmus.
-Ziel des Moneyrace: Aus {stake:.2f} € Schritt für Schritt {target:.2f} € machen.
+Du bist 'JARVIS MONEYRACE QUANT' – ein risikobewusster Stufenwetten-Algorithmus.
+Ziel: Aus {stake:.2f} € Schritt für Schritt {target:.2f} € machen.
 Aktuelle Stufe: {step} / 7
 Aktueller Einsatz (All-In): {stake:.2f} €
+Balken: [{progress_bar}]
 
 VERFÜGBARE PARTIEN IM ZIELKORRIDOR (1.50 - 1.75):
 {formatted_candidates}
 
 AUFGABE:
-Wähle den mathematisch stabilsten Pick mit dem höchsten Erwartungswert (+EV).
-- Bei Eishockey/Basketball: Achte genau auf 60-Minuten-Regulär vs. Moneyline inkl. OT.
-- Formuliere den Tipp absolut unmissverständlich.
+Wähle den stabilsten Pick mit dem höchsten Erwartungswert (+EV).
+BUCHMACHER-KOMPATIBILITÄT:
+- Nenne für den Pick immer eine klassische Standard-Alternative (z.B. für bet365/Tipico, falls Asian Lines fehlen).
+- Weise immer eine Value-Grenze aus ('Spielbar bis @ X.XX').
 
 Telegram-HTML ZUERST, danach der exakte JSON-Block.
 
 REPORT-HTML:
 🎯 <b>JARVIS MONEYRACE • STUFE {step} / 7</b>
-Progress: [Stufenbalken mit Emojis] XX.X% zum Ziel
+Progress: [{progress_bar}] ({stake:.2f} € / {target:.2f} €)
 
 <b>Einsatz:</b>  {stake:.2f} € (All-In)
 <b>Ziel:</b>     {target:.2f} €
@@ -289,14 +310,15 @@ Progress: [Stufenbalken mit Emojis] XX.X% zum Ziel
 📌 <b>Match:</b>   [Heim vs. Gast]
 🏆 <b>Sport:</b>   [Sportart]
 ⏰ <b>Beginn:</b>  [Datum &amp; Uhrzeit]
-🎯 <b>Tipp:</b>    <b>[Präziser Markt &amp; Auswahl]</b>
-📈 <b>Quote:</b>   <b>X.XX</b> (Geprüfte Buchmacherquote)
-💰 <b>Return:</b>  [Möglicher Gewinn] € (+[Reingewinn] €)
+🎯 <b>Tipp:</b>    <b>[Präziser Markt &amp; Auswahl]</b> @ X.XX
+🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ X.XX
+⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ X.XX
+💰 <b>Return:</b>  [Möglicher Return] € (+[Reingewinn] €)
 
 ━━━━━━━━━━━━━━━━━━━━
 🔍 <b>EDGE &amp; QUANT-ANALYSE</b>
 • <b>Modell-Chance:</b> XX.X% | <b>Fair Odds:</b> ~X.XX
-• <b>Mathematischer Edge:</b> +X.X%
+• <b>Mathematischer Edge:</b> +X.X% EV
 • <b>Rationale:</b> [Taktische Begründung: Matchup, Defensiv-Ratings, Form, warum das Risiko minimal ist]
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -339,7 +361,7 @@ Bei Win geht es mit [Return] € direkt in Stufe {step + 1}.
                         print(f"Fehler beim Speichern der Moneyrace-Wette: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
-                send_telegram(report)
+                send_telegram(report, pin=True)
                 return
             elif res.status_code in [500, 502, 503, 504]:
                 time.sleep(6)
