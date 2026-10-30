@@ -2,9 +2,9 @@ name: JARVIS US College Intel
 
 on:
   schedule:
-    # 1. MORGEN-RUN: 09:30 UTC (= 10:30 Uhr MEZ) für die Nacht-Abrechnung
-    - cron: '30 9 * * *'
-    # 2. ABEND-RUN: 19:30 UTC (= 20:30 Uhr MEZ) für das Nacht-Dossier
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
+    - cron: '45 6 * * *'
+    # 2. ABEND-PICKS: 19:30 UTC (= 20:30 Uhr MEZ)
     - cron: '30 19 * * *'
   workflow_dispatch:
 
