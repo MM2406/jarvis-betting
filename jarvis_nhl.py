@@ -118,6 +118,12 @@ RICHTLINIEN & MÄRKTE:
   * Totals/Goalie Spotlight: 0.5 bis 1.0 Units
   * Player Point / Goal Prop: 0.5 bis 1.0 Units
 
+FORMATIERUNGS-REGELN FÜR TELEGRAM:
+- Keine doppelten Leerzeilen.
+- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
+- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+
 REPORT-HTML:
 🏒 <b>JARVIS NHL INTEL DOSSIER</b>
 <i>Advanced Hockey Analytics • Goalie Matchups • Value-Picks</i>
