@@ -10,7 +10,13 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_SOCCER_THREAD_ID", "").strip()
+
+# Sicheres Routing ins Fussball-Thema
+TELEGRAM_THREAD_ID = (
+    os.environ.get("TELEGRAM_THREAD_SOCCER", "").strip()
+    or os.environ.get("TELEGRAM_SOCCER_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+)
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 HISTORY_FILE = "soccer_history.json"
@@ -45,7 +51,7 @@ def send_telegram(text):
         try:
             payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
         except ValueError:
-            pass
+            print(f"Ungueltige Thread-ID fuer Soccer: {TELEGRAM_THREAD_ID}")
 
     try:
         res = requests.post(url, json=payload, timeout=25)
@@ -148,8 +154,6 @@ def fetch_soccer_odds(already_tracked_matches):
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
 
-    # Vor 15 Uhr: Nachmittagsspiele (nächste 8 Std ab 11:15 -> deckt bis 19:15 Uhr ab)
-    # Nach 15 Uhr: Abendschlager (nächste 9 Std ab 16:45 -> deckt bis 01:45 Uhr ab)
     window_hours = 8 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
@@ -261,8 +265,8 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-• <b>Wettbewerb:</b> [Name der Liga / Wettbewerb]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Wettbewerb:</b> [Name der Liga / Wettbewerb]
 ➔ <b>Haupt-Pick:</b> <b>[Präziser Markt &amp; Auswahl]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie / Fallback] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ [Quote]
@@ -273,9 +277,9 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 [... ggf. Bein 4 und 5 ergänzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
@@ -284,7 +288,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>GOAL-MARKET SPOTLIGHT (Totals / BTTS / Team-Totals)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ➔ <b>Pick:</b> <b>[Over/Under / BTTS / Team-Total Auswahl]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Standard Über/Unter-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -293,7 +297,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 👟 <b>PLAYER PROP &amp; SPECIAL PICK</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ➔ <b>Pick:</b> <b>[Spielername: Torschütze / Schüsse aufs Tor (SoT) / Scorerpunkt]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Ausweich-Markt z. B. Team-Tor oder Spieler 1+ Schüsse] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
