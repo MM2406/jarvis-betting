@@ -6,11 +6,23 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+# Sichere Anbindung der Telegram-Hilfsfunktion
+try:
+    from telegram_sender import send_to_telegram
+except ImportError:
+    send_to_telegram = None
+
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_DARTS_THREAD_ID", "").strip()
+
+# Sichere Fallback-Kette für das Darts-Topic
+TELEGRAM_THREAD_ID = (
+    os.environ.get("TELEGRAM_DARTS_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_DARTS", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+)
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 HISTORY_FILE = "darts_history.json"
@@ -21,30 +33,37 @@ DARTS_SPORTS = [
 ]
 
 def send_telegram(text):
+    if send_to_telegram:
+        return send_to_telegram(text, thread_env_var="TELEGRAM_DARTS_THREAD_ID")
+
+    # Autonomer Fallback falls telegram_sender.py nicht im Verzeichnis liegt
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram Credentials fehlen.")
-        return
+        return None
+
+    if not TELEGRAM_THREAD_ID:
+        print("[Telegram] ABBRUCH: Keine Darts Thread-ID vorhanden. Senden in den Hauptchat blockiert.")
+        return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": True,
+        "message_thread_id": int(TELEGRAM_THREAD_ID)
     }
-    if TELEGRAM_THREAD_ID:
-        try:
-            payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-        except ValueError:
-            pass
 
     try:
         res = requests.post(url, json=payload, timeout=25)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=25)
+            res2 = requests.post(url, json=payload, timeout=25)
+            return res2.json().get("result", {}).get("message_id") if res2.status_code == 200 else None
+        return res.json().get("result", {}).get("message_id")
     except Exception as e:
         print(f"Telegram-Fehler: {e}")
+        return None
 
 def load_history():
     if not os.path.exists(HISTORY_FILE):
@@ -211,9 +230,9 @@ RICHTLINIEN & MAERKTE:
 - BUCHMACHER-ALTERNATIVE: Gib fuer jeden Tipp immer eine klassische Standard-Alternative an (z. B. Match-Sieg statt Leg-Handicap).
 - VALUE-GRENZE: Weise fuer jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
 - UNITS:
-  * Match of the Day: 1.0 bis 2.0 Units
-  * Value Acca: 0.5 bis 1.0 Units
-  * 180s / Special Spotlight: 0.5 bis 1.0 Units
+  • Match of the Day: 1.0 bis 2.0 Units
+  • Value Acca: 0.5 bis 1.0 Units
+  • 180s / Special Spotlight: 0.5 bis 1.0 Units
 
 FORMATIERUNGS-REGELN FUER TELEGRAM:
 - Keine doppelten Leerzeilen.
