@@ -1,0 +1,50 @@
+[
+  {
+    "match": "Houston Rockets vs. Oklahoma City Thunder",
+    "sport": "NBA",
+    "pick": "Houston Rockets -3.5",
+    "odds": "1.95",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "Utah Jazz vs. Portland Trail Blazers",
+    "sport": "NBA",
+    "pick": "Portland Trail Blazers ML",
+    "odds": "1.29",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "Milwaukee Bucks vs. Cleveland Cavaliers",
+    "sport": "NBA",
+    "pick": "Cleveland Cavaliers ML",
+    "odds": "1.27",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "Memphis Grizzlies vs. Sacramento Kings",
+    "sport": "NBA",
+    "pick": "Memphis Grizzlies ML",
+    "odds": "1.27",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "New Orleans Pelicans vs. Atlanta Hawks",
+    "sport": "NBA",
+    "pick": "Under 240.5",
+    "odds": "1.91",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "Charlotte Hornets vs. Philadelphia 76ers",
+    "sport": "NBA",
+    "pick": "Tyrese Maxey Over 25.5 Punkte",
+    "odds": "1.87",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  }
+]
