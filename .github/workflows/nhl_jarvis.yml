@@ -4,7 +4,7 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
     - cron: '45 6 * * *'
-    # 2. WOCHENENDE-PICKS (Sa & So): 15:00 UTC (= 16:00 MEZ) fuer fruehe 18:00-Uhr-Spiele
+    # 2. WOCHENENDE-PICKS (Sa & So): 15:00 UTC (= 16:00 MEZ) fuer fruehe Spiele
     - cron: '0 15 * * 6,0'
     # 3. WOCHENTAGS-PICKS (Mo - Fr): 17:00 UTC (= 18:00 MEZ) fuer die Nacht-Slate
     - cron: '0 17 * * 1-5'
@@ -36,9 +36,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NHL || secrets.TELEGRAM_US_THREAD_ID }}
-          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NHL || secrets.TELEGRAM_US_THREAD_ID }}
-          TELEGRAM_THREAD_NHL: ${{ secrets.TELEGRAM_THREAD_NHL || secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_THREAD_NHL: ${{ secrets.TELEGRAM_THREAD_NHL }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NHL }}
         run: python jarvis_nhl.py
 
       - name: History committen und pushen
