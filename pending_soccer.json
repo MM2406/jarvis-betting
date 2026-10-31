@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-31",
+  "potd": {
+    "match": "Bayer Leverkusen vs. VfB Stuttgart",
+    "pick": "Bayer Leverkusen Sieg",
+    "odds": 1.7
+  },
+  "tickets": [
+    {
+      "ticket_name": "CONSERVATIVE 2-LEG BANKER",
+      "odds": 2.05,
+      "picks": [
+        {
+          "match": "Levante vs. Atlético Madrid",
+          "pick": "Atlético Madrid Sieg",
+          "odds": 1.53
+        },
+        {
+          "match": "Bayern Munich vs. Borussia Dortmund",
+          "pick": "Bayern Munich Sieg",
+          "odds": 1.34
+        }
+      ]
+    },
+    {
+      "ticket_name": "BALANCED VALUE ACCA",
+      "odds": 3.7,
+      "picks": [
+        {
+          "match": "Manchester City vs. Brighton and Hove Albion",
+          "pick": "Manchester City Sieg",
+          "odds": 1.64
+        },
+        {
+          "match": "Tottenham Hotspur vs. Crystal Palace",
+          "pick": "Tottenham Hotspur Sieg",
+          "odds": 1.61
+        },
+        {
+          "match": "Columbus Crew SC vs. D.C. United",
+          "pick": "Columbus Crew SC Sieg",
+          "odds": 1.4
+        }
+      ]
+    },
+    {
+      "ticket_name": "HYBRID QUANT MULTI",
+      "odds": 4.22,
+      "picks": [
+        {
+          "match": "Werder Bremen vs. TSG Hoffenheim",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.81
+        },
+        {
+          "match": "Udinese vs. AS Roma",
+          "pick": "AS Roma Sieg",
+          "odds": 1.61
+        },
+        {
+          "match": "LA Galaxy vs. Austin FC",
+          "pick": "LA Galaxy Sieg",
+          "odds": 1.45
+        }
+      ]
+    },
+    {
+      "ticket_name": "GOALS & BTTS VALUE ACCA",
+      "odds": 2.73,
+      "picks": [
+        {
+          "match": "SV Darmstadt 98 vs. 1. FC Magdeburg",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.51
+        },
+        {
+          "match": "Werder Bremen vs. TSG Hoffenheim",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.81
+        }
+      ]
+    },
+    {
+      "ticket_name": "PLAYER PROP MULTI",
+      "odds": 2.0,
+      "picks": [
+        {
+          "match": "Chelsea vs. Manchester United",
+          "player": "Cole Palmer",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.45
+        },
+        {
+          "match": "Bayern Munich vs. Borussia Dortmund",
+          "player": "Harry Kane",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.38
+        }
+      ]
+    },
+    {
+      "ticket_name": "HIGH-YIELD VALUE ACCA",
+      "odds": 9.28,
+      "picks": [
+        {
+          "match": "Bologna vs. Monza",
+          "pick": "Bologna Sieg",
+          "odds": 1.72
+        },
+        {
+          "match": "FC Schalke 04 vs. RB Leipzig",
+          "pick": "RB Leipzig Sieg",
+          "odds": 1.88
+        },
+        {
+          "match": "Bournemouth vs. Leeds United",
+          "pick": "Bournemouth Sieg",
+          "odds": 2.05
+        },
+        {
+          "match": "New York City FC vs. CF Montreal",
+          "pick": "New York City FC Sieg",
+          "odds": 1.4
+        }
+      ]
+    }
+  ]
+}
