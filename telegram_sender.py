@@ -1,7 +1,7 @@
 import os
 import requests
 
-def send_to_telegram(text, thread_env_var=None, default_thread_id=None):
+def send_to_telegram(text, thread_env_var=None, default_thread_id=None, allow_main_chat=False):
     """
     Sendet Nachrichten strikt in das vorgesehene Forum-Topic.
     Verhindert das unabsichtliche Posten in den Hauptchat.
@@ -13,16 +13,27 @@ def send_to_telegram(text, thread_env_var=None, default_thread_id=None):
         print("[Telegram] FEHLER: Bot-Token oder Chat-ID nicht konfiguriert.")
         return None
 
-    # Thread-ID aus Umgebungsvariablen ermitteln
+    # 1. Direkte Variable prüfen, falls übergeben
     thread_id = None
     if thread_env_var:
         thread_id = os.environ.get(thread_env_var, "").strip()
-    
+
+    # 2. Automatische Fallback-Kette über alle bekannten Sportarten
     if not thread_id:
         thread_id = (
             os.environ.get("TELEGRAM_THREAD_ID", "").strip()
-            or default_thread_id
+            or os.environ.get("TELEGRAM_THREAD_SOCCER", "").strip()
+            or os.environ.get("TELEGRAM_THREAD_NBA", "").strip()
+            or os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
+            or os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
+            or os.environ.get("TELEGRAM_MONEYRACE_THREAD_ID", "").strip()
+            or (str(default_thread_id).strip() if default_thread_id else None)
         )
+
+    # 3. Schutz vor ungewolltem Hauptchat-Posten
+    if not thread_id and not allow_main_chat:
+        print("[Telegram] ABBRUCH: Keine Thread-ID ermittelt! Nachricht wird NICHT in den Hauptchat gepostet.")
+        return None
 
     payload = {
         "chat_id": chat_id,
