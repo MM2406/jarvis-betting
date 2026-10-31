@@ -1,9 +1,9 @@
-name: JARVIS NFL Settle
+name: JARVIS Settle NFL
 
 on:
   schedule:
-    # 06:45 UTC = 07:45 Uhr MEZ
-    - cron: '45 6 * * *'
+    # Läuft nach Primetime-Spielen (Di nach MNF, Fr nach TNF, Mo nach SNF)
+    - cron: '45 6 * * 1,2,5'
   workflow_dispatch:
 
 permissions:
@@ -12,32 +12,34 @@ permissions:
 jobs:
   settle-nfl:
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Abhängigkeiten installieren
+      - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: NFL Settle ausführen
+      - name: NFL Abrechnung ausfuehren
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
         run: python settle_nfl.py
 
-      - name: Pending NFL committen und pushen
+      - name: State committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nfl.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update settled NFL bets [skip ci]" && git pull --rebase origin main && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NFL settled history [skip ci]" && git pull --rebase origin main && git push origin main)
