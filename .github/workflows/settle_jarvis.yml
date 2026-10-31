@@ -1,8 +1,8 @@
-name: JARVIS Soccer Settle
+name: JARVIS Settle Soccer
 
 on:
   schedule:
-    # 06:45 UTC = 07:45 Uhr MEZ
+    # Jeden Morgen um 06:45 UTC (= 07:45 MEZ)
     - cron: '45 6 * * *'
   workflow_dispatch:
 
@@ -12,32 +12,34 @@ permissions:
 jobs:
   settle-soccer:
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Pakete installieren
+      - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Soccer Settle ausführen
+      - name: Soccer Abrechnung ausfuehren
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_SOCCER_THREAD_ID }}
+          TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
         run: python settle_soccer.py
 
-      - name: Pending Soccer committen und pushen
+      - name: State committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add pending_soccer.json soccer_history.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update settled soccer bets [skip ci]" && git pull --rebase origin main && git push)
+          git add soccer_history.json || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Soccer settled history [skip ci]" && git pull --rebase origin main && git push origin main)
