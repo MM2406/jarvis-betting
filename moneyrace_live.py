@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import re
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -49,11 +50,11 @@ def edit_telegram(message_id, text):
         err_resp = res.json()
         err_desc = err_resp.get("description", "")
 
-        # Kein echter Fehler: Wenn der Inhalt identisch ist, ignoriert Telegram den Edit
+        # Wenn der Text identisch ist, ignoriert Telegram den Edit (kein echter Fehler)
         if "message is not modified" in err_desc:
             return True
 
-        # Fallback: HTML-Parse-Fehler abfangen
+        # Fallback auf Plaintext bei HTML-Formatierungsfehlern
         payload.pop("parse_mode", None)
         res2 = requests.post(url, json=payload, timeout=25)
         if res2.status_code == 200 or "message is not modified" in res2.text:
@@ -79,7 +80,7 @@ def run_live_update():
     active = state["active_pick"]
     msg_id = active.get("message_id")
     if not msg_id:
-        print("Keine message_id hinterlegt. Eventuell wurde das Ticket manuell gepostet.")
+        print("Keine message_id hinterlegt.")
         return
 
     raw_text = active.get("original_text", "")
@@ -87,26 +88,45 @@ def run_live_update():
         print("Kein Ausgangstext für das Ticket hinterlegt.")
         return
 
-    print(f"Prüfe Live-Status für: {active.get('match')}...")
+    match_name = active.get("match", "")
+    match_date = active.get("date", "")
+    pick_text = active.get("pick", "")
+    now_berlin = datetime.now(LOCAL_TZ).strftime("%H:%M Uhr")
+
+    print(f"Prüfe Live-Status für: {match_name} (Aktuelle Uhrzeit: {now_berlin})...")
 
     prompt = f"""
-Recherchiere via Google Search den aktuellen Live-Status für diese Sportbegegnung:
-Match: {active.get('match')}
-Datum: {active.get('date')}
-Tipp: {active.get('pick')}
+Du bist ein automatisierter Live-Sport-Tracker.
+Recherchiere via Google Search den ECHTEN LIVE-SPIELSTAND für dieses Match:
+- Begegnung: {match_name}
+- Datum: {match_date}
+- Geplanter Beginn: {active.get('time', '14:00 Uhr')}
+- Aktuelle Uhrzeit: {now_berlin} (Europe/Berlin)
+- Wette: {pick_text}
 
-Ermittle:
-1. STATUS: Ist das Spiel noch nicht gestartet (UPCOMING), läuft es aktuell (LIVE) oder ist es beendet (FINISHED)?
-2. MINUTE: Welche Spielminute bzw. welches Drittel/Viertel läuft gerade? Falls Halbzeitpause/Drittelpause, gib die entsprechende Minute an. Bei UPCOMING 0, bei FINISHED 90 (bzw. 60 bei Eishockey).
-3. SCORE: Wie lautet der aktuelle Spielstand (z. B. 2:1)?
-4. ASSESSMENT: Liegt der Tipp aktuell auf Kurs (ON_TRACK) oder ist er gefährdet (AT_RISK)?
+SUCH-ANWEISUNG:
+Suche nach "{match_name} live score", "{match_name} sofascore" oder "{match_name} flashscore".
+Wenn der Anpfiff um 14:00 Uhr war und es jetzt nach 14:00 Uhr ist, läuft das Spiel mit sehr hoher Wahrscheinlichkeit bereits oder ist in der Halbzeit! 
+Antworte keinesfalls mit UPCOMING, es sei denn, das Spiel wurde offiziell verschoben.
 
-Format:
-STATUS: UPCOMING oder LIVE oder FINISHED
-MINUTE: Zahl
-SCORE: Spielstand
-ASSESSMENT: ON_TRACK oder AT_RISK
+ERMITTLE:
+1. STATUS: 
+   - 'LIVE' (falls Spiel aktuell läuft oder Halbzeitpause ist)
+   - 'FINISHED' (falls Spiel abgepfiffen wurde)
+   - 'UPCOMING' (NUR falls es nachweislich noch nicht angepfiffen wurde)
+2. MINUTE: Aktuelle Spielminute (z.B. 25, 45, 60, 85). Falls Halbzeitpause, gib 45 an. Bei FINISHED 90.
+3. SCORE: Exakter aktueller Spielstand (z.B. '0:0', '1:0', '1:2').
+4. ASSESSMENT: 
+   - 'ON_TRACK' (wenn der Tipp aktuell gewinnt oder Unentschieden bei Favorit)
+   - 'AT_RISK' (wenn der Tipp aktuell verlieren würde)
+
+Antworte STRIKT in diesem 4-Zeilen-Format:
+STATUS: LIVE
+MINUTE: 35
+SCORE: 0:0
+ASSESSMENT: ON_TRACK
 """
+
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -120,7 +140,9 @@ ASSESSMENT: ON_TRACK oder AT_RISK
             print(f"Gemini API Fehler: {res.status_code}")
             return
 
-        ans = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+        ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        print(f"Gemini Antwort:\n{ans}")
+
         status = "UPCOMING"
         minute = 0
         score = "-"
@@ -129,19 +151,19 @@ ASSESSMENT: ON_TRACK oder AT_RISK
         for line in ans.split("\n"):
             line = line.strip()
             if line.startswith("STATUS:"):
-                status = line.replace("STATUS:", "").strip()
+                status = line.replace("STATUS:", "").strip().upper()
             elif line.startswith("MINUTE:"):
                 try:
-                    minute = int(line.replace("MINUTE:", "").strip())
+                    minute = int(re.search(r'\d+', line).group())
                 except:
-                    pass
+                    minute = 45 if status == "LIVE" else 0
             elif line.startswith("SCORE:"):
                 score = line.replace("SCORE:", "").strip()
             elif line.startswith("ASSESSMENT:"):
-                track = line.replace("ASSESSMENT:", "").strip()
+                track = line.replace("ASSESSMENT:", "").strip().upper()
 
         if status == "UPCOMING":
-            print("Spiel hat noch nicht begonnen.")
+            print("Spiel hat laut Recherche noch nicht begonnen.")
             return
 
         bar = make_minute_bar(minute)
@@ -149,30 +171,35 @@ ASSESSMENT: ON_TRACK oder AT_RISK
         track_icon = "🟢 Pick auf Kurs" if track == "ON_TRACK" else "🟡 Pick unter Druck"
 
         if status == "FINISHED":
-            live_block = (
-                f"━━━━━━━━━━━━━━━━━━━━\n"
+            new_live_section = (
                 f"⏱️ <b>LIVE-TRACKER • BEENDET</b>\n"
                 f"[████████████] 100%\n"
                 f"• <b>Endstand:</b> {score}\n"
                 f"• <b>Status:</b> Spiel offiziell beendet"
             )
         else:
-            live_block = (
-                f"━━━━━━━━━━━━━━━━━━━━\n"
+            minute_display = "Halbzeit" if minute == 45 and "halftime" in ans.lower() else f"{minute}. Min"
+            new_live_section = (
                 f"⏱️ <b>LIVE-TRACKER • SPIEL LÄUFT</b>\n"
-                f"{bar} {pct}% ({minute}. Min)\n"
+                f"{bar} {pct}% ({minute_display})\n"
                 f"• <b>Spielstand:</b> <b>{score}</b>\n"
                 f"• <b>Trend:</b> {track_icon}"
             )
 
-        if "⏱️ <b>LIVE-TRACKER" in raw_text:
-            parts = raw_text.split("━━━━━━━━━━━━━━━━━━━━\n⏱️ <b>LIVE-TRACKER")
-            base_part = parts[0].rstrip()
-            new_text = base_part + "\n" + live_block
+        # Robuster Regex-Austausch des LIVE-TRACKER-Blocks (ohne nachfolgende Abschnitte abzuschneiden)
+        pattern = r"⏱️ <b>LIVE-TRACKER.*?(\n━━━━━━━━━━━━━━━━━━━━|\Z)"
+        if re.search(pattern, raw_text, flags=re.DOTALL):
+            new_text = re.sub(
+                pattern,
+                f"{new_live_section}\\1",
+                raw_text,
+                count=1,
+                flags=re.DOTALL
+            )
         else:
-            new_text = raw_text.rstrip() + "\n\n" + live_block
+            new_text = raw_text.rstrip() + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + new_live_section
 
-        if new_text != raw_text:
+        if new_text.strip() != raw_text.strip():
             success = edit_telegram(msg_id, new_text)
             if success:
                 active["original_text"] = new_text
