@@ -2,10 +2,14 @@ name: JARVIS NFL Intel
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
-    - cron: '45 6 * * *'
-    # 2. PICKS (Donnerstag, Sonntag, Montag): 16:00 UTC (= 17:00 MEZ)
-    - cron: '0 16 * * 4,0,1'
+    # 1. MORGEN-SETTLE (nur Di & Fr nach Primetime-Spielen): 06:45 UTC (= 07:45 MEZ)
+    - cron: '45 6 * * 2,5'
+    # 2. DONNERSTAG (Thursday Night Football): 16:00 UTC (= 17:00 MEZ)
+    - cron: '0 16 * * 4'
+    # 3. SONNTAG (Haupt-Spieltag Slate): 15:30 UTC (= 16:30 MEZ)
+    - cron: '30 15 * * 0'
+    # 4. MONTAG (Monday Night Football): 17:00 UTC (= 18:00 MEZ)
+    - cron: '0 17 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -17,6 +21,8 @@ jobs:
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Python einrichten
         uses: actions/setup-python@v5
@@ -36,6 +42,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
+        # Exakter Dateiname aus deinem Repository:
         run: python jarvis_nfl.py
 
       - name: History committen und pushen
@@ -43,4 +50,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nfl.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NFL pending picks [skip ci]" && git pull --rebase origin main && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NFL pending picks [skip ci]" && git pull --rebase origin main && git push origin main)
