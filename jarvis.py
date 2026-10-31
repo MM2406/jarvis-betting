@@ -6,158 +6,83 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+try:
+    from telegram_sender import send_to_telegram
+except ImportError:
+    send_to_telegram = None
+
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-
-# Sicheres Routing ins Fussball-Thema
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_THREAD_SOCCER", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
-HISTORY_FILE = "soccer_history.json"
+PENDING_FILE = "pending_soccer.json"
 
 SOCCER_LEAGUES = [
-    "soccer_uefa_champs_league",
-    "soccer_uefa_europa_league",
-    "soccer_uefa_europa_conference_league",
     "soccer_germany_bundesliga",
     "soccer_germany_bundesliga2",
     "soccer_epl",
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
     "soccer_france_ligue_one",
-    "soccer_austria_bundesliga",
+    "soccer_uefa_champs_league",
+    "soccer_uefa_europa_league",
     "soccer_usa_mls"
 ]
 
 def send_telegram(text):
+    if send_to_telegram:
+        return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_SOCCER")
+
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram Credentials fehlen.")
-        return
+        print("[Telegram] FEHLER: Credentials fehlen.")
+        return None
+
+    if not TELEGRAM_THREAD_ID:
+        print("[Telegram] ABBRUCH: Keine Soccer Thread-ID vorhanden. Senden in Hauptchat blockiert.")
+        return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
-    if TELEGRAM_THREAD_ID:
-        try:
-            payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-        except ValueError:
-            print(f"Ungueltige Thread-ID fuer Soccer: {TELEGRAM_THREAD_ID}")
+    max_len = 3800
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
 
-    try:
+    for chunk in chunks:
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "message_thread_id": int(TELEGRAM_THREAD_ID)
+        }
         res = requests.post(url, json=payload, timeout=25)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=25)
-    except Exception as e:
-        print(f"Telegram-Fehler: {e}")
+            res2 = requests.post(url, json=payload, timeout=25)
+            if res2.status_code != 200:
+                print(f"[Telegram] Fehler: {res2.text}")
 
-def load_history():
-    if not os.path.exists(HISTORY_FILE):
-        return {"settled": [], "pending": []}
-    try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
-        return {"settled": [], "pending": []}
-
-def save_history(history):
-    try:
-        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Fehler beim Speichern von {HISTORY_FILE}: {e}")
-
-def settle_pending_picks(history):
-    pending = history.get("pending", [])
-    if not pending:
-        print("Keine offenen Soccer-Picks zur Auswertung.")
-        return history
-
-    still_pending = []
-    settled_now = []
-
-    for item in pending:
-        prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis für folgendes Fußballspiel:
-Match: {item.get('match')}
-Wettbewerb: {item.get('league')}
-Tipp: {item.get('pick')}
-Datum: {item.get('date')}
-
-REGELN:
-1. Prüfe, ob das Match regulär beendet ist (nach 90 Min). Falls noch nicht begonnen oder live, antworte mit PENDING.
-2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
-3. Bei Push (z.B. Handicap Unentschieden / Draw No Bet Push) gib 'VOID' aus.
-
-Format:
-RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Endergebnis (z.B. 2:1)
-INFO: Kurze Begründung.
-"""
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt_settle}]}],
-            "tools": [{"googleSearch": {}}],
-            "generationConfig": {"temperature": 0.1}
-        }
-
-        try:
-            res = requests.post(url, json=payload, timeout=60)
-            if res.status_code == 200:
-                text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-                if "RESULT: WON" in text:
-                    item["status"] = "WON"
-                    settled_now.append(item)
-                elif "RESULT: LOST" in text:
-                    item["status"] = "LOST"
-                    settled_now.append(item)
-                elif "RESULT: VOID" in text:
-                    item["status"] = "VOID"
-                    settled_now.append(item)
-                else:
-                    still_pending.append(item)
-            else:
-                still_pending.append(item)
-        except Exception as e:
-            print(f"Fehler bei Abrechnung {item.get('match')}: {e}")
-            still_pending.append(item)
-
-    if settled_now:
-        history["settled"].extend(settled_now)
-        history["pending"] = still_pending
-        save_history(history)
-
-        won_count = sum(1 for p in settled_now if p["status"] == "WON")
-        total_count = len(settled_now)
-
-        msg = f"📊 <b>JARVIS SOCCER ABRECHNUNG</b>\nAusgewertete Tipps: <b>{won_count}/{total_count}</b> Treffer.\n"
-        for p in settled_now:
-            icon = "✅" if p["status"] == "WON" else ("❌" if p["status"] == "LOST" else "🟡")
-            msg += f"\n{icon} <b>{p['match']}</b>\nTipp: {p['pick']} (@ {p.get('odds', 'N/A')})"
-        send_telegram(msg)
-
-    return history
-
-def fetch_soccer_odds(already_tracked_matches):
+def fetch_soccer_odds():
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    now_hour = datetime.now(LOCAL_TZ).hour
+    cutoff = now_utc + timedelta(hours=14)
 
-    window_hours = 8 if now_hour < 15 else 9
-    cutoff = now_utc + timedelta(hours=window_hours)
-
-    for sport in SOCCER_LEAGUES:
-        url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
+    for league in SOCCER_LEAGUES:
+        url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
             "regions": "eu",
@@ -167,151 +92,175 @@ def fetch_soccer_odds(already_tracked_matches):
         try:
             res = requests.get(url, params=params, timeout=12)
             if res.status_code == 200:
-                data = res.json()
-                for match in data:
-                    match_name = f"{match['home_team']} vs. {match['away_team']}"
-                    if match_name in already_tracked_matches:
-                        continue
-
+                matches = res.json()
+                for match in matches:
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
                         time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
                         bookies = match.get("bookmakers", [])
                         if not bookies:
                             continue
-
-                        odds_details = []
+                        
+                        odds_summary = []
                         for m in bookies[0].get("markets", []):
-                            m_key = m.get("key")
-                            outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
-                            odds_details.append(f"{m_key}: {', '.join(outcomes)}")
+                            outcomes = [f"{o['name']}: {o['price']}" for o in m.get("outcomes", [])]
+                            odds_summary.append(f"{m.get('key')}: {', '.join(outcomes)}")
 
-                        all_events.append(
-                            f"[{sport}] {match_name} ({time_str}) | Quoten: {' // '.join(odds_details)}"
-                        )
+                        line = f"[{league.replace('soccer_', '').upper()}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_summary)}"
+                        all_events.append(line)
         except Exception as e:
-            print(f"Fehler bei {sport}: {e}")
+            print(f"Fehler bei Liga {league}: {e}")
 
-    print(f"Gefundene Fußball-Partien für dieses Zeitfenster: {len(all_events)}")
-    return "\n".join(all_events[:45])
+    print(f"Gefundene Soccer-Partien: {len(all_events)}")
+    return "\n".join(all_events[:65])
 
-def generate_soccer_report():
-    history = load_history()
-    settle_pending_picks(history)
-
-    now_hour = datetime.now(LOCAL_TZ).hour
-    if now_hour < 10:
-        print("Morgen-Run: Abrechnung erledigt. Keine Picks vor 10:30 Uhr.")
-        return
-
-    tracked_matches = {p.get("match") for p in history.get("pending", [])}
-    odds_data = fetch_soccer_odds(tracked_matches)
-
+def run_jarvis_soccer():
+    odds_data = fetch_soccer_odds()
     if not odds_data:
-        print(f"Keine passenden Fußballspiele für dieses Zeitfenster ({now_hour} Uhr) gefunden.")
+        print("Keine relevanten Soccer-Partien im aktuellen Zeitfenster gefunden.")
         return
 
-    edition = "MITTAGS-EDITION (Nachmittagsspiele)" if now_hour < 15 else "ABEND-EDITION (Flutlicht & Topspiele)"
-    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+    now_dt = datetime.now(LOCAL_TZ)
+    today_str = now_dt.strftime("%d.%m.%Y")
+    today_iso = now_dt.strftime("%Y-%m-%d")
+    edition_label = "MITTAGS-EDITION" if now_dt.hour < 15 else "ABEND-EDITION"
 
     prompt = f"""
-Du bist 'JARVIS SOCCER QUANT' – ein autonomer, quantitativer Sportwetten-Hedgefonds-Algorithmus und Modellierer für europäischen Spitzenfußball.
-Deine Aufgabe ist es, für den heutigen Spieltag ({today_str}) die {edition} zu berechnen und zu veröffentlichen.
+Du bist 'JARVIS SOCCER QUANT ARCHITECT'.
+Erstelle für heute ({today_str}) die {edition_label}.
 
-VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN (THE-ODDS-API FEED):
+VERFÜGBARE PARTIEN & REAL-QUOTEN AUS DER API:
 {odds_data}
 
-================================================================================
-ANALYSE- UND MODELLIERUNGS-FRAMEWORK (MATHEMATISCHE RICHTLINIEN):
-================================================================================
-1. DATENBASIS & VALIDIERUNG:
-   - Nutze ausschließlich Partien, Quoten und Märkte aus dem obigen Live-Feed.
-   - Falls ein Detail oder Spielerstatus unklar ist, validiere Aufstellungen, Ausfälle (Sperren, Verletzungen) und taktische Formationen via Google Search.
-   - Jede Selektion muss auf quantitativen Metriken basieren (Non-Penalty xG, Expected Goals Against [xGA], Poisson-Verteilung, Defensiv-Zulassungen).
+STRIKTE REGELN ZUR PARTIE-WAHL:
+1. VERBOT VON HISTORISCHEN/HALLUZINIERTEN MATCHES: Verwende AUSSCHLIESSLICH Spiele und Teams, die exakt in der obigen Liste stehen!
+2. KEINE UNDER BEI SPIELERN: Bei Spielerwetten nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ Torschuss, Over 1.5 Schüsse, Anytime Goal, Scorerpunkt). Keine Under-Props!
+3. RECHERCHE: Nutze Google Search für aktuelle Startelf-Prognosen, Ausfälle, xG und Spieler-Torschussstatistiken.
 
-2. ERWARTUNGSWERT (+EV) & QUOTEN-BEWERTUNG:
-   - Berechne für jeden Pick die Modell-Wahrscheinlichkeit P(Win).
-   - Fair Odds = 1 / P(Win).
-   - Der mathematische Erwartungswert muss zwingend positiv sein: +EV% = (P(Win) * Quote - 1) * 100 > 0.
-   - Weise den EV% für jede Selektion transparent im Text aus.
+TICKET-ARCHITEKTUR (OHNE ZWANG! Wenn kein Value vorliegt, lasse das jeweilige Ticket weg):
+- ⭐ SOCCER PICK OF THE DAY (Single Bet): Der beste Einzeltipp des Tages mit größtem mathematischem Edge.
+- 🔒 CONSERVATIVE 2-LEG BANKER: Exakt 2 Beine. Gesamtquote ~1.70 - 2.15. Fokus: Maximale Stabilität (z.B. ML Favorit, 1X, Über 1.5 Tore).
+- ⚖️ BALANCED VALUE ACCA: Exakt 3 Beine. Gesamtquote ~2.50 - 4.00.
+- ⚡ HYBRID QUANT MULTI: 2 bis 4 Beine mit Markt-Mix (z.B. Spiel A Sieg + Spiel B BTTS + Spiel C Über 2.5), wo es taktisch und rechnerisch korreliert.
+- ⚽ GOALS & BTTS VALUE ACCA: 2 bis 3 Beine rein aus Tor-Märkten (Über 2.5, BTTS Ja).
+- 👟 PLAYER PROPS (Single oder Multi-Acca):
+  * Wähle 1 bis 3 Spieler aus den heutigen Partien (Torschüsse aufs Tor / SoT, Tore, Tor+Vorlage).
+  * Wenn mehrere starke Spieler-Picks vorhanden sind, kombiniere sie zu einer 2er- oder 3er-Player-Prop-Kombi (z.B. Spieler A 1+ SoT & Spieler B 1+ SoT @ ~2.10) ODER stelle sie als starke Einzelpicks dar!
+- 💣 HIGH-YIELD LOTTO / RISIKO ACCA (Optional): 4 bis 5 Beine, Quote 5.00+ bis 12.00 (Einsatz 0.25 - 0.5 Units). Nur aufführen, wenn Spitzen-Value vorhanden ist!
 
-3. BUCHMACHER-KOMPATIBILITÄT & FALLBACK-LINIEN:
-   - Gib für JEDEN Tipp zwingend eine klassische Buchmacher-Alternative an (z. B. Draw No Bet statt Asian Handicap, oder Over 2.5 statt Over 2.75).
-   - Weise für jede Selektion eine Quotenuntergrenze aus: 'Spielbar bis Mindestquote @ X.XX'.
-
-4. DYNAMISCHES KOMBI-TICKET (KEIN KÜNSTLICHES LIMIT):
-   - Begrenze dich im Kombi-Block NICHT künstlich auf 2 Spiele!
-   - Wenn das Modell 3, 4 oder 5 Spiele mit statistisch sauberem Value (+EV) und stabiler Korrelation identifiziert, packe sie alle auf das Kombi-Ticket (mindestens 2, maximal 5 Spiele).
-
-5. BANKROLL-MANAGEMENT (UNIT-STAFFELUNG):
-   - Pick of the Day (Single): 1.0 bis 2.0 Units
-   - Quant Value Acca (Kombi): 0.5 bis 1.0 Units
-   - Goal-Market Spotlight: 0.5 bis 1.0 Units
-   - Player Prop / Special: 0.5 bis 1.0 Units
-
-================================================================================
-FORMATIERUNGS-REGELN FÜR TELEGRAM:
-================================================================================
+TELEGRAM-FORMATIERUNG:
 - Keine doppelten Leerzeilen.
-- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
-- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+- Jede Aufzählung MUSS direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch beginnen!
+- Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'
 
 REPORT-HTML:
-⚽ <b>JARVIS SOCCER INTEL • {edition}</b>
-<i>Quantitative Match-Modelle • xG Edge • Value-Picks</i>
+⚽ <b>JARVIS SOCCER INTEL • {edition_label}</b>
+<i>xG-Modelle • Poisson-Projektionen • Value-Kombis</i>
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-- <b>Wettbewerb:</b> [Name der Liga / Wettbewerb]
-➔ <b>Haupt-Pick:</b> <b>[Präziser Markt &amp; Auswahl]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie / Fallback] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ [Quote]
-💰 <b>Einsatz:</b> [1.0 - 2.0] Units
+• <b>Match:</b> [Uhrzeit] Uhr | [Heim] vs. [Gast] ([Liga])
+➔ <b>Haupt-Pick:</b> <b>[Tipp]</b> @ [Quote]
+🔄 <b>Buchmacher-Alternative:</b> [Alternative] @ [Quote]
+⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 - 2.0 Units
 📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge &amp; Modell-Rationale:</b>
-[Ausführliche taktische und quantitative Herleitung: Gegenüberstellung von npxG vs. xGA der letzten 5 Spiele, Poisson-Torerwartung, defensive Schwachstellen des Gegners und Modell-Vorteil.]
+🔍 <b>Edge:</b> [npxG-Differenz, Formkurve, Matchup-Analyse]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 und 5 ergänzen falls Value vorhanden ...]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
-⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
-💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Partien statistisch robust sind und als Multi-Bet den höchsten Erwartungswert aufweisen.]
+🔒 <b>CONSERVATIVE 2-LEG BANKER</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 1.0 - 1.5 Units
+🔍 <b>Logik:</b> [Warum diese 2 Säulen maximale Stabilität bieten]
 
 ━━━━━━━━━━━━━━━━━━━━
-🎯 <b>GOAL-MARKET SPOTLIGHT (Totals / BTTS / Team-Totals)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Pick:</b> <b>[Over/Under / BTTS / Team-Total Auswahl]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Standard Über/Unter-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-📊 <b>Quant-Daten:</b> Poisson-Projizierte Tore: [X.XX] vs. [X.XX] | Modell-Chance: [XX.X]%
-🔍 <b>Rationale:</b> [Analyse der Abschluss-Qualität, Chancen-Kreation beider Seiten, Pace und Umschaltmomente.]
+⚖️ <b>BALANCED VALUE ACCA (3-er Kombi)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 - 1.0 Units
+🔍 <b>Logik:</b> [Erwartungswert & Synergie]
 
 ━━━━━━━━━━━━━━━━━━━━
-👟 <b>PLAYER PROP &amp; SPECIAL PICK</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Pick:</b> <b>[Spielername: Torschütze / Schüsse aufs Tor (SoT) / Scorerpunkt]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Ausweich-Markt z. B. Team-Tor oder Spieler 1+ Schüsse] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Rationale:</b> [Individuelle Matchup-Vorteile, Schussvolumen pro 90 Minuten, Rollenverteilung bei Standards/Elfmetern.]
+⚡ <b>HYBRID QUANT MULTI (Markt-Mix)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
+🔍 <b>Logik:</b> [Synergie aus Sieg, Toren oder Handicaps]
+
+━━━━━━━━━━━━━━━━━━━━
+⚽ <b>GOALS &amp; BTTS VALUE ACCA</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 Units
+🔍 <b>Logik:</b> [Total xG, Tempo, Offensiv-Drang]
+
+━━━━━━━━━━━━━━━━━━━━
+👟 <b>PLAYER PROP SPOTLIGHT / MULTI-TICKET</b>
+• [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
+📈 <b>Gesamtquote (falls Kombi):</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
+🔍 <b>Edge:</b> [Schussfrequenz pro 90 Min, Strafraumaktionen, Gegner-Zulassung]
+
+━━━━━━━━━━━━━━━━━━━━
+💣 <b>HIGH-YIELD VALUE ACCA (Risiko-Kombi)</b>
+[Nur aufführen, falls heute echter Value existiert, sonst Block ganz weglassen!]
 
 ---JSON_TRACKING---
-[
-  {{
-    "match": "Team A vs Team B",
-    "league": "soccer_germany_bundesliga",
-    "pick": "Tipp des Pick of the Day",
-    "odds": "1.85",
-    "date": "{today_iso}"
-  }}
-]
+{{
+  "date": "{today_iso}",
+  "potd": {{
+    "match": "Heim vs Gast",
+    "pick": "Tipp",
+    "odds": 1.85
+  }},
+  "tickets": [
+    {{
+      "ticket_name": "CONSERVATIVE 2-LEG BANKER",
+      "odds": 1.95,
+      "picks": [
+        {{"match": "Team A vs Team B", "pick": "Team A Sieg", "odds": 1.40}},
+        {{"match": "Team C vs Team D", "pick": "Über 1.5 Tore", "odds": 1.39}}
+      ]
+    }},
+    {{
+      "ticket_name": "BALANCED VALUE ACCA",
+      "odds": 3.20,
+      "picks": [
+        {{"match": "Team E vs Team F", "pick": "Team E DNB", "odds": 1.45}},
+        {{"match": "Team G vs Team H", "pick": "Team G Sieg", "odds": 1.50}},
+        {{"match": "Team I vs Team J", "pick": "Über 2.5 Tore", "odds": 1.47}}
+      ]
+    }},
+    {{
+      "ticket_name": "HYBRID QUANT MULTI",
+      "odds": 4.10,
+      "picks": [
+        {{"match": "Team K vs Team L", "pick": "Team K Sieg", "odds": 1.60}},
+        {{"match": "Team M vs Team N", "pick": "BTTS Ja", "odds": 1.65}},
+        {{"match": "Team O vs Team P", "pick": "Unter 3.5 Tore", "odds": 1.55}}
+      ]
+    }},
+    {{
+      "ticket_name": "GOALS & BTTS VALUE ACCA",
+      "odds": 2.80,
+      "picks": [
+        {{"match": "Team Q vs Team R", "pick": "Über 2.5 Tore", "odds": 1.65}},
+        {{"match": "Team S vs Team T", "pick": "BTTS Ja", "odds": 1.70}}
+      ]
+    }},
+    {{
+      "ticket_name": "PLAYER PROPS MULTI",
+      "odds": 2.45,
+      "picks": [
+        {{"match": "Team U vs Team V", "player": "Spieler 1", "pick": "1+ Schuss aufs Tor", "odds": 1.55}},
+        {{"match": "Team W vs Team X", "player": "Spieler 2", "pick": "1+ Schuss aufs Tor", "odds": 1.58}}
+      ]
+    }}
+  ]
+}}
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
@@ -331,14 +280,12 @@ REPORT-HTML:
                     report = parts[0].strip()
                     json_str = parts[1].replace("```json", "").replace("```", "").strip()
                     try:
-                        new_picks = json.loads(json_str)
-                        for np in new_picks:
-                            np["status"] = "PENDING"
-                        history["pending"].extend(new_picks)
-                        save_history(history)
-                        print(f"{len(new_picks)} Soccer-Picks getrackt.")
+                        tracking_data = json.loads(json_str)
+                        with open(PENDING_FILE, "w", encoding="utf-8") as f:
+                            json.dump(tracking_data, f, ensure_ascii=False, indent=2)
+                        print(f"Soccer-Picks erfolgreich in {PENDING_FILE} gespeichert.")
                     except Exception as je:
-                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
+                        print(f"Fehler beim Speichern der Tracking-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
                 send_telegram(report)
@@ -355,4 +302,4 @@ REPORT-HTML:
                 sys.exit(1)
 
 if __name__ == "__main__":
-    generate_soccer_report()
+    run_jarvis_soccer()
