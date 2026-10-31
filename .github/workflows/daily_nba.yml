@@ -1,23 +1,21 @@
-name: NBA Betting Jarvis
+name: JARVIS NBA Intel
 
 on:
   schedule:
-    # Mo-Fr: 19:30 UTC (= 20:30 MEZ)
-    - cron: '30 19 * * 1-5'
-    # Sa & So: Early Slate (15:30 UTC = 16:30 MEZ) & Nacht-Slate (19:30 UTC = 20:30 MEZ)
-    - cron: '30 15 * * 6'
-    - cron: '30 19 * * 6'
-    - cron: '30 15 * * 0'
-    - cron: '30 19 * * 0'
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
+    - cron: '45 6 * * *'
+    # 2. PICKS: 17:00 UTC (= 18:00 MEZ)
+    - cron: '0 17 * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   run-nba-jarvis:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Code laden
+      - name: Code auschecken
         uses: actions/checkout@v4
 
       - name: Python einrichten
@@ -25,25 +23,24 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Pakete installieren
-        run: pip install requests
+      - name: Abhaengigkeiten installieren
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: NBA Jarvis starten
+      - name: NBA Jarvis ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA || secrets.TELEGRAM_US_THREAD_ID }}
-          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA || secrets.TELEGRAM_US_THREAD_ID }}
-          TELEGRAM_THREAD_NBA: ${{ secrets.TELEGRAM_THREAD_NBA || secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_THREAD_NBA: ${{ secrets.TELEGRAM_THREAD_NBA }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA }}
         run: python jarvis_nba.py
 
-      - name: Save pending NBA bets
+      - name: History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nba.json || true
-          git commit -m "Save pending NBA bets [skip ci]" || exit 0
-          git pull --rebase origin main
-          git push origin main
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NBA pending picks [skip ci]" && git pull --rebase origin main && git push)
