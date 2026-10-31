@@ -4,8 +4,10 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
     - cron: '45 6 * * *'
-    # 2. PICKS: 18:00 UTC (= 19:00 MEZ)
-    - cron: '0 18 * * *'
+    # 2. WOCHENENDE-PICKS (Sa & So): 15:00 UTC (= 16:00 MEZ) fuer fruehe 18:00-Uhr-Spiele
+    - cron: '0 15 * * 6,0'
+    # 3. WOCHENTAGS-PICKS (Mo - Fr): 17:00 UTC (= 18:00 MEZ) fuer die Nacht-Slate
+    - cron: '0 17 * * 1-5'
   workflow_dispatch:
 
 permissions:
