@@ -5,14 +5,38 @@ import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+# Sichere Anbindung an telegram_sender.py
+try:
+    from telegram_sender import send_to_telegram
+except ImportError:
+    send_to_telegram = None
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+
+# Sichere Fallback-Kette für das NHL-Topic
+TELEGRAM_THREAD_ID = (
+    os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+)
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def send_telegram_message(text):
+    # Vorrangig zentralen Sender mit Hauptchat-Schutz nutzen
+    if send_to_telegram:
+        return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_NHL")
+
+    # Autonomer Fallback
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("[Telegram] FEHLER: Credentials fehlen.")
+        return None
+
+    if not TELEGRAM_THREAD_ID:
+        print("[Telegram] ABBRUCH: Keine NHL Thread-ID vorhanden. Senden in Hauptchat blockiert.")
+        return None
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3800
     chunks = []
@@ -28,13 +52,12 @@ def send_telegram_message(text):
         chunks.append(text)
 
     for chunk in chunks:
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": chunk, "parse_mode": "HTML"}
-        if TELEGRAM_THREAD_ID:
-            try:
-                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-            except ValueError:
-                pass
-
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "message_thread_id": int(TELEGRAM_THREAD_ID)
+        }
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
