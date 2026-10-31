@@ -5,12 +5,16 @@ on:
     # 1. TÄGLICHE MORGEN-ABRECHNUNG: 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
     
-    # 2. WOCHENENDE (Samstag & Sonntag): 12:45 UTC (= 13:45 Uhr MEZ)
-    # -> Puffer für Bundesliga (15:30 Uhr) und Premier League (16:00 Uhr)
-    - cron: '45 12 * * 6,0'
+    # 2. WOCHENENDE (Samstag & Sonntag):
+    # Run 1 (Mittag): 10:45 UTC (= 11:45 Uhr MEZ) -> Puffer für 13:00 / 13:30 / 15:30 Uhr
+    - cron: '45 10 * * 6,0'
+    # Run 2 (Abend - Primär): 16:45 UTC (= 17:45 Uhr MEZ) -> Settle Run 1 + Pick für Abend
+    - cron: '45 16 * * 6,0'
+    # Run 3 (Abend - Backup): 17:45 UTC (= 18:45 Uhr MEZ) -> Falls Run 1 um 17:45 noch live war
+    - cron: '45 17 * * 6,0'
     
-    # 3. UNTER DER WOCHE (Montag bis Freitag): 16:45 UTC (= 17:45 Uhr MEZ)
-    # -> Puffer für Abendspiele / Flutlicht (19:00 / 20:30 Uhr)
+    # 3. MONTAG BIS FREITAG:
+    # Run um 16:45 UTC (= 17:45 Uhr MEZ) für Flutlicht & Topspiele
     - cron: '45 16 * * 1-5'
 
   workflow_dispatch:
