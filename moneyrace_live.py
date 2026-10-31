@@ -76,8 +76,8 @@ Tipp: {active.get('pick')}
 
 Ermittle:
 1. STATUS: Ist das Spiel noch nicht gestartet (UPCOMING), läuft es aktuell (LIVE) oder ist es beendet (FINISHED)?
-2. MINUTE: Welche Spielminute läuft gerade (Zahl von 1 bis 95)? Falls Halbzeitpause, gib 45 an. Bei UPCOMING 0, bei FINISHED 90.
-3. SCORE: Wie lautet der aktuelle Spielstand (z. B. 1:0)?
+2. MINUTE: Welche Spielminute bzw. welches Drittel/Viertel läuft gerade? Falls Halbzeitpause/Drittelpause, gib die entsprechende Minute an. Bei UPCOMING 0, bei FINISHED 90 (bzw. 60 bei Eishockey).
+3. SCORE: Wie lautet der aktuelle Spielstand (z. B. 2:1)?
 4. ASSESSMENT: Liegt der Tipp aktuell auf Kurs (ON_TRACK) oder ist er gefährdet (AT_RISK)?
 
 Format:
@@ -133,7 +133,7 @@ ASSESSMENT: ON_TRACK oder AT_RISK
                 f"⏱️ <b>LIVE-TRACKER • BEENDET</b>\n"
                 f"[████████████] 100%\n"
                 f"• <b>Endstand:</b> {score}\n"
-                f"• <b>Status:</b> Reguläre Spielzeit beendet"
+                f"• <b>Status:</b> Spiel offiziell beendet"
             )
         else:
             live_block = (
@@ -144,7 +144,6 @@ ASSESSMENT: ON_TRACK oder AT_RISK
                 f"• <b>Trend:</b> {track_icon}"
             )
 
-        # Alten Live-Tracker Block ersetzen oder anhängen
         if "⏱️ <b>LIVE-TRACKER" in raw_text:
             parts = raw_text.split("━━━━━━━━━━━━━━━━━━━━\n⏱️ <b>LIVE-TRACKER")
             base_part = parts[0].rstrip()
