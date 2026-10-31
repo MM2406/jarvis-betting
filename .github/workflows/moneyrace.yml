@@ -6,7 +6,7 @@ on:
     - cron: '45 6 * * *'
     
     # 2. WOCHENENDE (Samstag & Sonntag):
-    # Run 1 (Mittag): 10:45 UTC (= 11:45 Uhr MEZ) -> Puffer für 13:00 / 13:30 / 15:30 Uhr
+    # Run 1 (Mittag): 10:45 UTC (= 11:45 Uhr MEZ) -> Puffer für 13:00 / 15:15 / 15:30 Uhr
     - cron: '45 10 * * 6,0'
     # Run 2 (Abend - Primär): 16:45 UTC (= 17:45 Uhr MEZ) -> Settle Run 1 + Pick für Abend
     - cron: '45 16 * * 6,0'
