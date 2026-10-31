@@ -38,7 +38,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
-        run: python jarvis_soccer.py
+        run: python jarvis.py
 
       - name: History committen und pushen
         run: |
