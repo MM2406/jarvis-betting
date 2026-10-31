@@ -1,0 +1,45 @@
+name: JARVIS Moneyrace Live Board
+
+on:
+  schedule:
+    # Samstag & Sonntag von 12:00 bis 21:00 UTC (13:00 bis 22:00 Uhr MEZ) alle 20 Minuten
+    - cron: '*/20 12-21 * * 6,0'
+  workflow_dispatch:
+
+concurrency:
+  group: moneyrace-execution
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update-live-board:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pakete installieren
+        run: pip install requests
+
+      - name: Live-Update ausfuehren
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python moneyrace_live.py
+
+      - name: State committen und pushen
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add moneyrace_state.json || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update live board state [skip ci]" && git pull --rebase origin main && git push origin main)
