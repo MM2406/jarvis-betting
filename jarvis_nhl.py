@@ -11,11 +11,10 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Sicheres Fallback fuer Thread-IDs (prueft alle gaengigen Varianten)
+# Sicheres Routing ins NHL-Thema
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
-    or os.environ.get("TELEGRAM_US_THREAD_ID", "").strip()
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
@@ -37,7 +36,7 @@ def send_telegram(text):
         try:
             payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
         except ValueError:
-            print(f"Ungueltige Thread-ID: {TELEGRAM_THREAD_ID}")
+            print(f"Ungueltige Thread-ID fuer NHL: {TELEGRAM_THREAD_ID}")
 
     try:
         res = requests.post(url, json=payload, timeout=25)
@@ -65,7 +64,6 @@ def save_pending(pending_list):
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
 
 def settle_nhl_picks():
-    """Wird morgens ausgefuehrt: Wertet alle offenen NHL-Picks aus."""
     pending = load_pending()
     open_picks = [p for p in pending if p.get("status") == "PENDING"]
     
@@ -155,7 +153,6 @@ def fetch_nhl_odds():
 
 def run_nhl_intel():
     now_hour = datetime.now(LOCAL_TZ).hour
-    # SICHERHEITS-SCHRANKE: Verhindert Pick-Erstellung vor dem Nachmittag
     if now_hour < 15:
         print(f"Es ist {now_hour}:00 Uhr MEZ. NHL-Picks werden erst ab 16:00 Uhr generiert.")
         return
@@ -289,9 +286,7 @@ REPORT-HTML:
 
 if __name__ == "__main__":
     now_hour = datetime.now(LOCAL_TZ).hour
-    # Morgens: Nur Abrechnung ausfuehren
     if now_hour < 11:
         settle_nhl_picks()
-    # Nachmittags / Abends: Picks generieren
     else:
         run_nhl_intel()
