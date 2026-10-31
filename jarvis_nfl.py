@@ -10,7 +10,13 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_US_THREAD_ID", "").strip()
+
+# Sicheres Routing ins NFL-Thema
+TELEGRAM_THREAD_ID = (
+    os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
+    or os.environ.get("TELEGRAM_US_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+)
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_nfl.json"
@@ -31,7 +37,7 @@ def send_telegram(text):
         try:
             payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
         except ValueError:
-            pass
+            print(f"Ungueltige Thread-ID fuer NFL: {TELEGRAM_THREAD_ID}")
 
     try:
         res = requests.post(url, json=payload, timeout=25)
@@ -129,7 +135,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>NFL PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ➔ <b>Haupt-Pick:</b> <b>[Spread / Total / Moneyline]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie / Key Number Fallback] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
@@ -138,9 +144,9 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 [... ggf. Bein 4 ergänzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
@@ -149,7 +155,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>TOTALS &amp; PACE SPOTLIGHT</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ➔ <b>Pick:</b> <b>[Over/Under Wette / Team-Total]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -157,7 +163,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 👟 <b>NFL PLAYER PROP SPOTLIGHT</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ➔ <b>Pick:</b> <b>[Spielername: Passing / Rushing / Receiving Yards / Receptions / Anytime TD]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie / Markt-Fallback] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
