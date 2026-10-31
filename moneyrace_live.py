@@ -29,6 +29,10 @@ def save_state(state):
         print(f"Fehler beim Speichern von {STATE_FILE}: {e}")
 
 def edit_telegram(message_id, text):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("Telegram Credentials fehlen.")
+        return False
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -39,9 +43,26 @@ def edit_telegram(message_id, text):
     }
     try:
         res = requests.post(url, json=payload, timeout=25)
-        return res.status_code == 200
+        if res.status_code == 200:
+            return True
+
+        err_resp = res.json()
+        err_desc = err_resp.get("description", "")
+
+        # Kein echter Fehler: Wenn der Inhalt identisch ist, ignoriert Telegram den Edit
+        if "message is not modified" in err_desc:
+            return True
+
+        # Fallback: HTML-Parse-Fehler abfangen
+        payload.pop("parse_mode", None)
+        res2 = requests.post(url, json=payload, timeout=25)
+        if res2.status_code == 200 or "message is not modified" in res2.text:
+            return True
+
+        print(f"Telegram Edit fehlgeschlagen: {res.text}")
+        return False
     except Exception as e:
-        print(f"Telegram Edit Fehler: {e}")
+        print(f"Telegram Edit Ausnahme: {e}")
         return False
 
 def make_minute_bar(minute, total=90):
@@ -159,6 +180,8 @@ ASSESSMENT: ON_TRACK oder AT_RISK
                 print(f"Ticket erfolgreich editiert: Stand {score} ({minute}')")
             else:
                 print("Telegram-Edit fehlgeschlagen.")
+        else:
+            print("Keine Textänderung erforderlich.")
 
     except Exception as e:
         print(f"Fehler im Live-Update: {e}")
