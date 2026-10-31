@@ -4,12 +4,8 @@ on:
   schedule:
     # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
     - cron: '45 6 * * *'
-    # 2. DONNERSTAG: Thursday Night Football (16:45 UTC = 17:45 MEZ)
-    - cron: '45 16 * * 4'
-    # 3. SONNTAG: Early Slate & Main Slate (16:00 UTC = 17:00 MEZ)
-    - cron: '0 16 * * 0'
-    # 4. MONTAG: Monday Night Football (17:45 UTC = 18:45 MEZ)
-    - cron: '45 17 * * 1'
+    # 2. PICKS (Donnerstag, Sonntag, Montag): 16:00 UTC (= 17:00 MEZ)
+    - cron: '0 16 * * 4,0,1'
   workflow_dispatch:
 
 permissions:
@@ -38,14 +34,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL || secrets.TELEGRAM_US_THREAD_ID }}
-          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL || secrets.TELEGRAM_US_THREAD_ID }}
-          TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL || secrets.TELEGRAM_US_THREAD_ID }}
-        run: python nfl_jarvis.py
+          TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
+        run: python jarvis_nfl.py
 
       - name: History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nfl.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NFL pending bets [skip ci]" && git pull --rebase origin main && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NFL pending picks [skip ci]" && git pull --rebase origin main && git push)
