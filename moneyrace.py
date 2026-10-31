@@ -46,7 +46,7 @@ MONEYRACE_SPORTS = [
 def send_telegram(text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram Credentials fehlen.")
-        return
+        return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
@@ -63,11 +63,16 @@ def send_telegram(text):
 
     try:
         res = requests.post(url, json=payload, timeout=25)
-        if res.status_code != 200:
+        if res.status_code == 200:
+            return res.json().get("result", {}).get("message_id")
+        else:
             payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=25)
+            res2 = requests.post(url, json=payload, timeout=25)
+            if res2.status_code == 200:
+                return res2.json().get("result", {}).get("message_id")
     except Exception as e:
         print(f"Telegram-Fehler: {e}")
+    return None
 
 def load_state():
     default_state = {
@@ -215,8 +220,6 @@ def fetch_moneyrace_odds():
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
     
-    # Vor 15 Uhr: Sucht Spiele der nächsten 6 Stunden (Fokus auf Nachmittag)
-    # Nach 15 Uhr: Sucht Spiele der nächsten 8 Stunden (Fokus auf Abend)
     window_hours = 6 if now_hour < 15 else 8
     cutoff = now_utc + timedelta(hours=window_hours)
 
@@ -255,12 +258,10 @@ def run_moneyrace():
 
     now_hour = datetime.now(LOCAL_TZ).hour
 
-    # 1. Weiche: Vor 10:00 Uhr MEZ nur Abrechnung vom Vorabend
     if now_hour < 10:
         print("Morgen-Run: Abrechnung abgeschlossen. Picks folgen ab Mittag.")
         return
 
-    # 2. Weiche: Wenn noch ein Pick aktiv (und noch nicht beendet) ist -> Abbruch
     if state.get("active_pick"):
         print(f"Stufe {state['active_pick'].get('step')} ({state['active_pick'].get('match')}) ist noch offen/live. Kein neuer Tipp.")
         return
@@ -274,7 +275,6 @@ def run_moneyrace():
         print("Keine passenden Partien im Zeitfenster gefunden.")
         return
 
-    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
     bar = make_progress_bar(state.get("current_step", 0))
 
@@ -299,9 +299,9 @@ ANALYSE-REGELN FÜR DAS MONEYRACE (QUALITÄT VOR ZWANG):
    - ZEIT-LOGIK: Bei Läufen vor 15:00 Uhr wähle bevorzugt Partien, die vor 17:30 Uhr beendet sind (Anpfiff 13:00 - 15:30 Uhr).
 2. KEIN ZWANGSTIPP:
    - Falls in der Liste KEIN EINZIGES Match eine klare, mathematisch robuste Kante bietet, antworte NUR mit 'NO_PICK'.
-   - Lieber Geld schützen und auf das nächste Zeitfenster warten, als einen unsicheren Tipp zu erzwingen!
 3. FORMATIERUNG:
    - Beginne Aufzählungen direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch danach!
+   - Integriere exakt den Initial-Block für den LIVE-TRACKER.
    - Ganz am Ende MUSS der exakte Tracking-Block '---JSON_TRACKING---' folgen (außer bei NO_PICK).
 
 REPORT-HTML:
@@ -325,6 +325,11 @@ Ziel:     <b>{target:.2f} €</b>
 • <b>Modell-Chance:</b> [XX.X]% | <b>Fair Odds:</b> ~[X.XX]
 • <b>Mathematischer Edge:</b> +[X.X]% EV
 • <b>Rationale:</b> [Detaillierte taktische und statistische Herleitung: Warum diese Auswahl als absolut risikoärmster Spot des Tages gewählt wurde.]
+
+━━━━━━━━━━━━━━━━━━━━
+⏱️ <b>LIVE-TRACKER • VOR ANPFIFF</b>
+[░░░░░░░░░░░░] 0%
+• <b>Status:</b> ⏳ Wartet auf Spielbeginn
 
 ━━━━━━━━━━━━━━━━━━━━
 🗺️ <b>NÄCHSTER SCHRITT</b>
@@ -355,25 +360,32 @@ Bei Win geht es mit [Return] € direkt in Stufe {next_step + 1}.
                 full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 
                 if "NO_PICK" in full_reply and len(full_reply) < 50:
-                    print("Gemini meldet NO_PICK: Kein Spot erfüllt die strengen Moneyrace-Kriterien. Geld bleibt geschützt.")
+                    print("Gemini meldet NO_PICK: Kein Spot erfüllt die Kriterien. Kein Tipp gepostet.")
                     return
 
                 report = full_reply
+                pick_data = None
                 if "---JSON_TRACKING---" in full_reply:
                     parts = full_reply.split("---JSON_TRACKING---")
                     report = parts[0].strip()
                     json_str = parts[1].replace("```json", "").replace("```", "").strip()
                     try:
                         pick_data = json.loads(json_str)
-                        state["active_pick"] = pick_data
-                        state["last_run_date"] = today_iso
-                        save_state(state)
-                        print(f"Moneyrace Stufe {next_step} gespeichert.")
                     except Exception as je:
-                        print(f"Fehler beim Parsen des Moneyrace-Trackings: {je}")
+                        print(f"Fehler beim Parsen des JSON-Blocks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
-                send_telegram(report)
+                
+                # Ticket posten und Telegram Message ID abfangen
+                msg_id = send_telegram(report)
+                
+                if pick_data:
+                    pick_data["message_id"] = msg_id
+                    pick_data["original_text"] = report
+                    state["active_pick"] = pick_data
+                    state["last_run_date"] = today_iso
+                    save_state(state)
+                    print(f"Moneyrace Stufe {next_step} mit Message-ID {msg_id} gespeichert.")
                 return
             elif res.status_code in [500, 502, 503, 504]:
                 time.sleep(6)
