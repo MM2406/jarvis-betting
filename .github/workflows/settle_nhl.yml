@@ -1,8 +1,7 @@
-name: JARVIS NHL Settle
+name: JARVIS Settle NHL
 
 on:
   schedule:
-    # 06:45 UTC = 07:45 Uhr MEZ
     - cron: '45 6 * * *'
   workflow_dispatch:
 
@@ -12,32 +11,34 @@ permissions:
 jobs:
   settle-nhl:
     runs-on: ubuntu-latest
-
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Python einrichten
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Abhängigkeiten installieren
+      - name: Abhaengigkeiten installieren
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: NHL Settle ausführen
+      - name: NHL Abrechnung ausfuehren
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_US_THREAD_ID: ${{ secrets.TELEGRAM_US_THREAD_ID }}
+          TELEGRAM_THREAD_NHL: ${{ secrets.TELEGRAM_THREAD_NHL }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NHL }}
         run: python settle_nhl.py
 
-      - name: Pending NHL committen und pushen
+      - name: State committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nhl.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update settled NHL bets [skip ci]" && git pull --rebase origin main && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NHL settled history [skip ci]" && git pull --rebase origin main && git push origin main)
