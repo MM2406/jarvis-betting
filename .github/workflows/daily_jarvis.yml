@@ -1,12 +1,12 @@
-name: JARVIS Daily Soccer Intel
+name: JARVIS Soccer Intel
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
     - cron: '45 6 * * *'
-    # 2. MITTAGS-PICKS: 10:15 UTC (= 11:15 Uhr MEZ) -> Puffer fuer 13:00/13:30 Uhr Anstoesse
+    # 2. MITTAGS-PICKS: 10:15 UTC (= 11:15 MEZ)
     - cron: '15 10 * * *'
-    # 3. ABEND-PICKS: 15:45 UTC (= 16:45 Uhr MEZ) -> Puffer fuer 18:30/19:00 Uhr Topspiele
+    # 3. ABEND-PICKS: 15:45 UTC (= 16:45 MEZ)
     - cron: '45 15 * * *'
   workflow_dispatch:
 
@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  run-soccer:
+  run-soccer-jarvis:
     runs-on: ubuntu-latest
     steps:
       - name: Code auschecken
@@ -36,13 +36,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_SOCCER_THREAD_ID || secrets.TELEGRAM_THREAD_SOCCER }}
-          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_SOCCER_THREAD_ID || secrets.TELEGRAM_THREAD_SOCCER }}
-        run: python jarvis.py
+          TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
+        run: python jarvis_soccer.py
 
       - name: History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add soccer_history.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update soccer history [skip ci]" && git pull --rebase origin main && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Soccer history [skip ci]" && git pull --rebase origin main && git push)
