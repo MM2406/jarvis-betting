@@ -41,5 +41,14 @@
       "status": "LOST"
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "match": "FC Schalke 04 vs. RB Leipzig",
+      "league": "soccer_germany_bundesliga",
+      "pick": "RB Leipzig (-0.5)",
+      "odds": "1.87",
+      "date": "2026-10-31",
+      "status": "PENDING"
+    }
+  ]
 }
