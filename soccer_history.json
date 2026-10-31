@@ -15,16 +15,14 @@
       "odds": "1.85",
       "date": "2026-10-29",
       "status": "WON"
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Villarreal vs Espanyol",
       "league": "soccer_spain_la_liga",
       "pick": "Villarreal (-1.25)",
       "odds": "1.83",
       "date": "2026-10-30",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "Arminia Bielefeld vs Eintracht Braunschweig",
@@ -32,7 +30,7 @@
       "pick": "Arminia Bielefeld Sieg",
       "odds": "1.85",
       "date": "2026-10-30",
-      "status": "PENDING"
+      "status": "WON"
     },
     {
       "match": "Elversberg vs FSV Mainz 05",
@@ -40,7 +38,8 @@
       "pick": "FSV Mainz 05 (-0.5)",
       "odds": "2.04",
       "date": "2026-10-30",
-      "status": "PENDING"
+      "status": "LOST"
     }
-  ]
+  ],
+  "pending": []
 }
