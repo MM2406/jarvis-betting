@@ -51,7 +51,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID || secrets.TELEGRAM_THREAD_MONEYRACE }}
+          TELEGRAM_MONEYRACE_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID }}
         run: python moneyrace.py
 
       - name: State committen und pushen
