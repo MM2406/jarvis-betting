@@ -10,7 +10,13 @@ ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_US_THREAD_ID", "").strip()
+
+# Sicheres Fallback fuer Thread-IDs (prueft alle gaengigen Varianten)
+TELEGRAM_THREAD_ID = (
+    os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_US_THREAD_ID", "").strip()
+)
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_nhl.json"
@@ -31,7 +37,7 @@ def send_telegram(text):
         try:
             payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
         except ValueError:
-            pass
+            print(f"Ungueltige Thread-ID: {TELEGRAM_THREAD_ID}")
 
     try:
         res = requests.post(url, json=payload, timeout=25)
@@ -57,6 +63,64 @@ def save_pending(pending_list):
             json.dump(pending_list, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
+
+def settle_nhl_picks():
+    """Wird morgens ausgefuehrt: Wertet alle offenen NHL-Picks aus."""
+    pending = load_pending()
+    open_picks = [p for p in pending if p.get("status") == "PENDING"]
+    
+    if not open_picks:
+        print("Morgen-Settle: Keine offenen NHL-Picks zur Auswertung.")
+        return
+
+    print(f"Werte {len(open_picks)} offene NHL-Picks aus...")
+    prompt = f"""
+Du bist JARVIS NHL RESULT SETTLEMENT BOT.
+Pruefe ueber Google Search die offiziellen Endergebnisse der folgenden NHL-Picks:
+
+{json.dumps(open_picks, ensure_ascii=False, indent=2)}
+
+REGELN:
+1. Pruefe fuer jedes Spiel das offizielle Endergebnis (inkl. OT/SO).
+2. Gib fuer jeden Pick den Status 'WON', 'LOST' oder 'VOID' zurueck.
+3. Falls ein Spiel noch laeuft oder verschoben wurde, setze 'PENDING'.
+4. Erstelle ein kompaktes Telegram-HTML-Recap mit Trefferquote und Units.
+5. Gib am Ende exakt den Block '---JSON_SETTLED---' mit der aktualisierten JSON-Liste aus.
+
+FORMAT:
+🏒 <b>JARVIS NHL SETTLEMENT &amp; RECAP</b>
+[Detaillierte Auswertung mit Endergebnissen und Unit-Bilanz]
+
+---JSON_SETTLED---
+[
+  {{ ... original fields ..., "status": "WON|LOST|PENDING|VOID", "score": "3:2 OT" }}
+]
+"""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"googleSearch": {}}],
+        "generationConfig": {"temperature": 0.1}
+    }
+    
+    try:
+        res = requests.post(url, json=payload, timeout=75)
+        if res.status_code == 200:
+            ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            if "---JSON_SETTLED---" in ans:
+                parts = ans.split("---JSON_SETTLED---")
+                report = parts[0].replace("```html", "").replace("```", "").strip()
+                settled_json = parts[1].replace("```json", "").replace("```", "").strip()
+                try:
+                    updated = json.loads(settled_json)
+                    save_pending(updated)
+                except Exception as je:
+                    print(f"Fehler beim Parsen der Abrechnung: {je}")
+                send_telegram(report)
+            else:
+                send_telegram(ans)
+    except Exception as e:
+        print(f"Fehler bei NHL-Abrechnung: {e}")
 
 def fetch_nhl_odds():
     url = "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/"
@@ -90,6 +154,12 @@ def fetch_nhl_odds():
     return ""
 
 def run_nhl_intel():
+    now_hour = datetime.now(LOCAL_TZ).hour
+    # SICHERHEITS-SCHRANKE: Verhindert Pick-Erstellung vor dem Nachmittag
+    if now_hour < 15:
+        print(f"Es ist {now_hour}:00 Uhr MEZ. NHL-Picks werden erst ab 16:00 Uhr generiert.")
+        return
+
     odds_data = fetch_nhl_odds()
     if not odds_data:
         print("Keine NHL-Spiele im Zeitfenster gefunden.")
@@ -218,4 +288,10 @@ REPORT-HTML:
                 sys.exit(1)
 
 if __name__ == "__main__":
-    run_nhl_intel()
+    now_hour = datetime.now(LOCAL_TZ).hour
+    # Morgens: Nur Abrechnung ausfuehren
+    if now_hour < 11:
+        settle_nhl_picks()
+    # Nachmittags / Abends: Picks generieren
+    else:
+        run_nhl_intel()
