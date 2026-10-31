@@ -18,7 +18,7 @@ def send_to_telegram(text, thread_env_var=None, default_thread_id=None, allow_ma
     if thread_env_var:
         thread_id = os.environ.get(thread_env_var, "").strip()
 
-    # 2. Automatische Fallback-Kette über alle bekannten Sportarten
+    # 2. Automatische Fallback-Kette über deine exakten GitHub-Secret-Namen
     if not thread_id:
         thread_id = (
             os.environ.get("TELEGRAM_THREAD_ID", "").strip()
@@ -26,6 +26,9 @@ def send_to_telegram(text, thread_env_var=None, default_thread_id=None, allow_ma
             or os.environ.get("TELEGRAM_THREAD_NBA", "").strip()
             or os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
             or os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
+            or os.environ.get("TELEGRAM_DARTS_THREAD_ID", "").strip()
+            or os.environ.get("TELEGRAM_COLLEGE_THREAD_ID", "").strip()
+            or os.environ.get("TELEGRAM_EURO_THREAD_ID", "").strip()
             or os.environ.get("TELEGRAM_MONEYRACE_THREAD_ID", "").strip()
             or (str(default_thread_id).strip() if default_thread_id else None)
         )
@@ -55,7 +58,6 @@ def send_to_telegram(text, thread_env_var=None, default_thread_id=None, allow_ma
         if res.status_code == 200:
             return res.json().get("result", {}).get("message_id")
         else:
-            # Fallback ohne HTML-Formatting falls Tags fehlerhaft waren
             print(f"[Telegram] HTML-Senden fehlgeschlagen ({res.status_code}). Sende Text plain...")
             payload.pop("parse_mode", None)
             res2 = requests.post(url, json=payload, timeout=25)
