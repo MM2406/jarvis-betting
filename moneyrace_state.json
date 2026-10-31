@@ -25,6 +25,16 @@
       "date": "2026-10-30"
     }
   ],
-  "active_pick": null,
-  "last_run_date": "2026-10-30"
+  "active_pick": {
+    "step": 3,
+    "match": "Levante vs. Atlético Madrid",
+    "pick": "Sieg Atlético Madrid",
+    "odds": 1.53,
+    "stake": 13.27,
+    "expected_return": 20.3,
+    "date": "2026-10-31",
+    "message_id": 112,
+    "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 3 / 7</b>\nProgress: [🟩🟩⬜⬜⬜⬜⬜] (13.27 € / 100.00 €)\n\nEinsatz:  <b>13.27 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   Levante vs. Atlético Madrid\n🏆 <b>Sport:</b>   Fussball / La Liga\n⏰ <b>Beginn:</b>  14:00 Uhr\n🎯 <b>Tipp:</b>    <b>Sieg Atlético Madrid (1X2)</b> @ 1.53\n🔄 <b>Buchmacher-Alternative:</b> Atlético Madrid (Draw No Bet / Asian 0.0) @ 1.20\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.45\n💰 <b>Return:</b>  <b>20.30 €</b> (+7.03 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE &amp; QUANT-ANALYSE</b>\n• <b>Modell-Chance:</b> 68.2% | <b>Fair Odds:</b> ~1.47\n• <b>Mathematischer Edge:</b> +4.3% EV\n• <b>Rationale:</b> Für Stufe 3 liefert Atlético Madrid bei Levante das stabilste mathematische Risiko-Rendite-Profil des gesamten Tagesangebots. Levante weist in den defensiven Kennzahlen (Expected Goals Against / zugelassene Großchancen) erhebliche Schwächen auf und trifft auf ein Atlético-Kollektiv, das unter Diego Simeone überragende Spielkontrolle und Effizienz gegen Teams aus der unteren Tabellenhälfte besitzt. Mit Anpfiff um 14:00 Uhr passt die Partie perfekt in die Zeit-Logik (Abschluss vor 16:00 Uhr) und die Quote von 1.53 liegt exakt im quantitativ definierten Sicherheitsfenster (1.35 – 1.70).\n\n━━━━━━━━━━━━━━━━━━━━\n⏱️ <b>LIVE-TRACKER • VOR ANPFIFF</b>\n[░░░░░░░░░░░░] 0%\n• <b>Status:</b> ⏳ Wartet auf Spielbeginn\n\n━━━━━━━━━━━━━━━━━━━━\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 20.30 € direkt in Stufe 4."
+  },
+  "last_run_date": "2026-10-31"
 }
