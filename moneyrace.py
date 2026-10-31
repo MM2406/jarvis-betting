@@ -20,16 +20,27 @@ LOCAL_TZ = ZoneInfo("Europe/Berlin")
 STATE_FILE = "moneyrace_state.json"
 
 MONEYRACE_SPORTS = [
+    # Top-Fussball Ligen
     "soccer_germany_bundesliga",
     "soccer_germany_bundesliga2",
     "soccer_epl",
+    "soccer_england_championship",
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
     "soccer_france_ligue_one",
+    "soccer_netherlands_eredivisie",
+    "soccer_portugal_primeira_liga",
+    "soccer_austria_bundesliga",
+    "soccer_belgium_first_div",
+    # UEFA Wettbewerbe
     "soccer_uefa_champs_league",
     "soccer_uefa_europa_league",
+    "soccer_uefa_europa_conference_league",
+    # 2-Weg Sportarten (Kein Unentschieden)
     "basketball_euroleague",
-    "basketball_nba"
+    "basketball_nba",
+    "darts_pdc_world_championship",
+    "darts_premier_league"
 ]
 
 def send_telegram(text):
@@ -111,7 +122,7 @@ REGELN:
 
 Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Endergebnis (z.B. 102:99)
+SCORE: Endergebnis (z.B. 2:0)
 INFO: Kurze Begründung.
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
@@ -145,7 +156,7 @@ INFO: Kurze Begründung.
                 if ret >= state["target_amount"]:
                     msg = (
                         f"🏆 <b>MONEYRACE ZIEL ERREICHT!</b>\n\n"
-                        f"Stufe {step_done} mit Bravour gemeistert!\n"
+                        f"Stufe {step_done} gemeistert!\n"
                         f"📌 Letzter Tipp: {active['pick']} (@ {active['odds']}) ➔ TREFFER!\n"
                         f"💰 Endstand: <b>{ret:.2f} €</b>\n\n"
                         f"Die 100 € Challenge wurde erfolgreich abgeschlossen! 🎉"
@@ -167,7 +178,6 @@ INFO: Kurze Begründung.
                 active["return"] = 0.0
                 state["history"].append(active)
                 
-                # Reset auf Neustart
                 state["active_pick"] = None
                 state["bankroll"] = state["start_amount"]
                 state["current_step"] = 0
@@ -182,7 +192,6 @@ INFO: Kurze Begründung.
                 send_telegram(msg)
 
             elif "RESULT: VOID" in text:
-                # Push: Geld bleibt erhalten, derselbe Step wird wiederholt
                 active["status"] = "VOID"
                 state["active_pick"] = None
                 save_state(state)
@@ -191,7 +200,7 @@ INFO: Kurze Begründung.
                     f"🟡 <b>MONEYRACE STUFE {active['step']} UNENTSCHIEDEN / VOID</b>\n\n"
                     f"• <b>Match:</b> {active['match']}\n"
                     f"• <b>Tipp:</b> {active['pick']}\n"
-                    f"Einsatz von {active['stake']:.2f} € wurde erstattet. Stufe {active['step']} wird wiederholt."
+                    f"Einsatz von {active['stake']:.2f} € erstattet. Stufe {active['step']} wird wiederholt."
                 )
                 send_telegram(msg)
             else:
@@ -204,8 +213,12 @@ INFO: Kurze Begründung.
 def fetch_moneyrace_odds():
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    # Fenster: Sucht Matches in den nächsten 10 Stunden
-    cutoff = now_utc + timedelta(hours=10)
+    now_hour = datetime.now(LOCAL_TZ).hour
+    
+    # Vor 15 Uhr: Sucht Spiele der nächsten 6 Stunden (Fokus auf Nachmittag)
+    # Nach 15 Uhr: Sucht Spiele der nächsten 8 Stunden (Fokus auf Abend)
+    window_hours = 6 if now_hour < 15 else 8
+    cutoff = now_utc + timedelta(hours=window_hours)
 
     for sport in MONEYRACE_SPORTS:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -234,7 +247,7 @@ def fetch_moneyrace_odds():
             print(f"Fehler bei {sport}: {e}")
 
     print(f"Gefundene Moneyrace-Kandidaten: {len(all_events)}")
-    return "\n".join(all_events[:45])
+    return "\n".join(all_events[:55])
 
 def run_moneyrace():
     state = load_state()
@@ -242,14 +255,14 @@ def run_moneyrace():
 
     now_hour = datetime.now(LOCAL_TZ).hour
 
-    # WICHTIGE WEICHE: Morgens (vor 12:00 Uhr MEZ) nur Abrechnung, kein neuer Pick
-    if now_hour < 12:
-        print("Morgen-Run: Abrechnung abgeschlossen. Tipp-Generierung folgt planmäßig am Nachmittag.")
+    # 1. Weiche: Vor 10:00 Uhr MEZ nur Abrechnung vom Vorabend
+    if now_hour < 10:
+        print("Morgen-Run: Abrechnung abgeschlossen. Picks folgen ab Mittag.")
         return
 
-    # Wenn bereits ein Pick aktiv ist, keinen zweiten starten
+    # 2. Weiche: Wenn noch ein Pick aktiv (und noch nicht beendet) ist -> Abbruch
     if state.get("active_pick"):
-        print(f"Es läuft bereits ein aktiver Pick für Stufe {state['active_pick'].get('step')}. Abbruch.")
+        print(f"Stufe {state['active_pick'].get('step')} ({state['active_pick'].get('match')}) ist noch offen/live. Kein neuer Tipp.")
         return
 
     next_step = state.get("current_step", 0) + 1
@@ -277,19 +290,19 @@ VERFÜGBARE PARTIEN & BUCHMACHERQUOTEN:
 {odds_data}
 
 ================================================================================
-ANALYSE-REGELN FÜR DAS MONEYRACE:
+ANALYSE-REGELN FÜR DAS MONEYRACE (QUALITÄT VOR ZWANG):
 ================================================================================
 1. SICHERHEIT VOR HOHEM ERTRAG:
    - Wähle DIE stabilste mathematische Bank aus der Liste (+EV).
-   - Ideale Quoten-Spanne: 1.35 bis 1.70 (maximal 1.80 bei überragendem Value).
+   - Ideale Quoten-Spanne: 1.35 bis 1.70 (maximal 1.78 bei überragendem Value).
    - Bevorzuge hochverlässliche Favoriten-Märkte: Heimsieg, Draw No Bet (DNB), Doppelte Chance (1X/X2) oder conservative Over/Under-Linien (z. B. Über 1.5 oder Unter 3.5).
-2. TRANSPARENTER VALUE:
-   - Berechne die Modell-Chance und begründe die Edge (Warum ist das Verlustrisiko minimal?).
-   - Gib immer eine Buchmacher-Alternative an.
-   - Gib eine Mindestquote an: 'Spielbar bis Mindestquote @ X.XX'.
+   - ZEIT-LOGIK: Bei Läufen vor 15:00 Uhr wähle bevorzugt Partien, die vor 17:30 Uhr beendet sind (Anpfiff 13:00 - 15:30 Uhr).
+2. KEIN ZWANGSTIPP:
+   - Falls in der Liste KEIN EINZIGES Match eine klare, mathematisch robuste Kante bietet, antworte NUR mit 'NO_PICK'.
+   - Lieber Geld schützen und auf das nächste Zeitfenster warten, als einen unsicheren Tipp zu erzwingen!
 3. FORMATIERUNG:
    - Beginne Aufzählungen direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch danach!
-   - Ganz am Ende MUSS der exakte Tracking-Block '---JSON_TRACKING---' folgen.
+   - Ganz am Ende MUSS der exakte Tracking-Block '---JSON_TRACKING---' folgen (außer bei NO_PICK).
 
 REPORT-HTML:
 🎯 <b>JARVIS MONEYRACE • STUFE {next_step} / 7</b>
@@ -340,6 +353,11 @@ Bei Win geht es mit [Return] € direkt in Stufe {next_step + 1}.
             res = requests.post(url, json=payload, timeout=90)
             if res.status_code == 200:
                 full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                
+                if "NO_PICK" in full_reply and len(full_reply) < 50:
+                    print("Gemini meldet NO_PICK: Kein Spot erfüllt die strengen Moneyrace-Kriterien. Geld bleibt geschützt.")
+                    return
+
                 report = full_reply
                 if "---JSON_TRACKING---" in full_reply:
                     parts = full_reply.split("---JSON_TRACKING---")
