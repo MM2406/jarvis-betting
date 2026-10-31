@@ -1,0 +1,34 @@
+[
+  {
+    "match": "New York Islanders vs. Edmonton Oilers",
+    "sport": "NHL",
+    "pick": "Edmonton Oilers Sieg (inkl. OT)",
+    "odds": "1.87",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "Boston vs. CHI / NSH vs. TBL / DAL vs. CBJ",
+    "sport": "NHL",
+    "pick": "Bruins ML + Lightning ML + Stars ML (inkl. OT)",
+    "odds": "3.43",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "Los Angeles Kings vs. Buffalo Sabres",
+    "sport": "NHL",
+    "pick": "Unter 5.5 Tore (inkl. OT/SO)",
+    "odds": "2.14",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  },
+  {
+    "match": "Colorado Avalanche vs. Calgary Flames",
+    "sport": "NHL",
+    "pick": "Nathan MacKinnon Über 1.5 Scorerpunkte (inkl. OT)",
+    "odds": "1.90",
+    "date": "2026-10-31",
+    "status": "PENDING"
+  }
+]
