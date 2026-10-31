@@ -36,7 +36,12 @@ MONEYRACE_SPORTS = [
     "soccer_uefa_champs_league",
     "soccer_uefa_europa_league",
     "soccer_uefa_europa_conference_league",
-    # 2-Weg Sportarten (Kein Unentschieden)
+    # Eishockey (Top 4 Ligen)
+    "icehockey_nhl",
+    "icehockey_germany_del",
+    "icehockey_sweden_shl",
+    "icehockey_liiga",
+    # 2-Weg Basketball & Darts
     "basketball_euroleague",
     "basketball_nba",
     "darts_pdc_world_championship",
@@ -120,14 +125,14 @@ Tipp: {active.get('pick')}
 Datum: {active.get('date')}
 
 REGELN:
-1. Prüfe sorgfältig, ob das Spiel bereits regulär beendet ist. Falls noch nicht begonnen, verschoben oder live, antworte zwingend mit PENDING.
+1. Prüfe sorgfältig, ob das Spiel bereits regulär beendet ist (inkl. möglicher Overtime/Penaltys). Falls noch nicht begonnen, verschoben oder live, antworte zwingend mit PENDING.
 2. Wenn der Tipp gewonnen hat, antworte mit 'RESULT: WON'.
 3. Wenn der Tipp verloren hat, antworte mit 'RESULT: LOST'.
 4. Bei Push / Void / Absage (Quote 1.0) antworte mit 'RESULT: VOID'.
 
 Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Endergebnis (z.B. 2:0)
+SCORE: Endergebnis (z.B. 4:2)
 INFO: Kurze Begründung.
 """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
@@ -220,7 +225,9 @@ def fetch_moneyrace_odds():
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
     
-    window_hours = 6 if now_hour < 15 else 8
+    # Vor 15 Uhr: Sucht Spiele der nächsten 6 Stunden (Fokus auf Nachmittag)
+    # Nach 15 Uhr: Sucht Spiele der nächsten 9 Stunden (Fokus auf Abend & Nacht)
+    window_hours = 6 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
     for sport in MONEYRACE_SPORTS:
@@ -250,7 +257,7 @@ def fetch_moneyrace_odds():
             print(f"Fehler bei {sport}: {e}")
 
     print(f"Gefundene Moneyrace-Kandidaten: {len(all_events)}")
-    return "\n".join(all_events[:55])
+    return "\n".join(all_events[:60])
 
 def run_moneyrace():
     state = load_state()
@@ -295,11 +302,24 @@ ANALYSE-REGELN FÜR DAS MONEYRACE (QUALITÄT VOR ZWANG):
 1. SICHERHEIT VOR HOHEM ERTRAG:
    - Wähle DIE stabilste mathematische Bank aus der Liste (+EV).
    - Ideale Quoten-Spanne: 1.35 bis 1.70 (maximal 1.78 bei überragendem Value).
-   - Bevorzuge hochverlässliche Favoriten-Märkte: Heimsieg, Draw No Bet (DNB), Doppelte Chance (1X/X2) oder conservative Over/Under-Linien (z. B. Über 1.5 oder Unter 3.5).
+   - Bevorzuge hochverlässliche Märkte:
+     • Fussball: Heimsieg, Draw No Bet (DNB), Doppelte Chance (1X/X2), Totals mit Puffer (Über 1.5 oder Unter 3.5).
+     • Basketball: Moneyline (Sieg inkl. OT) oder Spread/Handicap (+4.5 bis +8.5).
+     • Darts: Match-Sieg (2-Weg).
    - ZEIT-LOGIK: Bei Läufen vor 15:00 Uhr wähle bevorzugt Partien, die vor 17:30 Uhr beendet sind (Anpfiff 13:00 - 15:30 Uhr).
-2. KEIN ZWANGSTIPP:
+
+2. EISHOCKEY-REGELN (STRIKT EINHALTEN!):
+   - Erlaubt sind:
+     • Moneyline / Sieger (inkl. Overtime & Shootout / 2-Weg)
+     • Doppelte Chance (1X / X2)
+     • Plus-Handicap / Puckline (+1.5 Tore)
+     • Over/Under mit Puffer (z.B. Über 4.5 oder Unter 6.5 inkl. OT)
+   - STRIKT VERBOTEN bei Eishockey: Reine 3-Weg-Wetten auf Sieg nach regulärer Spielzeit (60 Min.)! Ein Remis darf die Wette niemals zerstören.
+
+3. KEIN ZWANGSTIPP:
    - Falls in der Liste KEIN EINZIGES Match eine klare, mathematisch robuste Kante bietet, antworte NUR mit 'NO_PICK'.
-3. FORMATIERUNG:
+
+4. FORMATIERUNG:
    - Beginne Aufzählungen direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch danach!
    - Integriere exakt den Initial-Block für den LIVE-TRACKER.
    - Ganz am Ende MUSS der exakte Tracking-Block '---JSON_TRACKING---' folgen (außer bei NO_PICK).
@@ -376,7 +396,6 @@ Bei Win geht es mit [Return] € direkt in Stufe {next_step + 1}.
 
                 report = report.replace("```html", "").replace("```", "").strip()
                 
-                # Ticket posten und Telegram Message ID abfangen
                 msg_id = send_telegram(report)
                 
                 if pick_data:
