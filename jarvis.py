@@ -14,7 +14,6 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 # Sicheres Routing ins Fussball-Thema
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_THREAD_SOCCER", "").strip()
-    or os.environ.get("TELEGRAM_SOCCER_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
