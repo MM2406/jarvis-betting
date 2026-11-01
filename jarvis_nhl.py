@@ -122,7 +122,7 @@ DETAILS:
 - Bein 1: Team A vs Team B | Ergebnis: X:Y | WON oder LOST
 - Bein 2: ...
 """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "tools": [{"googleSearch": {}}],
@@ -198,7 +198,6 @@ DETAILS:
     save_pending(remaining_pending)
 
     if settled_results:
-        # Aufteilung in Singles und Kombis
         singles = [b for b in settled_results if not b["is_kombi"]]
         kombis = [b for b in settled_results if b["is_kombi"]]
 
@@ -217,7 +216,6 @@ DETAILS:
         total_picks_won = singles_won + kombi_legs_won
         overall_accuracy = (total_picks_won / total_picks_count * 100) if total_picks_count > 0 else 0
 
-        # Nachricht erstellen
         msg = "🏒 <b>JARVIS NHL SETTLEMENT & RECAP</b>\n"
         msg += "━━━━━━━━━━━━━━━━━━━━\n\n"
 
@@ -242,7 +240,6 @@ DETAILS:
 
             msg += "━━━━━━━━━━━━━━━━━━━━\n"
 
-        # Detaillierter Statistik-Block
         msg += "📊 <b>BILANZ & STATISTIK</b>\n"
         if singles:
             s_pnl = sum(b["pnl"] for b in singles)
@@ -303,12 +300,14 @@ def run_nhl_intel():
         print("Keine NHL-Spiele im Zeitfenster gefunden.")
         return
 
-    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+    now_dt = datetime.now(LOCAL_TZ)
+    today_str = now_dt.strftime("%d.%m.%Y")
+    today_iso = now_dt.strftime("%Y-%m-%d")
+    current_year = now_dt.strftime("%Y")
 
     prompt = f"""
 Du bist 'JARVIS NHL QUANT' – Spezialist für quantitative NHL-Modellierung, Goalie-Matchups und Quoten-Diskrepanzen.
-Erstelle für heute ({today_str}) das NHL-Dossier.
+Erstelle für heute ({today_str}, Jahr: {current_year}) das NHL-Dossier.
 
 VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
@@ -317,12 +316,13 @@ REGELN:
 - Wähle ausschließlich Partien aus der obigen Liste.
 - WICHTIG: Es handelt sich um Eishockey (NHL) – Tore und Assists ergeben Punkte.
 - Analysiere Starting Goalies (Confirmed/Expected), Special Teams (PP%/PK%), Corsi/Fenwick und Rest Advantage via Google Search.
-- Erstelle 1x Pick of the Day, 1x Value Acca (Kombi mit 2-4 Spielen), 1x Totals Spotlight und 1x Player Prop (Punkte/Tore/Schüsse).
+- Erstelle 1x Pick of the Day, 1x Value Acca (Kombi mit 2-4 Spielen), 1x Totals Spotlight und 1x Player Prop (Punkte/Tore/Schüsse - nur Over, keine Under!).
 
 FORMATIERUNGS-REGELN FÜR TELEGRAM:
 - Keine doppelten Leerzeilen.
 - Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
 - Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'
 - Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
 ---JSON_TRACKING---
@@ -347,7 +347,7 @@ FORMATIERUNGS-REGELN FÜR TELEGRAM:
   }}
 ]
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
