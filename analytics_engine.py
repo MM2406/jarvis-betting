@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import glob
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import requests
@@ -11,11 +10,8 @@ import matplotlib.pyplot as plt
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-
-# Topic 'weekly & monthly Performance & Recaps' (ID: 134)
 TELEGRAM_ANALYTICS_THREAD = (
     os.environ.get("TELEGRAM_ANALYTICS_THREAD_ID", "").strip()
     or "134"
@@ -81,9 +77,9 @@ def compute_metrics(bets):
     if total_bets == 0:
         return None
 
-    wins = sum(1 for b in bets if b.get("status") in ["WON", "HIT"])
-    losses = sum(1 for b in bets if b.get("status") in ["LOST", "MISS"])
-    pushes = sum(1 for b in bets if b.get("status") in ["PUSH", "VOID"])
+    wins = sum(1 for b in bets if str(b.get("status", "")).upper() in ["WON", "HIT", "WIN"])
+    losses = sum(1 for b in bets if str(b.get("status", "")).upper() in ["LOST", "MISS", "LOSS"])
+    pushes = sum(1 for b in bets if str(b.get("status", "")).upper() in ["PUSH", "VOID"])
     
     total_stake = 0.0
     total_profit = 0.0
@@ -96,16 +92,30 @@ def compute_metrics(bets):
             by_sport[sport] = {"bets": 0, "profit": 0.0, "stake": 0.0, "wins": 0}
 
         stake = float(b.get("stake", 1.0))
-        pnl = float(b.get("profit", 0.0))
-        status = b.get("status", "")
+        status = str(b.get("status", "")).upper()
+        odds = float(b.get("odds") or b.get("price") or 1.0)
 
+        # Robuste P&L-Erkennung: Falls 'profit' oder 'pnl' fehlt, aus Status & Quote berechnen
+        if "profit" in b and b["profit"] is not None:
+            pnl = float(b["profit"])
+        elif "pnl" in b and b["pnl"] is not None:
+            pnl = float(b["pnl"])
+        else:
+            if status in ["WON", "HIT", "WIN"]:
+                pnl = (odds - 1.0) * stake
+            elif status in ["LOST", "MISS", "LOSS"]:
+                pnl = -stake
+            else:
+                pnl = 0.0
+
+        b["calculated_pnl"] = pnl
         total_stake += stake
         total_profit += pnl
 
         by_sport[sport]["bets"] += 1
         by_sport[sport]["profit"] += pnl
         by_sport[sport]["stake"] += stake
-        if status in ["WON", "HIT"]:
+        if status in ["WON", "HIT", "WIN"]:
             by_sport[sport]["wins"] += 1
 
         if "clv" in b and b["clv"] is not None:
@@ -133,19 +143,19 @@ def compute_metrics(bets):
 
 def generate_performance_chart(bets, metrics, timeframe):
     plt.style.use("dark_background")
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
 
-    # Linker Plot: Equity-Kurve
+    # Linker Plot: Kumulierte Equity
     cumulative_pnl = [0.0]
     running = 0.0
     for b in bets:
-        running += float(b.get("profit", 0.0))
+        running += float(b.get("calculated_pnl", 0.0))
         cumulative_pnl.append(running)
 
     ax1.plot(cumulative_pnl, color="#00ffcc", linewidth=2.5, marker="o", markersize=3)
     ax1.axhline(0, color="#666666", linestyle="--", linewidth=1)
-    ax1.set_title(f"JARVIS Equity-Kurve ({timeframe.upper()})", fontsize=12, fontweight="bold", color="#ffffff")
-    ax1.set_xlabel("Wetten", color="#aaaaaa")
+    ax1.set_title(f"JARVIS Equity-Kurve ({timeframe.upper()})", fontsize=11, fontweight="bold", color="#ffffff")
+    ax1.set_xlabel("Abgeschlossene Wetten", color="#aaaaaa")
     ax1.set_ylabel("Profit (Units)", color="#aaaaaa")
     ax1.grid(True, linestyle=":", alpha=0.3)
 
@@ -154,9 +164,9 @@ def generate_performance_chart(bets, metrics, timeframe):
     pnls = [metrics["by_sport"][s]["profit"] for s in sports]
     colors = ["#00ffcc" if p >= 0 else "#ff3366" for p in pnls]
 
-    bars = ax2.barh(sports, pnls, color=colors, height=0.55)
+    bars = ax2.barh(sports, pnls, color=colors, height=0.5)
     ax2.axvline(0, color="#666666", linestyle="--", linewidth=1)
-    ax2.set_title("P&L nach Sportart (Units)", fontsize=12, fontweight="bold", color="#ffffff")
+    ax2.set_title("P&L nach Sportart (Units)", fontsize=11, fontweight="bold", color="#ffffff")
     ax2.set_xlabel("Profit / Verlust", color="#aaaaaa")
     ax2.grid(True, linestyle=":", alpha=0.3)
 
@@ -173,115 +183,62 @@ def generate_performance_chart(bets, metrics, timeframe):
     plt.close()
     return chart_path
 
-def generate_ai_recap(metrics, timeframe):
+def build_compact_caption(metrics, timeframe):
     now_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     label = "WÖCHENTLICHER" if timeframe == "weekly" else "MONATLICHER"
+    pnl_sign = "+" if metrics['total_profit'] >= 0 else ""
+    roi_sign = "+" if metrics['roi'] >= 0 else ""
+    clv_sign = "+" if metrics['avg_clv'] >= 0 else ""
 
-    prompt = f"""
-Du bist 'JARVIS QUANT META-ANALYST'.
-Erstelle den {label} RECAP & PERFORMANCE-BERICHT zum Stichtag {now_str}.
+    sport_lines = []
+    for sport, data in metrics["by_sport"].items():
+        if data["bets"] > 0:
+            s_pnl = f"{'+' if data['profit'] >= 0 else ''}{data['profit']:.2f}u"
+            sport_lines.append(f"• <b>{sport}:</b> {s_pnl} ({data['wins']}/{data['bets']} Treffer)")
 
-METRIKEN:
-- Ausgewertete Wetten: {metrics['total_bets']} (Wins: {metrics['wins']}, Losses: {metrics['losses']}, Push: {metrics['pushes']})
-- Win-Rate: {metrics['win_rate']:.1f}%
-- Total P&L: {metrics['total_profit']:+.2f} Units | ROI: {metrics['roi']:+.2f}%
-- Durchschnittlicher CLV (Closing Line Value): {metrics['avg_clv']:+.2f}%
-- Aufschlüsselung nach Sportarten: {json.dumps(metrics['by_sport'], ensure_ascii=False)}
+    sports_text = "\n".join(sport_lines) if sport_lines else "• Keine Daten"
 
-VORGABEN FÜR DIE TELEGRAM-HTML-AUSGABE:
-- Professioneller Quant-/Hedgefonds-Stil.
-- HTML-Tags: <b>, <i>, <code>. Keine Markdown-Backticks!
-- Analysiere kurz die Top-Performer-Sportart und Problembereiche.
-- Beziehe dich kurz auf den CLV (ob der Markt geschlagen wurde).
-- Schließe mit einem fokussierten Fazit für die nächste Periode.
-"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2}
-    }
-
-    try:
-        res = requests.post(url, json=payload, timeout=60)
-        if res.status_code == 200:
-            text = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-            return text.replace("```html", "").replace("```", "").strip()
-    except Exception as e:
-        print(f"[AI Error] {e}")
-
-    return f"""📊 <b>JARVIS QUANT {label} RECAP</b>
-Stichtag: {now_str}
+    caption = f"""📊 <b>JARVIS QUANT {label} RECAP</b> • {now_str}
+━━━━━━━━━━━━━━━━━━━━
+💰 <b>Net P&L:</b> <code>{pnl_sign}{metrics['total_profit']:.2f} Units</code>
+📈 <b>ROI:</b> <code>{roi_sign}{metrics['roi']:.2f}%</code>
+🎯 <b>Trefferquote:</b> <code>{metrics['win_rate']:.1f}%</code> ({metrics['wins']}W - {metrics['losses']}L - {metrics['pushes']}P)
+⚡ <b>Avg. CLV:</b> <code>{clv_sign}{metrics['avg_clv']:.2f}%</code>
 
 ━━━━━━━━━━━━━━━━━━━━
-📈 <b>Performance-Kennzahlen:</b>
-• <b>P&L:</b> <code>{metrics['total_profit']:+.2f} Units</code>
-• <b>ROI:</b> <code>{metrics['roi']:+.2f}%</code>
-• <b>Win-Rate:</b> <code>{metrics['win_rate']:.1f}%</code> ({metrics['wins']}W - {metrics['losses']}L)
-• <b>Avg CLV:</b> <code>{metrics['avg_clv']:+.2f}%</code>"""
+🏆 <b>Sportarten-Übersicht:</b>
+{sports_text}"""
+    return caption
 
-def send_telegram_recap(metrics, recap_text, image_path, timeframe):
+def send_telegram_recap(caption, image_path):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
         return
 
     thread_id = int(TELEGRAM_ANALYTICS_THREAD) if TELEGRAM_ANALYTICS_THREAD else None
-    now_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-    label = "WÖCHENTLICHER" if timeframe == "weekly" else "MONATLICHER"
-
-    # 1. Foto mit kompakter Caption senden (unter 1.024 Zeichen)
-    photo_caption = (
-        f"📊 <b>JARVIS QUANT {label} RECAP</b> • {now_str}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"• <b>P&L:</b> <code>{metrics['total_profit']:+.2f} Units</code>\n"
-        f"• <b>ROI:</b> <code>{metrics['roi']:+.2f}%</code> | <b>Win-Rate:</b> <code>{metrics['win_rate']:.1f}%</code>\n"
-        f"• <b>Avg CLV:</b> <code>{metrics['avg_clv']:+.2f}%</code>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📈 <i>Performance-Chart & Sportart-Aufschlüsselung anbei. Detaillierter Quant-Report folgt unten:</i>"
-    )
-
-    photo_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    photo_payload = {
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "caption": photo_caption,
+        "caption": caption,
         "parse_mode": "HTML"
     }
     if thread_id:
-        photo_payload["message_thread_id"] = thread_id
+        payload["message_thread_id"] = thread_id
 
     try:
         with open(image_path, "rb") as img:
             files = {"photo": img}
-            res = requests.post(photo_url, data=photo_payload, files=files, timeout=30)
+            res = requests.post(url, data=payload, files=files, timeout=30)
             if res.status_code != 200:
-                print(f"[Telegram] Fehler beim Foto-Upload: {res.text}")
+                print(f"[Telegram] Fehler: {res.text}")
             else:
-                print(f"[Telegram] Performance-Chart erfolgreich an Topic {thread_id} gesendet.")
+                print(f"[Telegram] Kompaktes Recap-Dashboard erfolgreich an Topic {thread_id} gesendet.")
     except Exception as e:
-        print(f"[Telegram Foto Exception] {e}")
-
-    # 2. Ausführlichen KI-Bericht als Textnachricht senden (erlaubt bis zu 4.096 Zeichen)
-    msg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    msg_payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": recap_text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
-    if thread_id:
-        msg_payload["message_thread_id"] = thread_id
-
-    try:
-        res2 = requests.post(msg_url, json=msg_payload, timeout=25)
-        if res2.status_code != 200:
-            print(f"[Telegram] Fehler beim Text-Recap: {res2.text}")
-        else:
-            print(f"[Telegram] Ausführlicher Recap erfolgreich an Topic {thread_id} gesendet.")
-    except Exception as e:
-        print(f"[Telegram Text Exception] {e}")
+        print(f"[Telegram Exception] {e}")
 
 def main():
     timeframe = sys.argv[1].lower() if len(sys.argv) > 1 else "weekly"
-    print(f"Starte JARVIS Analytics Engine ({timeframe})...")
+    print(f"Starte kompakte Analytics Engine ({timeframe})...")
 
     bets = load_all_history()
     recent_bets = filter_bets(bets, timeframe=timeframe)
@@ -296,8 +253,8 @@ def main():
         return
 
     chart_file = generate_performance_chart(recent_bets, metrics, timeframe)
-    recap_text = generate_ai_recap(metrics, timeframe)
-    send_telegram_recap(metrics, recap_text, chart_file, timeframe)
+    compact_caption = build_compact_caption(metrics, timeframe)
+    send_telegram_recap(compact_caption, chart_file)
 
 if __name__ == "__main__":
     main()
