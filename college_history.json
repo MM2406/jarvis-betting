@@ -71,16 +71,14 @@
       "odds": "1.38",
       "date": "2026-10-30",
       "status": "LOST"
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Iowa Hawkeyes vs. Wisconsin Badgers",
       "sport": "americanfootball_ncaaf",
       "pick": "Under 36.5",
       "odds": "1.87",
       "date": "2026-10-31",
-      "status": "PENDING"
+      "status": "WON"
     },
     {
       "match": "Texas Tech Red Raiders vs. Arizona Wildcats",
@@ -88,7 +86,7 @@
       "pick": "Texas Tech Red Raiders -3.5",
       "odds": "1.89",
       "date": "2026-10-31",
-      "status": "PENDING"
+      "status": "WON"
     },
     {
       "match": "Syracuse Orange vs. SMU Mustangs",
@@ -96,7 +94,7 @@
       "pick": "SMU Mustangs -9.5",
       "odds": "1.91",
       "date": "2026-10-31",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "USC Trojans vs. Ohio State Buckeyes",
@@ -104,7 +102,7 @@
       "pick": "Ohio State Buckeyes -6.5",
       "odds": "1.93",
       "date": "2026-10-31",
-      "status": "PENDING"
+      "status": "LOST"
     },
     {
       "match": "Colorado Buffaloes vs. Kansas State Wildcats",
@@ -112,7 +110,8 @@
       "pick": "Kansas State Wildcats +2.5",
       "odds": "2.02",
       "date": "2026-10-31",
-      "status": "PENDING"
+      "status": "LOST"
     }
-  ]
+  ],
+  "pending": []
 }
