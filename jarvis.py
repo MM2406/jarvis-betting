@@ -123,19 +123,26 @@ def run_jarvis_soccer():
     now_dt = datetime.now(LOCAL_TZ)
     today_str = now_dt.strftime("%d.%m.%Y")
     today_iso = now_dt.strftime("%Y-%m-%d")
+    current_year = now_dt.strftime("%Y")
     edition_label = "MITTAGS-EDITION" if now_dt.hour < 15 else "ABEND-EDITION"
 
     prompt = f"""
 Du bist 'JARVIS SOCCER QUANT ARCHITECT'.
-Erstelle für heute ({today_str}) die {edition_label}.
+HEUTIGES DATUM: {today_str} (Aktuelles Jahr: {current_year}).
+Erstelle für heute die {edition_label}.
 
 VERFÜGBARE PARTIEN & REAL-QUOTEN AUS DER API:
 {odds_data}
 
-STRIKTE REGELN ZUR PARTIE-WAHL:
+STRIKTE GROUNDING- UND VERIFIKATIONS-REGELN (VERPFLICHTEND!):
 1. VERBOT VON HISTORISCHEN/HALLUZINIERTEN MATCHES: Verwende AUSSCHLIESSLICH Spiele und Teams, die exakt in der obigen Liste stehen!
-2. KEINE UNDER BEI SPIELERN: Bei Spielerwetten nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ Torschuss, Over 1.5 Schüsse, Anytime Goal, Scorerpunkt). Keine Under-Props!
-3. RECHERCHE: Nutze Google Search für aktuelle Startelf-Prognosen, Ausfälle, xG und Spieler-Torschussstatistiken.
+2. HARTER ROSTER- & KADER-CHECK BEI SPIELER-PROPS:
+   - Du darfst NUR Spieler auswählen, die im aktuellen Jahr {current_year} zweifelsfrei und offiziell bei einem der oben aufgeführten Teams spielen!
+   - Führe zwingend eine Google Search durch, um den AKTUELLEN VEREIN und die VORAUSSICHTLICHE AUFSTELLUNG des Spielers zu verifizieren.
+   - Wenn ein Spieler transferiert wurde, verletzt ausfällt oder nicht im heutigen Kader steht, ist er STRIKT VERBOTEN.
+   - KEIN Raten aus historischem Wissen! Wenn du nicht zu 100% via Websuche belegen kannst, dass der Spieler heute im Kader seines aktuellen Vereins steht, lasse das Player-Prop-Ticket komplett weg.
+3. KEINE UNDER BEI SPIELERN: Bei Spielerwetten nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ Torschuss, Over 1.5 Schüsse, Anytime Goal, Scorerpunkt). Keine Under-Props!
+4. RECHERCHE: Nutze Google Search für aktuelle Startelf-Prognosen, Ausfälle, xG und Spieler-Torschussstatistiken.
 
 TICKET-ARCHITEKTUR (OHNE ZWANG! Wenn kein Value vorliegt, lasse das jeweilige Ticket weg):
 - ⭐ SOCCER PICK OF THE DAY (Single Bet): Der beste Einzeltipp des Tages mit größtem mathematischem Edge.
@@ -144,7 +151,8 @@ TICKET-ARCHITEKTUR (OHNE ZWANG! Wenn kein Value vorliegt, lasse das jeweilige Ti
 - ⚡ HYBRID QUANT MULTI: 2 bis 4 Beine mit Markt-Mix (z.B. Spiel A Sieg + Spiel B BTTS + Spiel C Über 2.5), wo es taktisch und rechnerisch korreliert.
 - ⚽ GOALS & BTTS VALUE ACCA: 2 bis 3 Beine rein aus Tor-Märkten (Über 2.5, BTTS Ja).
 - 👟 PLAYER PROPS (Single oder Multi-Acca):
-  * Wähle 1 bis 3 Spieler aus den heutigen Partien (Torschüsse aufs Tor / SoT, Tore, Tor+Vorlage).
+  * Wähle 1 bis 3 Spieler aus den HEUTIGEN, oben gelisteten Partien (Torschüsse aufs Tor / SoT, Tore, Tor+Vorlage).
+  * Vor jedem Spieler-Tipp muss der aktuelle Verein des Spielers via Google Search verifiziert sein!
   * Wenn mehrere starke Spieler-Picks vorhanden sind, kombiniere sie zu einer 2er- oder 3er-Player-Prop-Kombi (z.B. Spieler A 1+ SoT & Spieler B 1+ SoT @ ~2.10) ODER stelle sie als starke Einzelpicks dar!
 - 💣 HIGH-YIELD LOTTO / RISIKO ACCA (Optional): 4 bis 5 Beine, Quote 5.00+ bis 12.00 (Einsatz 0.25 - 0.5 Units). Nur aufführen, wenn Spitzen-Value vorhanden ist!
 
@@ -160,7 +168,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heim] vs. [Gast] ([Liga])
+- <b>Match:</b> [Uhrzeit] Uhr | [Heim] vs. [Gast] ([Liga])
 ➔ <b>Haupt-Pick:</b> <b>[Tipp]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Alternative] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 - 2.0 Units
@@ -169,38 +177,38 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🔒 <b>CONSERVATIVE 2-LEG BANKER</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 1.0 - 1.5 Units
 🔍 <b>Logik:</b> [Warum diese 2 Säulen maximale Stabilität bieten]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚖️ <b>BALANCED VALUE ACCA (3-er Kombi)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 - 1.0 Units
 🔍 <b>Logik:</b> [Erwartungswert & Synergie]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚡ <b>HYBRID QUANT MULTI (Markt-Mix)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
 🔍 <b>Logik:</b> [Synergie aus Sieg, Toren oder Handicaps]
 
 ━━━━━━━━━━━━━━━━━━━━
-⚽ <b>GOALS &amp; BTTS VALUE ACCA</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
+⚽ <b>GOALS & BTTS VALUE ACCA</b>
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 Units
 🔍 <b>Logik:</b> [Total xG, Tempo, Offensiv-Drang]
 
 ━━━━━━━━━━━━━━━━━━━━
 👟 <b>PLAYER PROP SPOTLIGHT / MULTI-TICKET</b>
-• [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
 📈 <b>Gesamtquote (falls Kombi):</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
 🔍 <b>Edge:</b> [Schussfrequenz pro 90 Min, Strafraumaktionen, Gegner-Zulassung]
 
@@ -262,11 +270,11 @@ REPORT-HTML:
   ]
 }}
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
-        "generationConfig": {"temperature": 0.2}
+        "generationConfig": {"temperature": 0.1}
     }
 
     for attempt in range(1, 4):
