@@ -23,12 +23,16 @@ TELEGRAM_THREAD_ID = (
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
+def make_progress_bar(percentage, segments=10):
+    clamped = max(0.0, min(100.0, float(percentage)))
+    filled = int(round((clamped / 100.0) * segments))
+    empty = segments - filled
+    return f"[{'🟩' * filled}{'⬜' * empty}]"
+
 def send_telegram_message(text):
-    # Vorrangig zentralen Sender mit Hauptchat-Schutz nutzen
     if send_to_telegram:
         return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_NHL")
 
-    # Autonomer Fallback
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
         return None
@@ -74,6 +78,22 @@ def settle_nhl_bets():
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    if not data:
+        print("pending_nhl.json ist leer. Keine Wetten zum Abrechnen.")
+        return
+
+    # Robuste Datumserkennung (verhindert 'list' object has no attribute 'get')
+    date_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    if isinstance(data, dict):
+        date_display = data.get("date", date_display)
+    elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+        d_val = data[0].get("date", "")
+        if d_val:
+            try:
+                date_display = datetime.strptime(d_val, "%Y-%m-%d").strftime("%d.%m.%Y")
+            except Exception:
+                date_display = str(d_val)
+
     prompt = f"""
 Du bist 'JARVIS NHL SETTLEMENT AGENT'.
 Recherchiere über Google Search die finalen Ergebnisse der NHL (inkl. OT und Shootout) sowie die Boxscores (Torschützen, Assists, Shots on Goal) für folgende Wetten:
@@ -82,77 +102,21 @@ Offene NHL-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien noch anstehen / laufen oder verschoben wurden.
-2. Endergebnisse und Spieler-Statistiken (Tore, Assists, Shots) prüfen.
-3. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH.
-4. Noch nicht gespielte oder laufende Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
-5. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
-6. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
-7. Berechne die genauen Metriken für das Performance Dashboard:
-   - Ticket Win-Rate: (Gewonnene Tickets / Abgerechnete Tickets) in % inkl. 10-Segment Fortschrittsbalken (z.B. [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜])
-   - Pick Hit-Rate: (Richtige Einzeltipps / Alle gespielten Einzeltipps) in % inkl. 10-Segment Fortschrittsbalken
-   - Einsatz / Rückzahlung in Units
-   - Netto-Profit / Verlust
-   - ROI (Yield) in % = (Netto-Profit / Gesamteinsatz) * 100
+1. Prüfe, ob alle Spiele beendet sind (FINAL). Tore + Assists = Punkte!
+2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH.
+3. Bei Kombiwetten: Zeige jedes einzelne Bein (Leg) mit Ergebnis und Status (z.B. [✅] Team A, [❌] Team B).
+4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Wette/Schein).
 
-WICHTIGE STATUS-ZEILE AM ENDE:
-Falls noch mindestens ein Pick offen oder in Progress ist, schreibe ganz am Ende exakt:
----STATUS: INCOMPLETE---
-Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
----STATUS: COMPLETE---
-
-FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
-<b>🏒 JARVIS NHL SETTLEMENT & RECAP</b>
-<i>Abrechnung der NHL-Slate vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY:</b> [Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NHL BANKER TICKET:</b> [Status]
-[Picks & Resultate]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS COMBO:</b> [Status]
-[Jeden Pick auflisten mit Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [Status]
-[Für jeden Spieler: Name, Pick, tatsächliche Stats, Status ✅/❌/⏳]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>
-• <b>Ticket Win-Rate:</b> [X]/[Y] ([Prozent]%) [Balken]
-• <b>Pick Hit-Rate:</b>   [X]/[Y] ([Prozent]%) [Balken]
-• <b>Einsatz / Return:</b> [Gesamteinsatz] U ➔ [Rückzahlung] U
-• <b>Netto-Profit:</b>     [+/- Profit] Units
-• <b>Tages-ROI:</b>        [+/- ROI]%
-"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "tools": [{"googleSearch": {}}],
-        "generationConfig": {"temperature": 0.1}
-    }
-
-    try:
-        res = requests.post(url, json=payload, timeout=120)
-        res.raise_for_status()
-        raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-
-        is_complete = "---STATUS: COMPLETE---" in raw_text
-        clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
-
-        send_telegram_message(clean_text)
-
-        if is_complete:
-            os.remove(file_path)
-            print("Alle NHL Wetten final beendet. pending_nhl.json gelöscht.")
-        else:
-            print("Noch NHL Spiele/Props offen. pending_nhl.json bleibt erhalten.")
-    except Exception as e:
-        print(f"Fehler bei NHL Settlement: {e}")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    settle_nhl_bets()
+Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
+```json
+{{
+  "tickets_total": 4,
+  "tickets_won": 3,
+  "picks_total": 6,
+  "picks_won": 5,
+  "total_staked": 4.0,
+  "total_returned": 5.91,
+  "net_profit": 1.91,
+  "roi": 47.75,
+  "is_complete": true
+}}
