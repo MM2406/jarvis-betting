@@ -1,38 +1,42 @@
 [
   {
-    "match": "New York Islanders vs. Edmonton Oilers",
+    "match": "New York Rangers vs Edmonton Oilers",
     "sport": "NHL",
+    "category": "PICK OF THE DAY",
     "pick": "Edmonton Oilers Sieg (inkl. OT)",
-    "odds": "1.87",
-    "date": "2026-10-31",
-    "status": "WON",
-    "score": "0:4"
+    "odds": "2.08",
+    "date": "2026-11-01",
+    "is_kombi": false,
+    "status": "PENDING"
   },
   {
-    "match": "Boston vs. CHI / NSH vs. TBL / DAL vs. CBJ",
+    "match": "Philadelphia Flyers vs Utah Mammoth / Anaheim Ducks vs Ottawa Senators",
     "sport": "NHL",
-    "pick": "Bruins ML + Lightning ML + Stars ML (inkl. OT)",
-    "odds": "3.43",
-    "date": "2026-10-31",
-    "status": "LOST",
-    "score": "BOS 5:4 OT / NSH 5:4 SO / DAL 3:1"
+    "category": "QUANT VALUE ACCA",
+    "pick": "Utah Mammoth ML + Ottawa Senators ML",
+    "odds": "2.87",
+    "date": "2026-11-01",
+    "is_kombi": true,
+    "status": "PENDING"
   },
   {
-    "match": "Los Angeles Kings vs. Buffalo Sabres",
+    "match": "Washington Capitals vs Minnesota Wild",
     "sport": "NHL",
-    "pick": "Unter 5.5 Tore (inkl. OT/SO)",
-    "odds": "2.14",
-    "date": "2026-10-31",
-    "status": "WON",
-    "score": "2:3"
+    "category": "TOTALS SPOTLIGHT",
+    "pick": "Unter 6.5 Tore",
+    "odds": "1.75",
+    "date": "2026-11-01",
+    "is_kombi": false,
+    "status": "PENDING"
   },
   {
-    "match": "Colorado Avalanche vs. Calgary Flames",
+    "match": "New York Rangers vs Edmonton Oilers",
     "sport": "NHL",
-    "pick": "Nathan MacKinnon Über 1.5 Scorerpunkte (inkl. OT)",
-    "odds": "1.90",
-    "date": "2026-10-31",
-    "status": "WON",
-    "score": "5:2 (MacKinnon: 1G, 1A)"
+    "category": "PLAYER PROP",
+    "pick": "Connor McDavid Über 1.5 Punkte",
+    "odds": "1.80",
+    "date": "2026-11-01",
+    "is_kombi": false,
+    "status": "PENDING"
   }
 ]
