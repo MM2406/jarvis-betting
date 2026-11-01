@@ -14,5 +14,37 @@
     "odds": "1.91",
     "date": "2026-11-01",
     "status": "PENDING"
+  },
+  {
+    "match": "Indiana Pacers vs. Brooklyn Nets",
+    "sport": "NBA",
+    "pick": "Indiana Pacers -3.5",
+    "odds": "1.87",
+    "date": "2026-11-01",
+    "status": "PENDING"
+  },
+  {
+    "match": "Orlando Magic vs. Boston Celtics",
+    "sport": "NBA",
+    "pick": "Under 221.5",
+    "odds": "1.91",
+    "date": "2026-11-01",
+    "status": "PENDING"
+  },
+  {
+    "match": "Orlando Magic vs. Boston Celtics / Golden State Warriors vs. Los Angeles Clippers / Los Angeles Lakers vs. Toronto Raptors",
+    "sport": "NBA",
+    "pick": "Boston Celtics ML + Los Angeles Clippers +2.5 + Los Angeles Lakers -2.5",
+    "odds": "4.74",
+    "date": "2026-11-01",
+    "status": "PENDING"
+  },
+  {
+    "match": "Los Angeles Lakers vs. Toronto Raptors",
+    "sport": "NBA",
+    "pick": "Scottie Barnes Über 7.5 Rebounds",
+    "odds": "1.85",
+    "date": "2026-11-01",
+    "status": "PENDING"
   }
 ]
