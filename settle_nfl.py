@@ -1,11 +1,11 @@
 import os
 import sys
 import json
+import time
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# Sichere Anbindung an telegram_sender.py
 try:
     from telegram_sender import send_to_telegram
 except ImportError:
@@ -15,143 +15,227 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Sichere Fallback-Kette für das NFL-Topic
 TELEGRAM_THREAD_ID = (
-    os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
+    os.environ.get("TELEGRAM_NFL_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
+PENDING_FILE = "pending_nfl.json"
+HISTORY_FILE = "nfl_history.json"
 
-def send_telegram_message(text):
-    # Vorrangig zentralen Sender mit Hauptchat-Schutz nutzen
+def make_progress_bar(percentage, segments=10):
+    clamped = max(0.0, min(100.0, float(percentage)))
+    filled = int(round((clamped / 100.0) * segments))
+    empty = segments - filled
+    return f"[{'🟩' * filled}{'⬜' * empty}]"
+
+def send_telegram(text):
     if send_to_telegram:
-        return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_NFL")
+        return send_to_telegram(text, thread_env_var="TELEGRAM_NFL_THREAD_ID")
 
-    # Autonomer Fallback
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("[Telegram] FEHLER: Credentials fehlen.")
+        print("Telegram Credentials fehlen.")
         return None
 
     if not TELEGRAM_THREAD_ID:
-        print("[Telegram] ABBRUCH: Keine NFL Thread-ID vorhanden. Senden in Hauptchat blockiert.")
+        print("[Telegram] ABBRUCH: Keine NFL Thread-ID vorhanden.")
         return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    max_len = 3800
-    chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
-        if split_idx == -1:
-            split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
-
-    for chunk in chunks:
-        payload = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": chunk,
-            "parse_mode": "HTML",
-            "message_thread_id": int(TELEGRAM_THREAD_ID)
-        }
-        res = requests.post(url, json=payload, timeout=20)
-        if res.status_code != 200:
-            payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=20)
-            if res2.status_code != 200:
-                print(f"Telegram Fehler: {res2.text}")
-
-def settle_nfl_bets():
-    file_path = "pending_nfl.json"
-    if not os.path.exists(file_path):
-        print("Keine offenen NFL Wetten gefunden (pending_nfl.json fehlt).")
-        return
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    prompt = f"""
-Du bist 'JARVIS NFL SETTLEMENT AGENT'.
-Recherchiere über Google Search die finalen Ergebnisse der NFL-Spiele inklusive Touchdown-Scorer und Spieler-Yards/Stats für folgende Wetten:
-
-Offene NFL-Wetten:
-{json.dumps(data, ensure_ascii=False, indent=2)}
-
-REGELN:
-1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien (z. B. Monday Night Football) noch anstehen / laufen.
-2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH.
-3. Noch nicht gespielte Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
-4. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
-5. Berechne die Netto-Units (Einsatz 1.00 Unit pro Schein).
-6. Berechne die genauen Metriken für das Performance Dashboard:
-   - Ticket Win-Rate: (Gewonnene Tickets / Abgerechnete Tickets) in % inkl. 10-Segment Fortschrittsbalken (z.B. [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜])
-   - Pick Hit-Rate: (Richtige Einzeltipps / Alle gespielten Einzeltipps) in % inkl. 10-Segment Fortschrittsbalken
-   - Einsatz / Rückzahlung in Units
-   - Netto-Profit / Verlust
-   - ROI (Yield) in % = (Netto-Profit / Gesamteinsatz) * 100
-
-WICHTIGE STATUS-ZEILE AM ENDE:
-Falls noch mindestens ein Pick offen ist, schreibe ganz am Ende exakt:
----STATUS: INCOMPLETE---
-Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
----STATUS: COMPLETE---
-
-FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
-<b>🏈 JARVIS NFL SETTLEMENT & RECAP</b>
-<i>Abrechnung der NFL-Slate vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY:</b> [Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NFL BANKER TICKET:</b> [Status]
-[Picks & Resultate]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS COMBO:</b> [Status]
-[Jeden Pick auflisten mit Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [Status]
-[Für jeden Spieler: Name, Pick, erzielte Stats, Status ✅/❌/⏳]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>
-• <b>Ticket Win-Rate:</b> [X]/[Y] ([Prozent]%) [Balken]
-• <b>Pick Hit-Rate:</b>   [X]/[Y] ([Prozent]%) [Balken]
-• <b>Einsatz / Return:</b> [Gesamteinsatz] U ➔ [Rückzahlung] U
-• <b>Netto-Profit:</b>     [+/- Profit] Units
-• <b>Tages-ROI:</b>        [+/- ROI]%
-"""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "tools": [{"googleSearch": {}}],
-        "generationConfig": {"temperature": 0.1}
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+        "message_thread_id": int(TELEGRAM_THREAD_ID)
     }
 
     try:
-        res = requests.post(url, json=payload, timeout=120)
-        res.raise_for_status()
-        raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-
-        is_complete = "---STATUS: COMPLETE---" in raw_text
-        clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
-
-        send_telegram_message(clean_text)
-
-        if is_complete:
-            os.remove(file_path)
-            print("Alle NFL Wetten final beendet. pending_nfl.json gelöscht.")
-        else:
-            print("Noch Spiele offen (z. B. MNF). pending_nfl.json bleibt für den nächsten Run erhalten.")
+        res = requests.post(url, json=payload, timeout=25)
+        if res.status_code != 200:
+            payload.pop("parse_mode", None)
+            res2 = requests.post(url, json=payload, timeout=25)
+            return res2.json().get("result", {}).get("message_id") if res2.status_code == 200 else None
+        return res.json().get("result", {}).get("message_id")
     except Exception as e:
-        print(f"Fehler bei NFL Settlement: {e}")
-        sys.exit(1)
+        print(f"Telegram-Fehler: {e}")
+        return None
+
+def load_pending():
+    if not os.path.exists(PENDING_FILE):
+        return []
+    try:
+        with open(PENDING_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else data.get("pending", [])
+    except Exception as e:
+        print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
+        return []
+
+def save_pending(pending_list):
+    try:
+        with open(PENDING_FILE, "w", encoding="utf-8") as f:
+            json.dump(pending_list, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
+
+def append_to_history(settled_picks):
+    if not settled_picks:
+        return
+    history = {"settled": [], "pending": []}
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                content = json.load(f)
+                if isinstance(content, dict):
+                    history = content
+                elif isinstance(content, list):
+                    history = {"settled": content, "pending": []}
+        except Exception as e:
+            print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
+
+    history.setdefault("settled", []).extend(settled_picks)
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"[History] {len(settled_picks)} Picks in {HISTORY_FILE} archiviert.")
+    except Exception as e:
+        print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
+
+def settle_nfl():
+    pending = load_pending()
+    if not pending:
+        print("Keine offenen NFL-Picks zur Auswertung.")
+        return
+
+    still_pending = []
+    settled_now = []
+
+    for item in pending:
+        prompt_settle = f"""
+Recherchiere via Google Search das offizielle Endergebnis für folgendes NFL-Spiel:
+Match: {item.get('match')}
+Tipp: {item.get('pick')}
+Datum: {item.get('date')}
+
+REGELN:
+1. Prüfe, ob das Match regulär beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
+2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
+3. Bei Push (z.B. Handicap genau getroffen) gib 'VOID' aus.
+4. Gib eine kurze, präzise Begründung an.
+
+Antworte exakt in diesem Format:
+RESULT: WON oder LOST oder PENDING oder VOID
+SCORE: [Endergebnis]
+INFO: [1-2 Sätze Begründung]
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt_settle}]}],
+            "tools": [{"googleSearch": {}}],
+            "generationConfig": {"temperature": 0.1}
+        }
+
+        try:
+            res = requests.post(url, json=payload, timeout=60)
+            if res.status_code == 200:
+                text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                score_val = ""
+                info_val = ""
+                for line in text.splitlines():
+                    if line.startswith("SCORE:"):
+                        score_val = line.replace("SCORE:", "").strip()
+                    elif line.startswith("INFO:"):
+                        info_val = line.replace("INFO:", "").strip()
+
+                item["score"] = score_val
+                item["info"] = info_val
+
+                if "RESULT: WON" in text:
+                    item["status"] = "WON"
+                    settled_now.append(item)
+                elif "RESULT: LOST" in text:
+                    item["status"] = "LOST"
+                    settled_now.append(item)
+                elif "RESULT: VOID" in text:
+                    item["status"] = "VOID"
+                    settled_now.append(item)
+                else:
+                    still_pending.append(item)
+            else:
+                still_pending.append(item)
+        except Exception as e:
+            print(f"Fehler bei NFL-Settle {item.get('match')}: {e}")
+            still_pending.append(item)
+
+    if settled_now:
+        append_to_history(settled_now)
+        save_pending(still_pending)
+
+        total_tickets = len(settled_now)
+        won_tickets = sum(1 for p in settled_now if p["status"] == "WON")
+        void_tickets = sum(1 for p in settled_now if p["status"] == "VOID")
+
+        total_staked = 0.0
+        total_returned = 0.0
+
+        today_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+        msg = f"🏈 <b>JARVIS NFL ABRECHNUNG</b>\n"
+        msg += f"<i>Abrechnung der Spiele vom {today_display}</i>\n"
+
+        for p in settled_now:
+            try:
+                odds_val = float(str(p.get("odds", "1.0")).replace(",", "."))
+            except ValueError:
+                odds_val = 1.0
+
+            stake = float(p.get("stake", 1.0))
+            total_staked += stake
+
+            status = p["status"]
+            if status == "WON":
+                icon = "✅"
+                ret = stake * odds_val
+                profit_leg = ret - stake
+                status_txt = f"✅ WON (+{profit_leg:.2f} U)"
+                total_returned += ret
+            elif status == "VOID":
+                icon = "🟡"
+                ret = stake
+                status_txt = "🟡 PUSH/VOID (Quote 1.00)"
+                total_returned += ret
+            else:
+                icon = "❌"
+                status_txt = f"❌ LOST (-{stake:.2f} U)"
+
+            msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
+            msg += f"{icon} <b>{p['match']}</b>\n"
+            msg += f"• <b>Tipp:</b> {p['pick']} (@ {odds_val:.2f})\n"
+            if p.get("score"):
+                msg += f"• <b>Ergebnis:</b> {p['score']}\n"
+            if p.get("info"):
+                msg += f"• <i>{p['info']}</i>\n"
+            msg += f"• <b>Status:</b> {status_txt}\n"
+
+        net_profit = total_returned - total_staked
+        roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
+        valid_tickets = total_tickets - void_tickets
+        hit_rate = (won_tickets / valid_tickets * 100) if valid_tickets > 0 else 0.0
+        sign = "+" if net_profit >= 0 else ""
+
+        msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
+        msg += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
+        msg += f"• <b>Ticket Win-Rate:</b> {won_tickets}/{total_tickets} ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
+        msg += f"• <b>Einsatz / Return:</b> {total_staked:.2f}U ➔ {total_returned:.2f}U\n"
+        msg += f"• <b>Netto-Profit:</b>     <b>{sign}{net_profit:.2f} Units</b>\n"
+        msg += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+        msg += "━━━━━━━━━━━━━━━━━━━━"
+
+        send_telegram(msg)
+    else:
+        save_pending(still_pending)
 
 if __name__ == "__main__":
-    settle_nfl_bets()
+    settle_nfl()
