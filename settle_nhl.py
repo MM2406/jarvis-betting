@@ -41,7 +41,7 @@ def send_telegram_message(text):
         print("[Telegram] ABBRUCH: Keine NHL Thread-ID vorhanden. Senden in Hauptchat blockiert.")
         return None
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    url = f"[https://api.telegram.org/bot](https://api.telegram.org/bot){TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3800
     chunks = []
     while len(text) > max_len:
@@ -82,7 +82,7 @@ def settle_nhl_bets():
         print("pending_nhl.json ist leer. Keine Wetten zum Abrechnen.")
         return
 
-    # Robuste Datumserkennung (verhindert 'list' object has no attribute 'get')
+    # Robuste Datumserkennung
     date_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     if isinstance(data, dict):
         date_display = data.get("date", date_display)
@@ -93,6 +93,9 @@ def settle_nhl_bets():
                 date_display = datetime.strptime(d_val, "%Y-%m-%d").strftime("%d.%m.%Y")
             except Exception:
                 date_display = str(d_val)
+
+    # Workaround für Markdown-Darstellung im Chat
+    bt = "```"
 
     prompt = f"""
 Du bist 'JARVIS NHL SETTLEMENT AGENT'.
@@ -108,7 +111,7 @@ REGELN:
 4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Wette/Schein).
 
 Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
-```json
+{bt}json
 {{
   "tickets_total": 4,
   "tickets_won": 3,
@@ -120,3 +123,84 @@ Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
   "roi": 47.75,
   "is_complete": true
 }}
+{bt}
+
+FORMAT-VORLAGE FÜR TELEGRAM:
+<b>🏒 JARVIS NHL SETTLEMENT & RECAP</b>
+<i>Abrechnung der NHL-Slate vom {date_display}</i>
+
+<b>━━━━━━━━━━━━━━━━━━━━</b>
+[Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen aufführen]
+"""
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"googleSearch": {}}],
+        "generationConfig": {"temperature": 0.1}
+    }
+
+    try:
+        res = requests.post(url, json=payload, timeout=120)
+        res.raise_for_status()
+        raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+        
+        json_metrics = None
+        if f"{bt}json" in raw_text:
+            try:
+                parts = raw_text.split(f"{bt}json")
+                json_content = parts[1].split(bt)[0].strip()
+                json_metrics = json.loads(json_content)
+                clean_text = parts[0].strip()
+            except Exception as pe:
+                print(f"Metrik-JSON Parse-Fehler: {pe}")
+                clean_text = raw_text
+        else:
+            clean_text = raw_text
+
+        # Dashboard mit Fortschrittsbalken deterministisch berechnen
+        if json_metrics:
+            t_total = json_metrics.get("tickets_total", 0)
+            t_won = json_metrics.get("tickets_won", 0)
+            t_rate = (t_won / t_total * 100) if t_total > 0 else 0.0
+
+            p_total = json_metrics.get("picks_total", 0)
+            p_won = json_metrics.get("picks_won", 0)
+            p_rate = (p_won / p_total * 100) if p_total > 0 else 0.0
+
+            staked = json_metrics.get("total_staked", 0.0)
+            returned = json_metrics.get("total_returned", 0.0)
+            profit = json_metrics.get("net_profit", 0.0)
+            roi = json_metrics.get("roi", 0.0)
+            sign = "+" if profit >= 0 else ""
+
+            dashboard = "\n\n━━━━━━━━━━━━━━━━━━━━\n"
+            dashboard += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
+            dashboard += f"• <b>Ticket Win-Rate:</b> {t_won}/{t_total} ({t_rate:.1f}%) {make_progress_bar(t_rate)}\n"
+            dashboard += f"• <b>Pick Hit-Rate:</b>   {p_won}/{p_total} ({p_rate:.1f}%) {make_progress_bar(p_rate)}\n"
+            dashboard += f"• <b>Einsatz / Return:</b> {staked:.2f}U ➔ {returned:.2f}U\n"
+            dashboard += f"• <b>Netto-Profit:</b>     <b>{sign}{profit:.2f} Units</b>\n"
+            dashboard += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+            dashboard += "━━━━━━━━━━━━━━━━━━━━"
+
+            final_message = clean_text + dashboard
+            is_complete = json_metrics.get("is_complete", True)
+        else:
+            final_message = clean_text
+            is_complete = "---STATUS: COMPLETE---" in raw_text
+
+        send_telegram_message(final_message)
+
+        if is_complete:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump([], f, indent=2)
+            print("Alle NHL Wetten final beendet. pending_nhl.json geleert.")
+        else:
+            print("Noch NHL Spiele offen. pending_nhl.json bleibt erhalten.")
+
+    except Exception as e:
+        print(f"Fehler bei NHL Settlement: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    settle_nhl_bets()
