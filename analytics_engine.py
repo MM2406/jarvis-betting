@@ -13,7 +13,6 @@ LOCAL_TZ = ZoneInfo("Europe/Berlin")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Topic für Gesamtauswertungen oder Standard-Hauptchat
 TELEGRAM_ANALYTICS_THREAD = (
     os.environ.get("TELEGRAM_ANALYTICS_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
@@ -52,7 +51,7 @@ def send_telegram_photo(caption, image_path, thread_id=None):
         print(f"[Telegram] Exception beim Foto-Upload: {e}")
 
 def load_all_settled_bets():
-    """Liest alle abgeschlossenen Wetten aus *_history.json und settled_*.json."""
+    """Liest alle abgeschlossenen Wetten aus *_history.json."""
     all_bets = []
     
     history_files = [
@@ -61,7 +60,8 @@ def load_all_settled_bets():
         ("Darts", "darts_history.json"),
         ("Soccer", "soccer_history.json"),
         ("NBA", "nba_history.json"),
-        ("NHL", "nhl_history.json")
+        ("NHL", "nhl_history.json"),
+        ("NFL", "nfl_history.json")
     ]
     
     for category, filepath in history_files:
@@ -164,11 +164,9 @@ def generate_report(timeframe_days=7, title_tag="WÖCHENTLICHER"):
     hit_rate = (total_won / active_bets * 100) if active_bets > 0 else 0.0
     sign = "+" if net_profit >= 0 else ""
 
-    # Chart rendern (Matplotlib im Dark-Theme)
     plt.style.use("dark_background")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), facecolor="#0e1117")
 
-    # 1. Bankroll Equity-Kurve
     ax1.set_facecolor("#161b22")
     line_color = "#00e676" if net_profit >= 0 else "#ff5252"
     ax1.plot(timeline_dates, timeline_profits, color=line_color, linewidth=2.5, marker="o", markersize=4)
@@ -178,7 +176,6 @@ def generate_report(timeframe_days=7, title_tag="WÖCHENTLICHER"):
     ax1.grid(True, linestyle=":", alpha=0.2, color="#8b949e")
     ax1.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m"))
 
-    # 2. P&L nach Sportarten
     ax2.set_facecolor("#161b22")
     categories = list(cat_stats.keys())
     cat_profits = [cat_stats[c]["returned"] - cat_stats[c]["staked"] for c in categories]
@@ -204,7 +201,6 @@ def generate_report(timeframe_days=7, title_tag="WÖCHENTLICHER"):
     plt.savefig(chart_filename, dpi=180, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close()
 
-    # Telegram Nachricht zusammenstellen
     caption = f"📈 <b>JARVIS QUANT {title_tag} META-RECAP</b>\n"
     caption += f"<i>Performance & Equity-Report der letzten {timeframe_days} Tage</i>\n\n"
     caption += "━━━━━━━━━━━━━━━━━━━━\n"
