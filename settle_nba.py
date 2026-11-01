@@ -23,12 +23,16 @@ TELEGRAM_THREAD_ID = (
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
+def make_progress_bar(percentage, segments=10):
+    clamped = max(0.0, min(100.0, float(percentage)))
+    filled = int(round((clamped / 100.0) * segments))
+    empty = segments - filled
+    return f"[{'🟩' * filled}{'⬜' * empty}]"
+
 def send_telegram_message(text):
-    # Vorrangig zentralen Sender mit Hauptchat-Schutz nutzen
     if send_to_telegram:
         return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_NBA")
 
-    # Autonomer Fallback
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
         return None
@@ -74,6 +78,25 @@ def settle_nba_bets():
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    if not data:
+        print("pending_nba.json ist leer. Keine Wetten zum Abrechnen.")
+        return
+
+    # Robuste Datumserkennung
+    date_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    if isinstance(data, dict):
+        date_display = data.get("date", date_display)
+    elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+        d_val = data[0].get("date", "")
+        if d_val:
+            try:
+                date_display = datetime.strptime(d_val, "%Y-%m-%d").strftime("%d.%m.%Y")
+            except Exception:
+                date_display = str(d_val)
+
+    # Workaround für Markdown-Darstellung
+    bt = "```"
+
     prompt = f"""
 Du bist 'JARVIS NBA SETTLEMENT AGENT'.
 Recherchiere über Google Search die finalen Ergebnisse, Boxscores und individuellen Spielerstatistiken (Punkte, Rebounds, Assists, 3PM) der NBA für folgende Wetten:
@@ -82,52 +105,35 @@ Offene NBA-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Prüfe, ob alle Spiele bereits beendet sind oder ob Partien noch anstehen / laufen oder verschoben wurden.
+1. Prüfe, ob alle Spiele beendet sind (FINAL).
 2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
-3. Noch nicht gespielte oder laufende Picks markierst du mit ⏳ OFFEN / IN PROGRESS.
-4. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos ALLE Picks im Ticket gewonnen haben.
-5. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
-6. Berechne die genauen Metriken für das Performance Dashboard:
-   - Ticket Win-Rate: (Gewonnene Tickets / Abgerechnete Tickets) in % inkl. 10-Segment Fortschrittsbalken (z.B. [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜])
-   - Pick Hit-Rate: (Richtige Einzeltipps / Alle gespielten Einzeltipps) in % inkl. 10-Segment Fortschrittsbalken
-   - Einsatz / Rückzahlung in Units
-   - Netto-Profit / Verlust
-   - ROI (Yield) in % = (Netto-Profit / Gesamteinsatz) * 100
+3. Bei Kombiwetten: Zeige jedes Bein (Leg) mit Ergebnis und Status (z.B. [✅] Spieler A über X Pkt, [❌] Team B Sieg).
+4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Wette/Schein).
 
-WICHTIGE STATUS-ZEILE AM ENDE:
-Falls noch mindestens ein Pick offen oder in Progress ist, schreibe ganz am Ende exakt:
----STATUS: INCOMPLETE---
-Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
----STATUS: COMPLETE---
+Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
+{bt}json
+{{
+  "tickets_total": 4,
+  "tickets_won": 3,
+  "picks_total": 6,
+  "picks_won": 5,
+  "total_staked": 4.0,
+  "total_returned": 5.91,
+  "net_profit": 1.91,
+  "roi": 47.75,
+  "is_complete": true
+}}
+{bt}
 
-FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
+FORMAT-VORLAGE FÜR TELEGRAM:
 <b>🏀 JARVIS NBA SETTLEMENT & RECAP</b>
-<i>Abrechnung der NBA-Slate vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
+<i>Abrechnung der NBA-Slate vom {date_display}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY:</b> [Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>NBA BANKER TICKET:</b> [Status]
-[Picks & Resultate]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC TOTALS COMBO:</b> [Status]
-[Jeden Pick auflisten mit Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC PLAYER PROPS MULTI-TICKET:</b> [Status]
-[Für jeden Spieler: Name, Line, erzielte Stats, Status ✅/❌/⏳]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>
-• <b>Ticket Win-Rate:</b> [X]/[Y] ([Prozent]%) [Balken]
-• <b>Pick Hit-Rate:</b>   [X]/[Y] ([Prozent]%) [Balken]
-• <b>Einsatz / Return:</b> [Gesamteinsatz] U ➔ [Rückzahlung] U
-• <b>Netto-Profit:</b>     [+/- Profit] Units
-• <b>Tages-ROI:</b>        [+/- ROI]%
+[Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen aufführen]
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    
+    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -138,17 +144,60 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+        
+        json_metrics = None
+        if f"{bt}json" in raw_text:
+            try:
+                parts = raw_text.split(f"{bt}json")
+                json_content = parts[1].split(bt)[0].strip()
+                json_metrics = json.loads(json_content)
+                clean_text = parts[0].strip()
+            except Exception as pe:
+                print(f"Metrik-JSON Parse-Fehler: {pe}")
+                clean_text = raw_text
+        else:
+            clean_text = raw_text
 
-        is_complete = "---STATUS: COMPLETE---" in raw_text
-        clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
+        # Dashboard mit Fortschrittsbalken deterministisch berechnen
+        if json_metrics:
+            t_total = json_metrics.get("tickets_total", 0)
+            t_won = json_metrics.get("tickets_won", 0)
+            t_rate = (t_won / t_total * 100) if t_total > 0 else 0.0
 
-        send_telegram_message(clean_text)
+            p_total = json_metrics.get("picks_total", 0)
+            p_won = json_metrics.get("picks_won", 0)
+            p_rate = (p_won / p_total * 100) if p_total > 0 else 0.0
+
+            staked = json_metrics.get("total_staked", 0.0)
+            returned = json_metrics.get("total_returned", 0.0)
+            profit = json_metrics.get("net_profit", 0.0)
+            roi = json_metrics.get("roi", 0.0)
+            sign = "+" if profit >= 0 else ""
+
+            dashboard = "\n\n━━━━━━━━━━━━━━━━━━━━\n"
+            dashboard += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
+            dashboard += f"• <b>Ticket Win-Rate:</b> {t_won}/{t_total} ({t_rate:.1f}%) {make_progress_bar(t_rate)}\n"
+            dashboard += f"• <b>Pick Hit-Rate:</b>   {p_won}/{p_total} ({p_rate:.1f}%) {make_progress_bar(p_rate)}\n"
+            dashboard += f"• <b>Einsatz / Return:</b> {staked:.2f}U ➔ {returned:.2f}U\n"
+            dashboard += f"• <b>Netto-Profit:</b>     <b>{sign}{profit:.2f} Units</b>\n"
+            dashboard += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+            dashboard += "━━━━━━━━━━━━━━━━━━━━"
+
+            final_message = clean_text + dashboard
+            is_complete = json_metrics.get("is_complete", True)
+        else:
+            final_message = clean_text
+            is_complete = "---STATUS: COMPLETE---" in raw_text
+
+        send_telegram_message(final_message)
 
         if is_complete:
-            os.remove(file_path)
-            print("Alle NBA Wetten final beendet. pending_nba.json gelöscht.")
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump([], f, indent=2)
+            print("Alle NBA Wetten final beendet. pending_nba.json geleert.")
         else:
-            print("Noch NBA Spiele/Props offen. pending_nba.json bleibt erhalten.")
+            print("Noch NBA Spiele offen. pending_nba.json bleibt erhalten.")
+
     except Exception as e:
         print(f"Fehler bei NBA Settlement: {e}")
         sys.exit(1)
