@@ -122,11 +122,12 @@ def generate_report(timeframe_days=7, title_tag="WÖCHENTLICHER"):
     total_returned = 0.0
     total_won = 0
     total_void = 0
+    all_clv_values = []
 
     for b in filtered_bets:
         cat = b.get("category", "Allgemein")
         if cat not in cat_stats:
-            cat_stats[cat] = {"staked": 0.0, "returned": 0.0, "won": 0, "total": 0, "void": 0}
+            cat_stats[cat] = {"staked": 0.0, "returned": 0.0, "won": 0, "total": 0, "void": 0, "clv_list": []}
 
         try:
             odds = float(str(b.get("odds", "1.0")).replace(",", "."))
@@ -135,6 +136,15 @@ def generate_report(timeframe_days=7, title_tag="WÖCHENTLICHER"):
 
         stake = float(b.get("stake", 1.0))
         status = b.get("status", "LOST")
+
+        # CLV erfassen falls im Datensatz vorhanden
+        if "clv" in b and b["clv"] is not None:
+            try:
+                clv_val = float(b["clv"])
+                cat_stats[cat]["clv_list"].append(clv_val)
+                all_clv_values.append(clv_val)
+            except (ValueError, TypeError):
+                pass
 
         cat_stats[cat]["staked"] += stake
         cat_stats[cat]["total"] += 1
@@ -207,14 +217,30 @@ def generate_report(timeframe_days=7, title_tag="WÖCHENTLICHER"):
     caption += f"• <b>Gesamt-Tipps:</b>  {total_won}/{len(filtered_bets)} ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
     caption += f"• <b>Units Staked:</b>  {total_staked:.2f} U ➔ Return: {total_returned:.2f} U\n"
     caption += f"• <b>Netto-Profit:</b>  <b>{sign}{net_profit:.2f} Units</b>\n"
-    caption += f"• <b>Yield / ROI:</b>   <b>{sign}{roi:.1f}%</b>\n\n"
-    caption += "<b>📊 AUFSCHLÜSSELUNG NACH SPORTARTEN:</b>\n"
+    caption += f"• <b>Yield / ROI:</b>   <b>{sign}{roi:.1f}%</b>\n"
+
+    # Globalen Durchschnitts-CLV anhängen falls vorhanden
+    if all_clv_values:
+        avg_clv_global = sum(all_clv_values) / len(all_clv_values)
+        clv_icon_global = "🟢" if avg_clv_global > 0 else ("🔴" if avg_clv_global < 0 else "⚪")
+        clv_sign_global = "+" if avg_clv_global >= 0 else ""
+        caption += f"• <b>Ø CLV Edge:</b>    <b>{clv_sign_global}{avg_clv_global:.1f}% {clv_icon_global}</b>\n"
+
+    caption += "\n<b>📊 AUFSCHLÜSSELUNG NACH SPORTARTEN:</b>\n"
 
     for c, stats in cat_stats.items():
         c_prof = stats["returned"] - stats["staked"]
         c_sign = "+" if c_prof >= 0 else ""
         c_roi = (c_prof / stats["staked"] * 100) if stats["staked"] > 0 else 0.0
-        caption += f"▫️ <b>{c}:</b> {c_sign}{c_prof:.2f}U ({c_sign}{c_roi:.1f}% ROI | {stats['won']}/{stats['total']})\n"
+        
+        # CLV pro Sportart anhängen falls vorhanden
+        clv_str = ""
+        if stats["clv_list"]:
+            avg_c = sum(stats["clv_list"]) / len(stats["clv_list"])
+            s_c = "+" if avg_c >= 0 else ""
+            clv_str = f" | CLV: {s_c}{avg_c:.1f}%"
+
+        caption += f"▫️ <b>{c}:</b> {c_sign}{c_prof:.2f}U ({c_sign}{c_roi:.1f}% ROI{clv_str} | {stats['won']}/{stats['total']})\n"
 
     caption += "━━━━━━━━━━━━━━━━━━━━"
 
