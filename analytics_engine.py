@@ -15,7 +15,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Fester Fallback auf dein neues Topic 'weekly & monthly Performance & Recaps' (ID: 134)
+# Topic 'weekly & monthly Performance & Recaps' (ID: 134)
 TELEGRAM_ANALYTICS_THREAD = (
     os.environ.get("TELEGRAM_ANALYTICS_THREAD_ID", "").strip()
     or "134"
@@ -209,7 +209,6 @@ VORGABEN FÜR DIE TELEGRAM-HTML-AUSGABE:
     except Exception as e:
         print(f"[AI Error] {e}")
 
-    # Fallback-Formatierung falls API ausfällt
     return f"""📊 <b>JARVIS QUANT {label} RECAP</b>
 Stichtag: {now_str}
 
@@ -218,35 +217,67 @@ Stichtag: {now_str}
 • <b>P&L:</b> <code>{metrics['total_profit']:+.2f} Units</code>
 • <b>ROI:</b> <code>{metrics['roi']:+.2f}%</code>
 • <b>Win-Rate:</b> <code>{metrics['win_rate']:.1f}%</code> ({metrics['wins']}W - {metrics['losses']}L)
-• <b>Avg CLV:</b> <code>{metrics['avg_clv']:+.2f}%</code>
+• <b>Avg CLV:</b> <code>{metrics['avg_clv']:+.2f}%</code>"""
 
-━━━━━━━━━━━━━━━━━━━━
-🏆 <i>Detaillierte Auswertung & Equity-Kurve anbei.</i>"""
-
-def send_telegram_photo(caption, image_path):
+def send_telegram_recap(metrics, recap_text, image_path, timeframe):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
         return
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    
-    payload = {
+    thread_id = int(TELEGRAM_ANALYTICS_THREAD) if TELEGRAM_ANALYTICS_THREAD else None
+    now_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    label = "WÖCHENTLICHER" if timeframe == "weekly" else "MONATLICHER"
+
+    # 1. Foto mit kompakter Caption senden (unter 1.024 Zeichen)
+    photo_caption = (
+        f"📊 <b>JARVIS QUANT {label} RECAP</b> • {now_str}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"• <b>P&L:</b> <code>{metrics['total_profit']:+.2f} Units</code>\n"
+        f"• <b>ROI:</b> <code>{metrics['roi']:+.2f}%</code> | <b>Win-Rate:</b> <code>{metrics['win_rate']:.1f}%</code>\n"
+        f"• <b>Avg CLV:</b> <code>{metrics['avg_clv']:+.2f}%</code>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📈 <i>Performance-Chart & Sportart-Aufschlüsselung anbei. Detaillierter Quant-Report folgt unten:</i>"
+    )
+
+    photo_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    photo_payload = {
         "chat_id": TELEGRAM_CHAT_ID,
-        "caption": caption,
-        "parse_mode": "HTML",
-        "message_thread_id": int(TELEGRAM_ANALYTICS_THREAD)
+        "caption": photo_caption,
+        "parse_mode": "HTML"
     }
+    if thread_id:
+        photo_payload["message_thread_id"] = thread_id
 
     try:
         with open(image_path, "rb") as img:
             files = {"photo": img}
-            res = requests.post(url, data=payload, files=files, timeout=30)
+            res = requests.post(photo_url, data=photo_payload, files=files, timeout=30)
             if res.status_code != 200:
-                print(f"[Telegram] Fehler beim Senden des Fotos: {res.text}")
+                print(f"[Telegram] Fehler beim Foto-Upload: {res.text}")
             else:
-                print(f"[Telegram] Recap erfolgreich an Topic {TELEGRAM_ANALYTICS_THREAD} gesendet.")
+                print(f"[Telegram] Performance-Chart erfolgreich an Topic {thread_id} gesendet.")
     except Exception as e:
-        print(f"[Telegram Exception] {e}")
+        print(f"[Telegram Foto Exception] {e}")
+
+    # 2. Ausführlichen KI-Bericht als Textnachricht senden (erlaubt bis zu 4.096 Zeichen)
+    msg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    msg_payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": recap_text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+    if thread_id:
+        msg_payload["message_thread_id"] = thread_id
+
+    try:
+        res2 = requests.post(msg_url, json=msg_payload, timeout=25)
+        if res2.status_code != 200:
+            print(f"[Telegram] Fehler beim Text-Recap: {res2.text}")
+        else:
+            print(f"[Telegram] Ausführlicher Recap erfolgreich an Topic {thread_id} gesendet.")
+    except Exception as e:
+        print(f"[Telegram Text Exception] {e}")
 
 def main():
     timeframe = sys.argv[1].lower() if len(sys.argv) > 1 else "weekly"
@@ -266,7 +297,7 @@ def main():
 
     chart_file = generate_performance_chart(recent_bets, metrics, timeframe)
     recap_text = generate_ai_recap(metrics, timeframe)
-    send_telegram_photo(recap_text, chart_file)
+    send_telegram_recap(metrics, recap_text, chart_file, timeframe)
 
 if __name__ == "__main__":
     main()
