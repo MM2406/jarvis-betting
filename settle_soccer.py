@@ -22,13 +22,43 @@ TELEGRAM_THREAD_ID = (
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
+PENDING_FILE = "pending_soccer.json"
+HISTORY_FILE = "soccer_history.json"
+
+def make_progress_bar(percentage, segments=10):
+    clamped = max(0.0, min(100.0, float(percentage)))
+    filled = int(round((clamped / 100.0) * segments))
+    empty = segments - filled
+    return f"[{'🟩' * filled}{'⬜' * empty}]"
+
+def append_to_history(settled_items):
+    """Speichert abgerechnete Wetten dauerhaft für analytics_engine.py ab."""
+    if not settled_items:
+        return
+    history = {"settled": [], "pending": []}
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                content = json.load(f)
+                if isinstance(content, dict):
+                    history = content
+                elif isinstance(content, list):
+                    history = {"settled": content, "pending": []}
+        except Exception as e:
+            print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
+
+    history.setdefault("settled", []).extend(settled_items)
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"[History] {len(settled_items)} Soccer-Picks in {HISTORY_FILE} archiviert.")
+    except Exception as e:
+        print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
 
 def send_telegram_message(text):
-    # Vorrangig zentralen Sender mit Hauptchat-Schutz nutzen
     if send_to_telegram:
         return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_SOCCER")
 
-    # Autonomer Fallback
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
         return None
@@ -66,73 +96,67 @@ def send_telegram_message(text):
                 print(f"Telegram Fehler: {res2.text}")
 
 def settle_soccer_bets():
-    file_path = "pending_soccer.json"
-    if not os.path.exists(file_path):
+    if not os.path.exists(PENDING_FILE):
         print("Keine offenen Soccer Wetten gefunden (pending_soccer.json fehlt).")
         return
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(PENDING_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    if not data:
+        print("pending_soccer.json ist leer. Keine Wetten zum Abrechnen.")
+        return
+
+    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+    date_display = data.get("date", datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")) if isinstance(data, dict) else datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    bt = "```"
+
     prompt = f"""
-Du bist 'JARVIS SOCCER SETTLEMENT AGENT'.
-Nutze Google Search, um die finalen Spielergebnisse, Torschützen, Torstatistiken und Handicaps/Spreads für folgende Fussballwetten (inkl. europäische Ligen & MLS) zu recherchieren und exakt auszuwerten:
+Du bist 'JARVIS SOCCER SETTLEMENT & CLV AGENT'.
+Nutze Google Search, um für folgende Fussballwetten die finalen Ergebnisse, Torschützen, Handicaps/Spreads sowie die Schlusquoten kurz vor Spielbeginn (Closing Odds / Pinnacle / Bet365 Schlusquote) zu recherchieren:
 
 Offene Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Prüfe via Google Search, ob alle Spiele bereits beendet sind oder ob Partien noch anstehen / laufen oder verschoben wurden.
-2. Prüfe 1X2, Over/Under, Asian Handicaps / Spreads und Torschützen-Picks exakt.
-3. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
-4. Noch nicht gespielte oder laufende Tipps markierst du mit ⏳ OFFEN / IN PROGRESS.
-5. Ein Kombi-Ticket ist nur ✅ WON, wenn ausnahmslos alle Tipps des Tickets gewonnen haben.
-6. Berechne Netto-Units (Einsatz 1.00 Unit pro Schein).
-7. Berechne die genauen Metriken für das Performance Dashboard:
-   - Ticket Win-Rate: (Gewonnene Tickets / Abgerechnete Tickets) in % inkl. 10-Segment Fortschrittsbalken (z.B. [🟩🟩🟩🟩🟩🟩🟩⬜⬜⬜])
-   - Pick Hit-Rate: (Richtige Einzeltipps / Alle gespielten Einzeltipps) in % inkl. 10-Segment Fortschrittsbalken
-   - Einsatz / Rückzahlung in Units
-   - Netto-Profit / Verlust
-   - ROI (Yield) in % = (Netto-Profit / Gesamteinsatz) * 100
+1. Prüfe, ob alle Spiele regulär beendet sind.
+2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
+3. Recherchiere für jeden Tipp die Schlussquote (Closing Line) kurz vor Anpfiff. Falls nicht auffindbar, nimm die Anfangsquote an.
+4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Ticket/Schein).
 
-WICHTIGE STATUS-ZEILE AM ENDE:
-Falls noch mindestens ein Spiel offen oder in Progress ist (z. B. späte MLS-Nachtspiele oder Dienstags-/Mittwochsspiele), schreibe ganz am Ende exakt:
----STATUS: INCOMPLETE---
-Wenn ausnahmslos ALLE Spiele und Picks endgültig abgeschlossen sind, schreibe ganz am Ende exakt:
----STATUS: COMPLETE---
+Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
+{bt}json
+{{
+  "tickets_total": 4,
+  "tickets_won": 3,
+  "picks_total": 6,
+  "picks_won": 5,
+  "total_staked": 4.0,
+  "total_returned": 5.80,
+  "net_profit": 1.80,
+  "roi": 45.0,
+  "is_complete": true,
+  "picks_details": [
+    {{
+      "match": "Team A vs Team B",
+      "pick": "Team A Sieg",
+      "placed_odds": 1.95,
+      "closing_odds": 1.82,
+      "status": "WON"
+    }}
+  ]
+}}
+{bt}
 
-FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
+FORMAT-VORLAGE FÜR TELEGRAM:
 <b>⚽ JARVIS SOCCER SETTLEMENT & RECAP</b>
-<i>Abrechnung der Wetten vom {data.get('date', datetime.now(LOCAL_TZ).strftime('%d.%m.%Y'))}</i>
+<i>Abrechnung der Wetten vom {date_display}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-⭐ <b>PICK OF THE DAY:</b> [Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-1. <b>SOCCER BANKER TICKET:</b> [Status]
-[Picks & Resultate]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-2. <b>DYNAMIC GOALS & BTTS VALUE TICKET:</b> [Status]
-[Jeden Pick auflisten mit Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-3. <b>DYNAMIC MULTI-LEAGUE VALUE TICKET:</b> [Status]
-[Jeden Pick auflisten mit Ergebnis & Status]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-4. <b>VALUE TORSCHÜTZE / SPECIAL:</b> [Status]
-[Pick auswerten]
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
-📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>
-• <b>Ticket Win-Rate:</b> [X]/[Y] ([Prozent]%) [Balken]
-• <b>Pick Hit-Rate:</b>   [X]/[Y] ([Prozent]%) [Balken]
-• <b>Einsatz / Return:</b> [Gesamteinsatz] U ➔ [Rückzahlung] U
-• <b>Netto-Profit:</b>     [+/- Profit] Units
-• <b>Tages-ROI:</b>        [+/- ROI]%
+[Hier alle Tickets und Einzel-Picks auflisten mit Resultat und Status]
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+
+    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -144,16 +168,107 @@ FORMAT (Telegram-HTML: <b>fett</b>, <i>kursiv</i>):
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
 
-        is_complete = "---STATUS: COMPLETE---" in raw_text
-        clean_text = raw_text.replace("---STATUS: COMPLETE---", "").replace("---STATUS: INCOMPLETE---", "").strip()
+        json_metrics = None
+        if f"{bt}json" in raw_text:
+            try:
+                parts = raw_text.split(f"{bt}json")
+                json_content = parts[1].split(bt)[0].strip()
+                json_metrics = json.loads(json_content)
+                clean_text = parts[0].strip()
+            except Exception as pe:
+                print(f"Metrik-JSON Parse-Fehler: {pe}")
+                clean_text = raw_text
+        else:
+            clean_text = raw_text
 
-        send_telegram_message(clean_text)
+        if json_metrics:
+            t_total = json_metrics.get("tickets_total", 0)
+            t_won = json_metrics.get("tickets_won", 0)
+            t_rate = (t_won / t_total * 100) if t_total > 0 else 0.0
+
+            p_total = json_metrics.get("picks_total", 0)
+            p_won = json_metrics.get("picks_won", 0)
+            p_rate = (p_won / p_total * 100) if p_total > 0 else 0.0
+
+            staked = json_metrics.get("total_staked", 0.0)
+            returned = json_metrics.get("total_returned", 0.0)
+            profit = json_metrics.get("net_profit", 0.0)
+            roi = json_metrics.get("roi", 0.0)
+            sign = "+" if profit >= 0 else ""
+
+            # CLV berechnen
+            clv_list = []
+            detailed_picks = json_metrics.get("picks_details", [])
+            for p in detailed_picks:
+                try:
+                    p_odds = float(p.get("placed_odds", 1.0))
+                    c_odds = float(p.get("closing_odds", p_odds))
+                    if c_odds > 1.0:
+                        clv = ((p_odds / c_odds) - 1.0) * 100.0
+                        p["clv"] = clv
+                        clv_list.append(clv)
+                except Exception:
+                    pass
+
+            avg_clv_str = ""
+            if clv_list:
+                avg_clv = sum(clv_list) / len(clv_list)
+                clv_icon = "🟢" if avg_clv > 0 else ("🔴" if avg_clv < 0 else "⚪")
+                clv_sign = "+" if avg_clv >= 0 else ""
+                avg_clv_str = f"• <b>Ø Slate-CLV:</b>       <b>{clv_sign}{avg_clv:.1f}% {clv_icon}</b>\n"
+
+            dashboard = "\n\n━━━━━━━━━━━━━━━━━━━━\n"
+            dashboard += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
+            dashboard += f"• <b>Ticket Win-Rate:</b> {t_won}/{t_total} ({t_rate:.1f}%) {make_progress_bar(t_rate)}\n"
+            dashboard += f"• <b>Pick Hit-Rate:</b>   {p_won}/{p_total} ({p_rate:.1f}%) {make_progress_bar(p_rate)}\n"
+            dashboard += f"• <b>Einsatz / Return:</b> {staked:.2f}U ➔ {returned:.2f}U\n"
+            dashboard += f"• <b>Netto-Profit:</b>     <b>{sign}{profit:.2f} Units</b>\n"
+            dashboard += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+            if avg_clv_str:
+                dashboard += avg_clv_str
+            dashboard += "━━━━━━━━━━━━━━━━━━━━"
+
+            final_message = clean_text + dashboard
+            is_complete = json_metrics.get("is_complete", True)
+        else:
+            final_message = clean_text
+            is_complete = "---STATUS: COMPLETE---" in raw_text
+
+        send_telegram_message(final_message)
 
         if is_complete:
-            os.remove(file_path)
-            print("Alle Soccer Wetten final beendet. pending_soccer.json gelöscht.")
+            # Für die History aufbereiten
+            archived = []
+            if json_metrics and "picks_details" in json_metrics:
+                for pick_d in json_metrics["picks_details"]:
+                    archived.append({
+                        "match": pick_d.get("match", "Soccer Match"),
+                        "pick": pick_d.get("pick", "Tipp"),
+                        "odds": pick_d.get("placed_odds", 1.0),
+                        "closing_odds": pick_d.get("closing_odds", 1.0),
+                        "clv": pick_d.get("clv", 0.0),
+                        "status": pick_d.get("status", "SETTLED"),
+                        "date": today_iso,
+                        "stake": 1.0
+                    })
+            else:
+                archived.append({
+                    "match": "Soccer Slate",
+                    "pick": "Tages-Ticket",
+                    "odds": 1.0,
+                    "status": "WON" if json_metrics and json_metrics.get("net_profit", 0) > 0 else "LOST",
+                    "date": today_iso,
+                    "stake": 1.0
+                })
+
+            append_to_history(archived)
+
+            if os.path.exists(PENDING_FILE):
+                os.remove(PENDING_FILE)
+            print("Alle Soccer Wetten final beendet. pending_soccer.json archiviert und gelöscht.")
         else:
             print("Noch Soccer Partien offen. pending_soccer.json bleibt erhalten.")
+
     except Exception as e:
         print(f"Fehler bei Soccer Settlement: {e}")
         sys.exit(1)
