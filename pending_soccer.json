@@ -1,100 +1,126 @@
 {
   "date": "2026-11-01",
   "potd": {
-    "match": "Strasbourg vs. Auxerre",
-    "pick": "Sieg Strasbourg",
-    "odds": 1.88
+    "match": "Real Racing Club de Santander vs. Real Madrid",
+    "pick": "Real Madrid (-1.5 Spread)",
+    "odds": 1.92
   },
   "tickets": [
     {
       "ticket_name": "CONSERVATIVE 2-LEG BANKER",
-      "odds": 2.1,
+      "odds": 2.12,
       "picks": [
         {
           "match": "Lazio vs. Cagliari",
-          "pick": "Sieg Lazio",
+          "pick": "Lazio Sieg",
           "odds": 1.48
         },
         {
           "match": "Lyon vs. Angers",
-          "pick": "Sieg Lyon",
-          "odds": 1.42
-        }
-      ]
-    },
-    {
-      "ticket_name": "BALANCED VALUE ACCA",
-      "odds": 3.3,
-      "picks": [
-        {
-          "match": "Eintracht Frankfurt vs. Hamburger SV",
-          "pick": "Sieg Eintracht Frankfurt",
-          "odds": 1.55
-        },
-        {
-          "match": "Athletic Bilbao vs. Real Sociedad",
-          "pick": "Athletic Bilbao DNB",
-          "odds": 1.42
-        },
-        {
-          "match": "Nashville SC vs. New York Red Bulls",
-          "pick": "Sieg Nashville SC",
-          "odds": 1.5
-        }
-      ]
-    },
-    {
-      "ticket_name": "HYBRID QUANT MULTI",
-      "odds": 5.02,
-      "picks": [
-        {
-          "match": "Real Racing Club de Santander vs. Real Madrid",
-          "pick": "Real Madrid (-1.5 Spread)",
-          "odds": 1.93
-        },
-        {
-          "match": "Paris FC vs. AS Monaco",
-          "pick": "Über 2.5 Tore",
-          "odds": 1.82
-        },
-        {
-          "match": "Marseille vs. Toulouse",
-          "pick": "Marseille DNB",
+          "pick": "Lyon Sieg",
           "odds": 1.43
         }
       ]
     },
     {
-      "ticket_name": "GOALS & BTTS VALUE ACCA",
-      "odds": 3.39,
+      "ticket_name": "BALANCED VALUE ACCA",
+      "odds": 3.53,
       "picks": [
         {
-          "match": "Paris FC vs. AS Monaco",
-          "pick": "Über 2.5 Tore",
-          "odds": 1.82
+          "match": "Eintracht Frankfurt vs. Hamburger SV",
+          "pick": "Eintracht Frankfurt Sieg",
+          "odds": 1.54
         },
         {
-          "match": "Eintracht Frankfurt vs. Hamburger SV",
-          "pick": "Über 2.5 Tore",
-          "odds": 1.86
+          "match": "Vancouver Whitecaps FC vs. Seattle Sounders FC",
+          "pick": "Vancouver Whitecaps FC Sieg",
+          "odds": 1.56
+        },
+        {
+          "match": "Nashville SC vs. New York Red Bulls",
+          "pick": "Nashville SC Sieg",
+          "odds": 1.47
         }
       ]
     },
     {
-      "ticket_name": "PLAYER PROP SPOTLIGHT / MULTI-TICKET",
-      "odds": 2.44,
+      "ticket_name": "HYBRID QUANT MULTI",
+      "odds": 5.91,
+      "picks": [
+        {
+          "match": "Athletic Bilbao vs. Real Sociedad",
+          "pick": "Athletic Bilbao Sieg",
+          "odds": 1.99
+        },
+        {
+          "match": "Paris FC vs. AS Monaco",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.81
+        },
+        {
+          "match": "Los Angeles FC vs. Minnesota United FC",
+          "pick": "Los Angeles FC Sieg",
+          "odds": 1.64
+        }
+      ]
+    },
+    {
+      "ticket_name": "GOALS & BTTS VALUE ACCA",
+      "odds": 3.35,
+      "picks": [
+        {
+          "match": "Eintracht Frankfurt vs. Hamburger SV",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.85
+        },
+        {
+          "match": "Paris FC vs. AS Monaco",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.81
+        }
+      ]
+    },
+    {
+      "ticket_name": "PLAYER PROPS MULTI",
+      "odds": 2.48,
       "picks": [
         {
           "match": "Real Racing Club de Santander vs. Real Madrid",
           "player": "Kylian Mbappé",
-          "pick": "Über 1.5 Schüsse aufs Tor",
-          "odds": 1.68
+          "pick": "Over 1.5 Schüsse aufs Tor",
+          "odds": 1.55
         },
         {
-          "match": "Liverpool vs. Arsenal",
-          "player": "Mohamed Salah",
-          "pick": "Mindestens 1 Schuss aufs Tor",
-          "odds": 1.45
+          "match": "New England Revolution vs. Inter Miami CF",
+          "player": "Lionel Messi",
+          "pick": "Over 1.5 Schüsse aufs Tor",
+          "odds": 1.6
+        }
+      ]
+    },
+    {
+      "ticket_name": "HIGH-YIELD VALUE ACCA",
+      "odds": 11.6,
+      "picks": [
+        {
+          "match": "Strasbourg vs. Auxerre",
+          "pick": "Strasbourg Sieg",
+          "odds": 1.87
+        },
+        {
+          "match": "Marseille vs. Toulouse",
+          "pick": "Marseille Sieg",
+          "odds": 1.9
+        },
+        {
+          "match": "Athletic Bilbao vs. Real Sociedad",
+          "pick": "Athletic Bilbao Sieg",
+          "odds": 1.99
+        },
+        {
+          "match": "Los Angeles FC vs. Minnesota United FC",
+          "pick": "Los Angeles FC Sieg",
+          "odds": 1.64
         }
       ]
     }
