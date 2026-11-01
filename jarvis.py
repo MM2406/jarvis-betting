@@ -270,8 +270,8 @@ REPORT-HTML:
   ]
 }}
 """
-    # Pro-Modell für tiefere Verifikation und Roster-Checks
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-pro:generateContent?key={GEMINI_API_KEY}"
+    # Offizieller Pro-Endpunkt für präzises Reasoning und zuverlässige Roster-Checks
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -280,7 +280,6 @@ REPORT-HTML:
 
     for attempt in range(1, 4):
         try:
-            # Erhöhtes Timeout auf 120s für gründliches Reasoning des Pro-Modells
             res = requests.post(url, json=payload, timeout=120)
             if res.status_code == 200:
                 full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
