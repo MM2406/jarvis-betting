@@ -48,6 +48,16 @@
       "return": 0.0
     }
   ],
-  "active_pick": null,
-  "last_run_date": "2026-10-31"
+  "active_pick": {
+    "step": 1,
+    "match": "Lazio vs. Cagliari",
+    "pick": "Sieg Lazio (1)",
+    "odds": 1.48,
+    "stake": 5.0,
+    "expected_return": 7.4,
+    "date": "2026-11-01",
+    "message_id": 131,
+    "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 1 / 7</b>\nProgress: [⬜⬜⬜⬜⬜⬜⬜] (5.00 € / 100.00 €)\n\nEinsatz:  <b>5.00 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   Lazio vs. Cagliari\n🏆 <b>Sport:</b>   Fussball / Serie A\n⏰ <b>Beginn:</b>  15:00 Uhr\n🎯 <b>Tipp:</b>    <b>Heimsieg Lazio (1)</b> @ 1.48\n🔄 <b>Buchmacher-Alternative:</b> Lazio (-1.0 AHC) @ 1.83\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.40\n💰 <b>Return:</b>  <b>7.40 €</b> (+2.40 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE &amp; QUANT-ANALYSE</b>\n• <b>Modell-Chance:</b> 71.8% | <b>Fair Odds:</b> ~1.39\n• <b>Mathematischer Edge:</b> +6.3% EV\n• <b>Rationale:</b> Das Modell identifiziert Lazio im heimischen Stadio Olimpico als die stabilste Basisbank im relevanten Nachmittagsfenster. Cagliari offenbart auf fremdem Platz signifikante Defensivschwächen gegen formstarke Offensivreihen und generiert aus dem Spiel heraus historisch niedrige xG-Werte gegen Top-Teams der Liga. Mit einem Anpfiff um 15:00 Uhr (Abpfiff vor 17:00 Uhr) erfüllt die Partie zudem exakt das Zeit-Logik-Kriterium, um bei Erfolg bereits für die Abendpartien (ab 17:30 Uhr) in Stufe 2 zu reinvestieren.\n\n━━━━━━━━━━━━━━━━━━━━\n⏱️ <b>LIVE-TRACKER • VOR ANPFIFF</b>\n[░░░░░░░░░░░░] 0%\n• <b>Status:</b> ⏳ Wartet auf Spielbeginn\n\n━━━━━━━━━━━━━━━━━━━━\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 7.40 € direkt in Stufe 2."
+  },
+  "last_run_date": "2026-11-01"
 }
