@@ -1,15 +1,15 @@
-name: JARVIS Analytics & Meta-Reports
+name: JARVIS Performance & Analytics Recaps
 
 on:
   schedule:
-    # Jeden Montag um 07:30 UTC (08:30 Uhr MEZ) -> Weekly Report
-    - cron: '30 7 * * 1'
-    # Am 1. jedes Monats um 07:00 UTC (08:00 Uhr MEZ) -> Monthly Report
+    # Wöchentlicher Recap jeden Montag um 06:00 Uhr UTC
+    - cron: '0 6 * * 1'
+    # Monatlicher Recap am 1. jedes Monats um 07:00 Uhr UTC
     - cron: '0 7 1 * *'
   workflow_dispatch:
     inputs:
-      report_type:
-        description: 'Report-Typ auswählen'
+      timeframe:
+        description: 'Zeitraum für den Report (weekly oder monthly)'
         required: true
         default: 'weekly'
         type: choice
@@ -21,28 +21,31 @@ jobs:
   run-analytics:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Code auschecken
         uses: actions/checkout@v4
 
       - name: Python einrichten
-        uses: actions/setup-python@v5
+        uses: setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Abhängigkeiten direkt installieren
+      - name: Abhängigkeiten installieren
         run: |
           pip install requests matplotlib
 
-      - name: Analytics Report ausführen
+      - name: Analytics Recap generieren und senden
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_ANALYTICS_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
+          TELEGRAM_ANALYTICS_THREAD_ID: "134"
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            python analytics_engine.py ${{ github.event.inputs.report_type }}
-          elif [ "$(date +%d)" = "01" ]; then
-            python analytics_engine.py monthly
-          else
-            python analytics_engine.py weekly
+          TIMEFRAME="${{ github.event.inputs.timeframe }}"
+          if [ -z "$TIMEFRAME" ]; then
+            if [ "$(date +%d)" = "01" ]; then
+              TIMEFRAME="monthly"
+            else
+              TIMEFRAME="weekly"
+            fi
           fi
+          python analytics_engine.py $TIMEFRAME
