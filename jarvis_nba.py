@@ -72,7 +72,7 @@ def save_pending(pending_list):
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
 
 # ==========================================
-# 1. MORGEN-SETTLEMENT (AUSWERTUNG)
+# 1. MORGEN-SETTLEMENT (ABRECHNUNG & BILANZ)
 # ==========================================
 def settle_pending_bets():
     pending = load_pending()
@@ -159,9 +159,38 @@ DETAILS: Ein kurzer Satz zum Ergebnis (z.B. 'Celtics gewinnen mit 12 Punkten Vor
 
     save_pending(remaining_pending)
 
+    # Abrechnungs-Dossier mit Kennzahlen-Header senden
     if settled_results:
-        msg = "🏀 <b>JARVIS NBA • RECAP & ABRECHNUNG</b>\n"
+        total_bets = len(settled_results)
+        won_bets = sum(1 for r in settled_results if r["result"] == "WON")
+        strike_rate = (won_bets / total_bets) * 100 if total_bets > 0 else 0
+
+        total_staked = 0.0
+        total_returned = 0.0
+
+        for r in settled_results:
+            try:
+                odds_val = float(str(r["odds"]).replace(",", "."))
+            except ValueError:
+                odds_val = 1.0
+
+            stake = 1.0
+            total_staked += stake
+            if r["result"] == "WON":
+                total_returned += stake * odds_val
+
+        profit = total_returned - total_staked
+        roi = (profit / total_staked) * 100 if total_staked > 0 else 0
+        profit_sign = "+" if profit >= 0 else ""
+
+        msg = "🏀 <b>JARVIS NBA • RECAP & BILANZ</b>\n"
+        msg += "<i>Performance-Auswertung der Vornacht</i>\n\n"
+        msg += "📊 <b>STATISTIK-ÜBERSICHT:</b>\n"
+        msg += f"• <b>Trefferquote:</b> {won_bets}/{total_bets} ({strike_rate:.1f}%)\n"
+        msg += f"• <b>Netto-Ertrag:</b> <b>{profit_sign}{profit:.2f} Units</b>\n"
+        msg += f"• <b>ROI:</b> <b>{profit_sign}{roi:.1f}%</b>\n"
         msg += "━━━━━━━━━━━━━━━━━━━━\n"
+
         for r in settled_results:
             msg += f"{r['icon']} <b>Tipp:</b> {r['pick']} @ {r['odds']}\n"
             msg += f"• <b>Match:</b> {r['match']}\n"
@@ -171,7 +200,7 @@ DETAILS: Ein kurzer Satz zum Ergebnis (z.B. 'Celtics gewinnen mit 12 Punkten Vor
             msg += "━━━━━━━━━━━━━━━━━━━━\n"
 
         send_telegram(msg)
-        print("Abrechnungs-Nachricht an Telegram gesendet.")
+        print("Abrechnung mit voller Statistik erfolgreich gesendet.")
 
 # ==========================================
 # 2. THE ODDS API & PICKS GENERIERUNG
@@ -342,7 +371,7 @@ def main():
 
     print(f"=== JARVIS NBA ENGINE START [{now_berlin.strftime('%Y-%m-%d %H:%M:%S %Z')}] ===")
 
-    # 1. Abrechnung läuft IMMER
+    # 1. Abrechnung läuft IMMER bei jedem Trigger
     settle_pending_bets()
 
     # 2. Picks nur ab 16:00 Uhr MEZ generieren
