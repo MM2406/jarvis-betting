@@ -113,5 +113,30 @@
       "status": "LOST"
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "match": "Liberty Flames vs. High Point Panthers",
+      "sport": "basketball_ncaab",
+      "pick": "High Point Panthers -6.5",
+      "odds": "1.87",
+      "date": "2026-11-01",
+      "status": "PENDING"
+    },
+    {
+      "match": "Northern Illinois Huskies vs. Grambling St Tigers",
+      "sport": "basketball_ncaab",
+      "pick": "Under 145.5",
+      "odds": "1.95",
+      "date": "2026-11-01",
+      "status": "PENDING"
+    },
+    {
+      "match": "Appalachian St Mountaineers vs. Merrimack Warriors",
+      "sport": "basketball_ncaab",
+      "pick": "Merrimack Warriors -3.0",
+      "odds": "1.91",
+      "date": "2026-11-01",
+      "status": "PENDING"
+    }
+  ]
 }
