@@ -34,11 +34,16 @@ EURO_SPORTS = [
     "icehockey_sweden_shl"
 ]
 
+def make_progress_bar(percentage, segments=10):
+    clamped = max(0.0, min(100.0, float(percentage)))
+    filled = int(round((clamped / 100.0) * segments))
+    empty = segments - filled
+    return f"[{'🟩' * filled}{'⬜' * empty}]"
+
 def send_telegram(text):
     if send_to_telegram:
         return send_to_telegram(text, thread_env_var="TELEGRAM_EURO_THREAD_ID")
 
-    # Autonomer Fallback falls telegram_sender.py fehlt
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram Credentials fehlen.")
         return None
@@ -105,13 +110,14 @@ REGELN:
 1. Pruefe, ob das Match bereits regulaer beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Push (z.B. Handicap Unentschieden) gib 'VOID' aus.
+4. Gib eine kurze, praezise Erklaerung an, warum der Tipp auf- oder nicht aufgegangen ist (z.B. Spielstand, Schwaechephasen, OT).
 
-Antworte exakt:
+Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Endergebnis
-INFO: Kurze Begruendung.
+SCORE: [Endergebnis]
+INFO: [1-2 Saetze Erklaerung/Begruendung]
 """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{"parts": [{"text": prompt_settle}]}],
             "tools": [{"googleSearch": {}}],
@@ -122,6 +128,17 @@ INFO: Kurze Begruendung.
             res = requests.post(url, json=payload, timeout=60)
             if res.status_code == 200:
                 text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                score_val = ""
+                info_val = ""
+                for line in text.splitlines():
+                    if line.startswith("SCORE:"):
+                        score_val = line.replace("SCORE:", "").strip()
+                    elif line.startswith("INFO:"):
+                        info_val = line.replace("INFO:", "").strip()
+
+                item["score"] = score_val
+                item["info"] = info_val
+
                 if "RESULT: WON" in text:
                     item["status"] = "WON"
                     settled_now.append(item)
@@ -144,13 +161,65 @@ INFO: Kurze Begruendung.
         history["pending"] = still_pending
         save_history(history)
 
-        won_count = sum(1 for p in settled_now if p["status"] == "WON")
-        total_count = len(settled_now)
+        total_tickets = len(settled_now)
+        won_tickets = sum(1 for p in settled_now if p["status"] == "WON")
+        void_tickets = sum(1 for p in settled_now if p["status"] == "VOID")
 
-        msg = f"📊 <b>JARVIS EURO-HOOPS &amp; ICE ABRECHNUNG</b>\nAusgewertete Tipps: <b>{won_count}/{total_count}</b> Treffer.\n"
+        total_staked = 0.0
+        total_returned = 0.0
+
+        today_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+        msg = f"🇪🇺 <b>JARVIS EURO-HOOPS & ICE ABRECHNUNG</b>\n"
+        msg += f"<i>Abrechnung der Partien vom {today_display}</i>\n"
+
         for p in settled_now:
-            icon = "✅" if p["status"] == "WON" else ("❌" if p["status"] == "LOST" else "🟡")
-            msg += f"\n{icon} <b>{p['match']}</b>\nTipp: {p['pick']} (@ {p.get('odds', 'N/A')})"
+            try:
+                odds_val = float(str(p.get("odds", "1.0")).replace(",", "."))
+            except ValueError:
+                odds_val = 1.0
+
+            stake = 1.0
+            total_staked += stake
+
+            status = p["status"]
+            if status == "WON":
+                icon = "✅"
+                ret = stake * odds_val
+                profit_leg = ret - stake
+                status_txt = f"✅ WON (+{profit_leg:.2f} U)"
+                total_returned += ret
+            elif status == "VOID":
+                icon = "🟡"
+                ret = stake
+                status_txt = "🟡 PUSH/VOID (Quote 1.00)"
+                total_returned += ret
+            else:
+                icon = "❌"
+                status_txt = f"❌ LOST (-{stake:.2f} U)"
+
+            msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
+            msg += f"{icon} <b>{p['match']}</b>\n"
+            msg += f"• <b>Tipp:</b> {p['pick']} (@ {odds_val:.2f})\n"
+            if p.get("score"):
+                msg += f"• <b>Ergebnis:</b> {p['score']}\n"
+            if p.get("info"):
+                msg += f"• <i>{p['info']}</i>\n"
+            msg += f"• <b>Status:</b> {status_txt}\n"
+
+        net_profit = total_returned - total_staked
+        roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
+        valid_tickets = total_tickets - void_tickets
+        hit_rate = (won_tickets / valid_tickets * 100) if valid_tickets > 0 else 0.0
+        sign = "+" if net_profit >= 0 else ""
+
+        msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
+        msg += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
+        msg += f"• <b>Ticket Win-Rate:</b> {won_tickets}/{total_tickets} ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
+        msg += f"• <b>Einsatz / Return:</b> {total_staked:.2f}U ➔ {total_returned:.2f}U\n"
+        msg += f"• <b>Netto-Profit:</b>     <b>{sign}{net_profit:.2f} Units</b>\n"
+        msg += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+        msg += "━━━━━━━━━━━━━━━━━━━━"
+
         send_telegram(msg)
 
     return history
@@ -236,7 +305,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>EURO PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Heimteam] vs. [Auswaertsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Heimteam] vs. [Auswaertsteam]
 ➔ <b>Haupt-Pick:</b> <b>[Markt &amp; Tipp]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
@@ -245,9 +314,9 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 [... ggf. Bein 4 ergaenzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
@@ -256,7 +325,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>SPECIAL MATCHUP SPOTLIGHT</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswaertsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswaertsteam]
 ➔ <b>Pick:</b> <b>[Over/Under / Handicap / Team Total]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -273,7 +342,7 @@ REPORT-HTML:
   }}
 ]
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
