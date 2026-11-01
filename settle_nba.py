@@ -22,12 +22,38 @@ TELEGRAM_THREAD_ID = (
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
+PENDING_FILE = "pending_nba.json"
+HISTORY_FILE = "nba_history.json"
 
 def make_progress_bar(percentage, segments=10):
     clamped = max(0.0, min(100.0, float(percentage)))
     filled = int(round((clamped / 100.0) * segments))
     empty = segments - filled
     return f"[{'🟩' * filled}{'⬜' * empty}]"
+
+def append_to_history(settled_items):
+    """Speichert abgerechnete Wetten dauerhaft für analytics_engine.py ab."""
+    if not settled_items:
+        return
+    history = {"settled": [], "pending": []}
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                content = json.load(f)
+                if isinstance(content, dict):
+                    history = content
+                elif isinstance(content, list):
+                    history = {"settled": content, "pending": []}
+        except Exception as e:
+            print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
+
+    history.setdefault("settled", []).extend(settled_items)
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"[History] {len(settled_items)} NBA-Picks in {HISTORY_FILE} archiviert.")
+    except Exception as e:
+        print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
 
 def send_telegram_message(text):
     if send_to_telegram:
@@ -70,7 +96,7 @@ def send_telegram_message(text):
                 print(f"Telegram Fehler: {res2.text}")
 
 def settle_nba_bets():
-    file_path = "pending_nba.json"
+    file_path = PENDING_FILE
     if not os.path.exists(file_path):
         print("Keine offenen NBA Wetten gefunden (pending_nba.json fehlt).")
         return
@@ -82,7 +108,7 @@ def settle_nba_bets():
         print("pending_nba.json ist leer. Keine Wetten zum Abrechnen.")
         return
 
-    # Robuste Datumserkennung
+    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
     date_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     if isinstance(data, dict):
         date_display = data.get("date", date_display)
@@ -90,11 +116,10 @@ def settle_nba_bets():
         d_val = data[0].get("date", "")
         if d_val:
             try:
-                date_display = datetime.strptime(d_val, "%Y-%m-%d").strftime("%d.%m.%Y")
+                date_display = datetime.strptime(d_val[:10], "%Y-%m-%d").strftime("%d.%m.%Y")
             except Exception:
                 date_display = str(d_val)
 
-    # Workaround für Markdown-Darstellung
     bt = "```"
 
     prompt = f"""
@@ -158,7 +183,6 @@ FORMAT-VORLAGE FÜR TELEGRAM:
         else:
             clean_text = raw_text
 
-        # Dashboard mit Fortschrittsbalken deterministisch berechnen
         if json_metrics:
             t_total = json_metrics.get("tickets_total", 0)
             t_won = json_metrics.get("tickets_won", 0)
@@ -192,9 +216,21 @@ FORMAT-VORLAGE FÜR TELEGRAM:
         send_telegram_message(final_message)
 
         if is_complete:
+            # Daten für die History aufbereiten und speichern
+            items_to_archive = []
+            raw_list = data if isinstance(data, list) else data.get("picks", [data])
+            for item in raw_list:
+                if isinstance(item, dict):
+                    archived_item = dict(item)
+                    archived_item.setdefault("date", today_iso)
+                    archived_item.setdefault("status", "WON" if json_metrics and json_metrics.get("net_profit", 0) > 0 else "SETTLED")
+                    items_to_archive.append(archived_item)
+
+            append_to_history(items_to_archive)
+
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump([], f, indent=2)
-            print("Alle NBA Wetten final beendet. pending_nba.json geleert.")
+            print("Alle NBA Wetten final beendet. pending_nba.json geleert und archiviert.")
         else:
             print("Noch NBA Spiele offen. pending_nba.json bleibt erhalten.")
 
