@@ -1,6 +1,6 @@
 {
-  "current_step": 0,
-  "bankroll": 5.0,
+  "current_step": 1,
+  "bankroll": 7.4,
   "start_amount": 5.0,
   "target_amount": 100.0,
   "history": [
@@ -46,18 +46,18 @@
       "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 4 / 7</b>\nProgress: [🟩🟩🟩⬜⬜⬜⬜] (20.30 € / 100.00 €)\n\nEinsatz:  <b>20.30 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   FC Porto vs. Estoril\n🏆 <b>Sport:</b>   Fussball / Portugal Primeira Liga\n⏰ <b>Beginn:</b>  21:30 Uhr\n🎯 <b>Tipp:</b>    <b>Unter 3.5 Tore</b> @ 1.55\n🔄 <b>Buchmacher-Alternative:</b> Unter 3.5 Tore (Reguläre Spielzeit) @ 1.50\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.45\n💰 <b>Return:</b>  <b>31.47 €</b> (+11.17 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE & QUANT-ANALYSE</b>\n• <b>Modell-Chance:</b> 71.4% | <b>Fair Odds:</b> ~1.40\n• <b>Mathematischer Edge:</b> +10.7% EV\n• <b>Rationale:</b> FC Porto geht im Estádio do Dragão als dominanter Favorit (Siegquote 1.13) in die Begegnung, während Estoril als krasser Außenseiter (Quote 14.0) traditionell mit einem tiefstehenden Abwehrriegel agiert. In der quantitativen Spielverlaufssimulation erzeugt Estoril eine Expected-Goals-Rate von lediglich ~0.35 Toren. Porto wiederum agiert bei Führungen unter strenger Spielkontrolle und drosselt im dichten Terminplan regelmäßig das Umschalt-Tempo. Die Linie 'Unter 3.5 Tore' bietet ein massives Polster von bis zu 3 Treffern (deckt 0:0, 1:0, 2:0, 3:0, 1:1 und 2:1 komplett ab) und stellt unter allen analysierten Board-Märkten das stabilste mathematische Risikoprofil dar.\n\n━━━━━━━━━━━━━━━━━━━━\n⏱️ <b>LIVE-TRACKER • SPIEL LÄUFT</b>\n[██████████░░] 84% (76. Min)\n• <b>Spielstand:</b> <b>3:0</b>\n• <b>Trend:</b> 🟢 Pick auf Kurs\n━━━━━━━━━━━━━━━━━━━━\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 31.47 € direkt in Stufe 5.",
       "status": "LOST",
       "return": 0.0
+    },
+    {
+      "step": 1,
+      "match": "Lazio vs. Cagliari",
+      "pick": "Sieg Lazio (1)",
+      "odds": 1.48,
+      "stake": 5.0,
+      "return": 7.4,
+      "status": "WON",
+      "date": "2026-11-01"
     }
   ],
-  "active_pick": {
-    "step": 1,
-    "match": "Lazio vs. Cagliari",
-    "pick": "Sieg Lazio (1)",
-    "odds": 1.48,
-    "stake": 5.0,
-    "expected_return": 7.4,
-    "date": "2026-11-01",
-    "message_id": 131,
-    "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 1 / 7</b>\nProgress: [⬜⬜⬜⬜⬜⬜⬜] (5.00 € / 100.00 €)\n\nEinsatz:  <b>5.00 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   Lazio vs. Cagliari\n🏆 <b>Sport:</b>   Fussball / Serie A\n⏰ <b>Beginn:</b>  15:00 Uhr\n🎯 <b>Tipp:</b>    <b>Heimsieg Lazio (1)</b> @ 1.48\n🔄 <b>Buchmacher-Alternative:</b> Lazio (-1.0 AHC) @ 1.83\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.40\n💰 <b>Return:</b>  <b>7.40 €</b> (+2.40 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE &amp; QUANT-ANALYSE</b>\n• <b>Modell-Chance:</b> 71.8% | <b>Fair Odds:</b> ~1.39\n• <b>Mathematischer Edge:</b> +6.3% EV\n• <b>Rationale:</b> Das Modell identifiziert Lazio im heimischen Stadio Olimpico als die stabilste Basisbank im relevanten Nachmittagsfenster. Cagliari offenbart auf fremdem Platz signifikante Defensivschwächen gegen formstarke Offensivreihen und generiert aus dem Spiel heraus historisch niedrige xG-Werte gegen Top-Teams der Liga. Mit einem Anpfiff um 15:00 Uhr (Abpfiff vor 17:00 Uhr) erfüllt die Partie zudem exakt das Zeit-Logik-Kriterium, um bei Erfolg bereits für die Abendpartien (ab 17:30 Uhr) in Stufe 2 zu reinvestieren.\n\n━━━━━━━━━━━━━━━━━━━━\n⏱️ <b>LIVE-TRACKER • SPIEL LÄUFT</b>\n[██████░░░░░░] 50% (45. Min)\n• <b>Spielstand:</b> <b>1:1</b>\n• <b>Trend:</b> 🟡 Pick unter Druck\n━━━━━━━━━━━━━━━━━━━━\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 7.40 € direkt in Stufe 2."
-  },
+  "active_pick": null,
   "last_run_date": "2026-11-01"
 }
