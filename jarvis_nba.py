@@ -3,9 +3,13 @@ import sys
 import json
 import time
 import requests
+import re
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+# ==========================================
+# KONFIGURATION & CREDENTIALS
+# ==========================================
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -20,6 +24,9 @@ TELEGRAM_THREAD_ID = (
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_nba.json"
 
+# ==========================================
+# STATE & TELEGRAM HILFSFUNKTIONEN
+# ==========================================
 def send_telegram(text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram Credentials fehlen.")
@@ -51,7 +58,8 @@ def load_pending():
         return []
     try:
         with open(PENDING_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            return data if isinstance(data, list) else []
     except Exception as e:
         print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
         return []
@@ -63,6 +71,111 @@ def save_pending(pending_list):
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
 
+# ==========================================
+# 1. MORGEN-SETTLEMENT (AUSWERTUNG)
+# ==========================================
+def settle_pending_bets():
+    pending = load_pending()
+    if not pending:
+        print("Keine offenen Wetten in pending_nba.json gefunden.")
+        return
+
+    print(f"Prüfe Abrechnung für {len(pending)} offene NBA-Picks...")
+    remaining_pending = []
+    settled_results = []
+
+    for bet in pending:
+        match = bet.get("match", "")
+        pick = bet.get("pick", "")
+        odds = bet.get("odds", "-")
+        date_str = bet.get("date", "")
+
+        prompt = f"""
+Du bist ein Sport-Abrechnungssystem für die NBA.
+Ermittle via Google Search das offizielle Endergebnis des folgenden Spiels:
+- Spiel: {match}
+- Datum: {date_str}
+- Wette: {pick}
+
+SUCH-ANWEISUNG:
+Suche nach "{match} nba box score final" oder "{match} espn final".
+
+AUFGABE:
+1. Prüfe, ob das Spiel offiziell beendet ist (FINAL).
+2. Falls beendet: Ermittle den Endstand (z.B. '112:108') und bewerte, ob die Wette '{pick}' GEWONNEN (WON) oder VERLOREN (LOST) ist.
+3. Falls das Spiel noch nicht beendet, verschoben oder noch nicht gespielt ist, antworte mit PENDING.
+
+Antworte STRIKT in diesem Format:
+STATUS: FINISHED oder PENDING
+SCORE: Endergebnis (z.B. 115:102)
+RESULT: WON oder LOST oder PENDING
+DETAILS: Ein kurzer Satz zum Ergebnis (z.B. 'Celtics gewinnen mit 12 Punkten Vorsprung.')
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "tools": [{"googleSearch": {}}],
+            "generationConfig": {"temperature": 0.1}
+        }
+
+        try:
+            res = requests.post(url, json=payload, timeout=45)
+            if res.status_code == 200:
+                ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                status = "PENDING"
+                score = "-"
+                result = "PENDING"
+                details = ""
+
+                for line in ans.split("\n"):
+                    line = line.strip()
+                    if line.startswith("STATUS:"):
+                        status = line.replace("STATUS:", "").strip().upper()
+                    elif line.startswith("SCORE:"):
+                        score = line.replace("SCORE:", "").strip()
+                    elif line.startswith("RESULT:"):
+                        result = line.replace("RESULT:", "").strip().upper()
+                    elif line.startswith("DETAILS:"):
+                        details = line.replace("DETAILS:", "").strip()
+
+                if status == "FINISHED" and result in ["WON", "LOST"]:
+                    icon = "✅" if result == "WON" else "❌"
+                    settled_results.append({
+                        "match": match,
+                        "pick": pick,
+                        "odds": odds,
+                        "result": result,
+                        "icon": icon,
+                        "score": score,
+                        "details": details
+                    })
+                else:
+                    remaining_pending.append(bet)
+            else:
+                remaining_pending.append(bet)
+        except Exception as e:
+            print(f"Fehler bei Abrechnung für {match}: {e}")
+            remaining_pending.append(bet)
+
+    save_pending(remaining_pending)
+
+    if settled_results:
+        msg = "🏀 <b>JARVIS NBA • RECAP & ABRECHNUNG</b>\n"
+        msg += "━━━━━━━━━━━━━━━━━━━━\n"
+        for r in settled_results:
+            msg += f"{r['icon']} <b>Tipp:</b> {r['pick']} @ {r['odds']}\n"
+            msg += f"• <b>Match:</b> {r['match']}\n"
+            msg += f"• <b>Ergebnis:</b> {r['score']} ({r['result']})\n"
+            if r['details']:
+                msg += f"• <i>{r['details']}</i>\n"
+            msg += "━━━━━━━━━━━━━━━━━━━━\n"
+
+        send_telegram(msg)
+        print("Abrechnungs-Nachricht an Telegram gesendet.")
+
+# ==========================================
+# 2. THE ODDS API & PICKS GENERIERUNG
+# ==========================================
 def fetch_nba_odds():
     url = "https://api.the-odds-api.com/v4/sports/basketball_nba/odds/"
     params = {
@@ -146,7 +259,6 @@ REPORT-HTML:
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -221,5 +333,24 @@ REPORT-HTML:
             else:
                 sys.exit(1)
 
+# ==========================================
+# 3. HAUPTSTEUERUNG MIT ZEIT-WEICHE
+# ==========================================
+def main():
+    now_berlin = datetime.now(LOCAL_TZ)
+    current_hour = now_berlin.hour
+
+    print(f"=== JARVIS NBA ENGINE START [{now_berlin.strftime('%Y-%m-%d %H:%M:%S %Z')}] ===")
+
+    # 1. Abrechnung läuft IMMER
+    settle_pending_bets()
+
+    # 2. Picks nur ab 16:00 Uhr MEZ generieren
+    if current_hour >= 16:
+        print(f"Abend-Fenster aktiv ({current_hour} Uhr MEZ): Starte Quotenabfrage & Dossier-Erstellung...")
+        run_nba_intel()
+    else:
+        print(f"Morgen-Fenster aktiv ({current_hour} Uhr MEZ): Nur Abrechnung ausgeführt. Picks folgen um 18:00 Uhr MEZ.")
+
 if __name__ == "__main__":
-    run_nba_intel()
+    main()
