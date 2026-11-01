@@ -1,0 +1,48 @@
+name: JARVIS Analytics & Meta-Reports
+
+on:
+  schedule:
+    # Jeden Montag um 07:30 UTC (08:30 Uhr MEZ) -> Weekly Report
+    - cron: '30 7 * * 1'
+    # Am 1. jedes Monats um 07:00 UTC (08:00 Uhr MEZ) -> Monthly Report
+    - cron: '0 7 1 * *'
+  workflow_dispatch:
+    inputs:
+      report_type:
+        description: 'Report-Typ auswählen'
+        required: true
+        default: 'weekly'
+        type: choice
+        options:
+          - weekly
+          - monthly
+
+jobs:
+  run-analytics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Abhängigkeiten direkt installieren
+        run: |
+          pip install requests matplotlib
+
+      - name: Analytics Report ausführen
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ANALYTICS_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python analytics_engine.py ${{ github.event.inputs.report_type }}
+          elif [ "$(date +%d)" = "01" ]; then
+            python analytics_engine.py monthly
+          else
+            python analytics_engine.py weekly
+          fi
