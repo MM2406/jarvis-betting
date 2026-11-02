@@ -2,9 +2,10 @@ name: JARVIS Performance & Analytics Recaps
 
 on:
   schedule:
-    # Wöchentlicher Recap jeden Montag um 06:00 Uhr UTC
-    - cron: '0 6 * * 1'
-    # Monatlicher Recap am 1. jedes Monats um 07:00 Uhr UTC
+    # 1. Wöchentlicher Recap jeden Montag um 07:00 Uhr UTC (= 08:00 Uhr MEZ)
+    # (Puffer nach den 07:45-MEZ-Abrechnungen der Sonntagnacht-Spiele)
+    - cron: '0 7 * * 1'
+    # 2. Monatlicher Recap am 1. jedes Monats um 07:00 Uhr UTC (= 08:00 Uhr MEZ)
     - cron: '0 7 1 * *'
   workflow_dispatch:
     inputs:
@@ -23,6 +24,8 @@ jobs:
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Python einrichten
         uses: actions/setup-python@v5
