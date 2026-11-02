@@ -1,17 +1,13 @@
-name: JARVIS Moneyrace Live Board
+name: moneyrace-live
 
 on:
   schedule:
-    # 1. Haupt-Fenster (täglich): 12:00 bis 23:59 UTC alle 15 Minuten (Europa-Nachmittag & Primetime)
-    - cron: '*/15 12-23 * * *'
-    # 2. US-Late-Night-Fenster (täglich): 00:00 bis 04:00 UTC alle 15 Minuten (NBA/NHL-Nachtspiele)
-    - cron: '*/15 0-4 * * *'
-    # 3. Morgen-Sicherheitsnetz (täglich): 06:00 und 08:00 UTC zur finalen Abrechnung
-    - cron: '0 6,8 * * *'
+    # Läuft tagsüber alle 15 Minuten zur Live-Aktualisierung
+    - cron: '*/15 11-23 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: moneyrace-execution
+  group: moneyrace-live
   cancel-in-progress: false
 
 permissions:
@@ -32,7 +28,9 @@ jobs:
           python-version: '3.11'
 
       - name: Pakete installieren
-        run: pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
       - name: Live-Update ausführen
         env:
@@ -40,12 +38,19 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_MONEYRACE_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID }}
+          TELEGRAM_THREAD_MONEYRACE: ${{ secrets.TELEGRAM_THREAD_MONEYRACE }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_MONEYRACE }}
         run: python moneyrace_live.py
 
       - name: State committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add moneyrace_state.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update live board state [skip ci]" && git pull --rebase origin main && git push origin main)
+          git add moneyrace_state.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "Keine relevanten Aenderungen zu committen."
+          else
+            git commit -m "Update Live Board State [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi
