@@ -6,6 +6,12 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+# Sichere Anbindung der zentralen Telegram-Hilfsfunktion
+try:
+    from telegram_sender import send_to_telegram
+except ImportError:
+    send_to_telegram = None
+
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -51,6 +57,9 @@ MONEYRACE_SPORTS = [
 ]
 
 def send_telegram(text):
+    if send_to_telegram:
+        return send_to_telegram(text, thread_env_var="TELEGRAM_MONEYRACE_THREAD_ID")
+
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram Credentials fehlen.")
         return None
@@ -137,7 +146,10 @@ RESULT: WON oder LOST oder PENDING oder VOID
 SCORE: Endergebnis (z.B. 4:2)
 INFO: Kurze Begründung.
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"parts": [{"text": prompt_settle}]}],
         "tools": [{"googleSearch": {}}],
@@ -145,13 +157,22 @@ INFO: Kurze Begründung.
     }
 
     try:
-        res = requests.post(url, json=payload, timeout=60)
+        res = requests.post(api_url, json=payload, timeout=60)
         if res.status_code == 200:
             text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
             
+            try:
+                stake_val = float(str(active.get("stake", 5.0)).replace(",", "."))
+            except ValueError:
+                stake_val = 5.0
+            try:
+                odds_val = float(str(active.get("odds", 1.5)).replace(",", "."))
+            except ValueError:
+                odds_val = 1.5
+
             if "RESULT: WON" in text:
-                ret = round(active["stake"] * active["odds"], 2)
-                profit = round(ret - active["stake"], 2)
+                ret = round(stake_val * odds_val, 2)
+                profit = round(ret - stake_val, 2)
                 step_done = active["step"]
                 
                 state["bankroll"] = ret
@@ -169,14 +190,14 @@ INFO: Kurze Begründung.
                     msg = (
                         f"🏆 <b>MONEYRACE ZIEL ERREICHT!</b>\n\n"
                         f"Stufe {step_done} gemeistert!\n"
-                        f"📌 Letzter Tipp: {active['pick']} (@ {active['odds']}) ➔ TREFFER!\n"
+                        f"📌 Letzter Tipp: {active['pick']} (@ {odds_val:.2f}) ➔ TREFFER!\n"
                         f"💰 Endstand: <b>{ret:.2f} €</b>\n\n"
                         f"Die 100 € Challenge wurde erfolgreich abgeschlossen! 🎉"
                     )
                 else:
                     msg = (
                         f"✅ <b>MONEYRACE STUFE {step_done} GEWONNEN!</b>\n\n"
-                        f"• <b>Tipp:</b> {active['pick']} (@ {active['odds']}) ➔ <b>TREFFER!</b>\n"
+                        f"• <b>Tipp:</b> {active['pick']} (@ {odds_val:.2f}) ➔ <b>TREFFER!</b>\n"
                         f"• <b>Rücklauf:</b> +{profit:.2f} €\n"
                         f"• <b>Neuer Kontostand:</b> <b>{ret:.2f} €</b>\n\n"
                         f"Progress: {bar} {pct}%\n"
@@ -198,7 +219,7 @@ INFO: Kurze Begründung.
                 msg = (
                     f"❌ <b>MONEYRACE STUFE {step_lost} LEIDER VERLOREN</b>\n\n"
                     f"• <b>Match:</b> {active['match']}\n"
-                    f"• <b>Tipp:</b> {active['pick']} (@ {active['odds']})\n\n"
+                    f"• <b>Tipp:</b> {active['pick']} (@ {odds_val:.2f})\n\n"
                     f"Die Challenge wird zurückgesetzt. Wir starten beim nächsten Durchlauf frisch mit Stufe 1 ({state['start_amount']:.2f} €)."
                 )
                 send_telegram(msg)
@@ -212,7 +233,7 @@ INFO: Kurze Begründung.
                     f"🟡 <b>MONEYRACE STUFE {active['step']} UNENTSCHIEDEN / VOID</b>\n\n"
                     f"• <b>Match:</b> {active['match']}\n"
                     f"• <b>Tipp:</b> {active['pick']}\n"
-                    f"Einsatz von {active['stake']:.2f} € erstattet. Stufe {active['step']} wird wiederholt."
+                    f"Einsatz von {stake_val:.2f} € erstattet. Stufe {active['step']} wird wiederholt."
                 )
                 send_telegram(msg)
             else:
@@ -227,8 +248,6 @@ def fetch_moneyrace_odds():
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
     
-    # Vor 15 Uhr: Sucht Spiele der nächsten 6 Stunden (Fokus auf Nachmittag)
-    # Nach 15 Uhr: Sucht Spiele der nächsten 9 Stunden (Fokus auf Abend & Nacht)
     window_hours = 6 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
@@ -344,14 +363,14 @@ Ziel:     <b>{target:.2f} €</b>
 
 ━━━━━━━━━━━━━━━━━━━━
 🔍 <b>EDGE &amp; QUANT-ANALYSE</b>
-• <b>Modell-Chance:</b> [XX.X]% | <b>Fair Odds:</b> ~[X.XX]
-• <b>Mathematischer Edge:</b> +[X.X]% EV
-• <b>Rationale:</b> [Detaillierte taktische und statistische Herleitung: Warum diese Auswahl als absolut risikoärmster Spot des Tages gewählt wurde.]
+- <b>Modell-Chance:</b> [XX.X]% | <b>Fair Odds:</b> ~[X.XX]
+- <b>Mathematischer Edge:</b> +[X.X]% EV
+- <b>Rationale:</b> [Detaillierte taktische und statistische Herleitung: Warum diese Auswahl als absolut risikoärmster Spot des Tages gewählt wurde.]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⏱️ <b>LIVE-TRACKER • VOR ANPFIFF</b>
 [░░░░░░░░░░░░] 0%
-• <b>Status:</b> ⏳ Wartet auf Spielbeginn
+- <b>Status:</b> ⏳ Wartet auf Spielbeginn
 
 ━━━━━━━━━━━━━━━━━━━━
 🗺️ <b>NÄCHSTER SCHRITT</b>
@@ -368,7 +387,10 @@ Bei Win geht es mit [Return] € direkt in Stufe {next_step + 1}.
   "date": "{today_iso}"
 }}
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -377,7 +399,7 @@ Bei Win geht es mit [Return] € direkt in Stufe {next_step + 1}.
 
     for attempt in range(1, 4):
         try:
-            res = requests.post(url, json=payload, timeout=90)
+            res = requests.post(api_url, json=payload, timeout=90)
             if res.status_code == 200:
                 full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 
