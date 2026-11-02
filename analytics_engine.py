@@ -27,9 +27,37 @@ SPORT_FILES = {
     "Darts": "darts_history.json"
 }
 
+# Vereinheitlicht alle Roh-Keys und alten Aliase auf saubere Display-Namen
+SPORT_ALIAS_MAP = {
+    "soccer": "Soccer",
+    "nba": "NBA",
+    "nhl": "NHL",
+    "nfl": "NFL",
+    "darts": "Darts",
+    "darts_pdc_world_championship": "Darts",
+    "darts_premier_league": "Darts",
+    "basketball_euroleague": "Euro-Hoops & Ice",
+    "icehockey_germany_del": "Euro-Hoops & Ice",
+    "icehockey_sweden_shl": "Euro-Hoops & Ice",
+    "euro-hoops & ice": "Euro-Hoops & Ice",
+    "euro-hoops": "Euro-Hoops & Ice",
+    "ncaaf": "US College",
+    "ncaab": "US College",
+    "americanfootball_ncaaf": "US College",
+    "basketball_ncaab": "US College",
+    "us college": "US College",
+    "college": "US College"
+}
+
+def normalize_sport_name(sport_raw, fallback="Sonstige"):
+    if not sport_raw:
+        return fallback
+    key = str(sport_raw).strip().lower()
+    return SPORT_ALIAS_MAP.get(key, str(sport_raw).strip())
+
 def load_all_history():
     all_bets = []
-    for sport, filename in SPORT_FILES.items():
+    for default_sport, filename in SPORT_FILES.items():
         if os.path.exists(filename):
             try:
                 with open(filename, "r", encoding="utf-8") as f:
@@ -48,7 +76,8 @@ def load_all_history():
                     for item in items_list:
                         if isinstance(item, dict):
                             item_copy = dict(item)
-                            item_copy.setdefault("sport", sport)
+                            raw_sport = item_copy.get("sport") or default_sport
+                            item_copy["sport"] = normalize_sport_name(raw_sport, default_sport)
                             all_bets.append(item_copy)
             except Exception as e:
                 print(f"[Warnung] Konnte {filename} nicht laden: {e}")
@@ -94,7 +123,7 @@ def compute_metrics(bets):
     clv_list = []
 
     for b in bets:
-        sport = b.get("sport", "Sonstige")
+        sport = normalize_sport_name(b.get("sport"), "Sonstige")
         if sport not in by_sport:
             by_sport[sport] = {"bets": 0, "profit": 0.0, "stake": 0.0, "wins": 0}
 
@@ -111,7 +140,6 @@ def compute_metrics(bets):
         except (ValueError, TypeError):
             odds = 1.0
 
-        # Robuste P&L-Erkennung
         if "profit" in b and b["profit"] is not None:
             try:
                 pnl = float(str(b["profit"]).replace(",", "."))
@@ -180,7 +208,7 @@ def generate_performance_chart(bets, metrics, timeframe):
     ax1.set_ylabel("Profit (Units)", color="#aaaaaa")
     ax1.grid(True, linestyle=":", alpha=0.3)
 
-    sports = list(metrics["by_sport"].keys())
+    sports = sorted(list(metrics["by_sport"].keys()))
     pnls = [metrics["by_sport"][s]["profit"] for s in sports]
     colors = ["#00ffcc" if p >= 0 else "#ff3366" for p in pnls]
 
@@ -192,7 +220,7 @@ def generate_performance_chart(bets, metrics, timeframe):
 
     for bar in bars:
         width = bar.get_width()
-        text_x = width + (0.1 if width >= 0 else -0.3)
+        text_x = width + (0.1 if width >= 0 else -0.35)
         ax2.annotate(f"{width:+.2f}u",
                      xy=(text_x, bar.get_y() + bar.get_height() / 2),
                      va="center", color="#ffffff", fontsize=9, fontweight="bold")
@@ -211,7 +239,9 @@ def build_compact_caption(metrics, timeframe):
     clv_sign = "+" if metrics['avg_clv'] >= 0 else ""
 
     sport_lines = []
-    for sport, data in metrics["by_sport"].items():
+    # Sortiert nach bestem P&L absteigend
+    sorted_sports = sorted(metrics["by_sport"].items(), key=lambda x: x[1]["profit"], reverse=True)
+    for sport, data in sorted_sports:
         if data["bets"] > 0:
             s_pnl = f"{'+' if data['profit'] >= 0 else ''}{data['profit']:.2f}u"
             sport_lines.append(f"• <b>{sport}:</b> {s_pnl} ({data['wins']}/{data['bets']} Treffer)")
