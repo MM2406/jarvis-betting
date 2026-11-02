@@ -4,10 +4,13 @@ on:
   schedule:
     # 1. MORGEN-SETTLE (Täglich): 06:45 UTC (= 07:45 MEZ) - Nachtspiele abrechnen
     - cron: '45 6 * * *'
+
     # 2. WOCHENENDE-PICKS (Sa & So): 15:00 UTC (= 16:00 MEZ) - Vorlauf für frühe Matinee-Spiele (ab 19:00 Uhr MEZ)
     - cron: '0 15 * * 6,0'
-    # 3. WOCHENTAGS-PICKS (Mo - Fr): 21:00 UTC (= 22:00 MEZ) - Bestätigte Starting Goalies & finale Linien
-    - cron: '0 21 * * 1-5'
+
+    # 3. WOCHENTAGS-PICKS (Mo - Fr): 20:15 UTC (= 21:15 MEZ) - Bestätigte Goalies & Nacht-Slate
+    - cron: '15 20 * * 1-5'
+
   workflow_dispatch:
 
 concurrency:
