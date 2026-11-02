@@ -23,6 +23,7 @@ TELEGRAM_THREAD_ID = (
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_nhl.json"
+HISTORY_FILE = "nhl_history.json"
 
 # ==========================================
 # STATE & TELEGRAM HILFSFUNKTIONEN
@@ -70,6 +71,25 @@ def save_pending(pending_list):
             json.dump(pending_list, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
+
+def save_to_history(settled_list):
+    history = []
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    history = data
+        except Exception as e:
+            print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
+
+    history.extend(settled_list)
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"{len(settled_list)} Wetten erfolgreich in {HISTORY_FILE} archiviert.")
+    except Exception as e:
+        print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
 
 # ==========================================
 # 1. MORGEN-SETTLEMENT (ABRECHNUNG & KOMBI-LEGS)
@@ -182,6 +202,8 @@ DETAILS:
                         "stake": stake,
                         "pnl": pnl,
                         "result": result,
+                        "status": result,
+                        "date": date_str,
                         "is_kombi": is_kombi,
                         "legs_won": legs_won,
                         "legs_total": legs_total,
@@ -198,6 +220,9 @@ DETAILS:
     save_pending(remaining_pending)
 
     if settled_results:
+        # Dauerhaft für analytics_engine.py archivieren
+        save_to_history(settled_results)
+
         singles = [b for b in settled_results if not b["is_kombi"]]
         kombis = [b for b in settled_results if b["is_kombi"]]
 
