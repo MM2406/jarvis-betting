@@ -1,1 +1,128 @@
-[]
+{
+  "date": "2026-11-02",
+  "potd": {
+    "match": "Newcastle United vs. Everton",
+    "pick": "Über 2.5 Tore",
+    "odds": 1.77
+  },
+  "tickets": [
+    {
+      "ticket_name": "CONSERVATIVE 2-LEG BANKER",
+      "odds": 1.93,
+      "picks": [
+        {
+          "match": "Atalanta BC vs. Parma",
+          "pick": "Atalanta BC Sieg",
+          "odds": 1.54
+        },
+        {
+          "match": "Newcastle United vs. Everton",
+          "pick": "Über 1.5 Tore",
+          "odds": 1.25
+        }
+      ]
+    },
+    {
+      "ticket_name": "BALANCED VALUE ACCA",
+      "odds": 3.26,
+      "picks": [
+        {
+          "match": "Sassuolo vs. Fiorentina",
+          "pick": "BTTS Ja",
+          "odds": 1.62
+        },
+        {
+          "match": "Deportivo La Coruña vs. CA Osasuna",
+          "pick": "Deportivo La Coruña DNB",
+          "odds": 1.48
+        },
+        {
+          "match": "Lorient vs. Brest",
+          "pick": "Doppelte Chance 1X",
+          "odds": 1.36
+        }
+      ]
+    },
+    {
+      "ticket_name": "HYBRID QUANT MULTI",
+      "odds": 4.69,
+      "picks": [
+        {
+          "match": "Atalanta BC vs. Parma",
+          "pick": "Atalanta BC Sieg",
+          "odds": 1.54
+        },
+        {
+          "match": "Sassuolo vs. Fiorentina",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.88
+        },
+        {
+          "match": "Newcastle United vs. Everton",
+          "pick": "BTTS Ja",
+          "odds": 1.62
+        }
+      ]
+    },
+    {
+      "ticket_name": "GOALS & BTTS VALUE ACCA",
+      "odds": 3.33,
+      "picks": [
+        {
+          "match": "Newcastle United vs. Everton",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.77
+        },
+        {
+          "match": "Sassuolo vs. Fiorentina",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.88
+        }
+      ]
+    },
+    {
+      "ticket_name": "PLAYER PROPS MULTI",
+      "odds": 2.25,
+      "picks": [
+        {
+          "match": "Atalanta BC vs. Parma",
+          "player": "Charles De Ketelaere",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.52
+        },
+        {
+          "match": "Newcastle United vs. Everton",
+          "player": "Harvey Barnes",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.48
+        }
+      ]
+    },
+    {
+      "ticket_name": "HIGH-YIELD VALUE ACCA",
+      "odds": 11.0,
+      "picks": [
+        {
+          "match": "Atalanta BC vs. Parma",
+          "pick": "Atalanta BC Spread (-1.0)",
+          "odds": 1.87
+        },
+        {
+          "match": "Newcastle United vs. Everton",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.77
+        },
+        {
+          "match": "Sassuolo vs. Fiorentina",
+          "pick": "BTTS Ja",
+          "odds": 1.62
+        },
+        {
+          "match": "Deportivo La Coruña vs. CA Osasuna",
+          "pick": "Deportivo La Coruña Sieg",
+          "odds": 2.05
+        }
+      ]
+    }
+  ]
+}
