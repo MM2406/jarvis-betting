@@ -32,7 +32,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Live-Update ausführen
+      - name: Moneyrace Live-Update ausführen
         env:
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -40,22 +40,18 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_MONEYRACE_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID }}
           TELEGRAM_THREAD_MONEYRACE: ${{ secrets.TELEGRAM_THREAD_MONEYRACE }}
-          TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
-          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_MONEYRACE }}
-        run: |
-          python moneyrace_live.py
-          python soccer_live.py
+        run: python moneyrace_live.py
 
       - name: State committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add moneyrace_state.json pending_soccer.json 2>/dev/null || true
+          git add moneyrace_state.json 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "Keine relevanten Aenderungen zu committen."
           else
-            git commit -m "Update Live Board State [skip ci]"
+            git commit -m "Update Moneyrace Live Board State [skip ci]"
             git checkout -- . 2>/dev/null || true
             git clean -fd 2>/dev/null || true
             git pull --rebase origin main
