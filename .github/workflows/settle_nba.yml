@@ -2,8 +2,8 @@ name: settle-nba
 
 on:
   schedule:
-    # Jeden Morgen um 06:45 UTC (= 07:45 Uhr MEZ) nach der NBA-Nacht
-    - cron: '45 6 * * *'
+    # Täglich um 09:00 UTC (10:00 Uhr MEZ) zur Abrechnung der NBA-Nachtspiele
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -37,6 +37,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_NBA_THREAD_ID: ${{ secrets.TELEGRAM_NBA_THREAD_ID }}
           TELEGRAM_THREAD_NBA: ${{ secrets.TELEGRAM_THREAD_NBA }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA }}
         run: python settle_nba.py
@@ -45,5 +46,11 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add pending_nba.json nba_history.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NBA settlement and history [skip ci]" && git pull --rebase origin main && git push origin main)
+          git add nba_history.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "Keine relevanten Aenderungen an nba_history.json zu committen."
+          else
+            git commit -m "Update NBA history [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi
