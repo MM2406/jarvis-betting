@@ -2,8 +2,8 @@ name: moneyrace-live
 
 on:
   schedule:
-    # Laeuft tagsueber alle 15 Minuten (11:00 bis 23:45 UTC = 12:00 bis 00:45 Uhr MEZ)
-    - cron: '*/15 11-23 * * *'
+    # Laeuft tagsueber alle 5 Minuten (11:00 bis 23:55 UTC = 12:00 bis 00:55 Uhr MEZ)
+    - cron: '*/5 11-23 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -40,14 +40,18 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_MONEYRACE_THREAD_ID: ${{ secrets.TELEGRAM_MONEYRACE_THREAD_ID }}
           TELEGRAM_THREAD_MONEYRACE: ${{ secrets.TELEGRAM_THREAD_MONEYRACE }}
+          TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
+          TELEGRAM_SOCCER_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_MONEYRACE }}
-        run: python moneyrace_live.py
+        run: |
+          python moneyrace_live.py
+          python soccer_live.py
 
       - name: State committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add moneyrace_state.json 2>/dev/null || true
+          git add moneyrace_state.json pending_soccer.json 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "Keine relevanten Aenderungen zu committen."
           else
