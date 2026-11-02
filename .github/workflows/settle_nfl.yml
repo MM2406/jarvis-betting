@@ -1,10 +1,14 @@
-name: JARVIS Settle NFL
+name: settle-nfl
 
 on:
   schedule:
-    # Läuft nach Primetime-Spielen (Di nach MNF, Fr nach TNF, Mo nach SNF)
-    - cron: '45 6 * * 1,2,5'
+    # Jeden Morgen um 06:45 UTC (= 07:45 Uhr MEZ)
+    - cron: '45 6 * * *'
   workflow_dispatch:
+
+concurrency:
+  group: settle-nfl
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -33,6 +37,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_NFL_THREAD_ID: ${{ secrets.TELEGRAM_NFL_THREAD_ID }}
           TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
         run: python settle_nfl.py
@@ -41,5 +46,11 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add pending_nfl.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NFL settled history [skip ci]" && git pull --rebase origin main && git push origin main)
+          git add pending_nfl.json nfl_history.json
+          if git diff --staged --quiet; then
+            echo "Keine Aenderungen an pending_nfl.json oder nfl_history.json vorhanden."
+          else
+            git commit -m "Update NFL settlement and history [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi
