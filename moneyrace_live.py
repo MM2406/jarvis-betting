@@ -25,6 +25,21 @@ TELEGRAM_THREAD_ID = (
 STATE_FILE = "moneyrace_state.json"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
+SPORT_ENDPOINT_MAP = {
+    "soccer": "football",
+    "fussball": "football",
+    "football": "football",
+    "nba": "basketball",
+    "basketball": "basketball",
+    "euro-hoops": "basketball",
+    "nhl": "ice-hockey",
+    "ice-hockey": "ice-hockey",
+    "eishockey": "ice-hockey",
+    "tennis": "tennis",
+    "nfl": "american-football",
+    "american-football": "american-football"
+}
+
 def load_state():
     if not os.path.exists(STATE_FILE):
         return None
@@ -102,15 +117,35 @@ def send_telegram_notification(text):
         print(f"Fehler beim Senden der Telegram-Meldung: {e}")
         return None
 
-def fetch_rapidapi_sportapi(match_name):
+def detect_sport(active_pick):
+    """Ermittelt die Sportart aus dem State oder via Textanalyse."""
+    raw_sport = active_pick.get("sport", "").strip().lower()
+    if raw_sport:
+        return raw_sport
+
+    combined_text = f"{active_pick.get('match', '')} {active_pick.get('pick', '')} {active_pick.get('original_text', '')}".lower()
+    
+    if any(k in combined_text for k in ["nba", "basketball", "euroleague", "quarter", "viertel", "hoops"]):
+        return "basketball"
+    if any(k in combined_text for k in ["nhl", "eishockey", "ice hockey", "drittel", "period"]):
+        return "ice-hockey"
+    if any(k in combined_text for k in ["nfl", "touchdown", "american football", "quarterback"]):
+        return "american-football"
+    if any(k in combined_text for k in ["tennis", "atp", "wta", "satz", "games"]):
+        return "tennis"
+
+    return "soccer"
+
+def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
     """
-    Fragt SportAPI über RapidAPI nach Live-Scores ab.
-    Gibt (status, score, time_info, home_goals, away_goals) zurück, wenn gefunden.
+    Fragt SportAPI dynamisch nach der passenden Sportart ab.
+    Gibt {status, score, time_info, home_score, away_score} zurück.
     """
     if not RAPIDAPI_KEY:
         return None
 
-    url = "https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live"
+    sport_slug = SPORT_ENDPOINT_MAP.get(str(sport_name).strip().lower(), "football")
+    url = f"https://sportapi7.p.rapidapi.com/api/v1/sport/{sport_slug}/events/live"
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
         "x-rapidapi-host": "sportapi7.p.rapidapi.com"
@@ -119,26 +154,24 @@ def fetch_rapidapi_sportapi(match_name):
     try:
         res = requests.get(url, headers=headers, timeout=12)
         if res.status_code != 200:
-            print(f"[SportAPI] HTTP {res.status_code}: {res.text}")
+            print(f"[SportAPI {sport_slug}] HTTP {res.status_code}: {res.text}")
             return None
 
         data = res.json()
         events = data.get("events", [])
         
-        # Match-Teile extrahieren (z.B. "Newcastle United vs. Everton")
-        parts = [p.strip().lower() for p in re.split(r"vs\.?| - ", match_name, flags=re.IGNORECASE) if p.strip()]
-        
+        parts = [p.strip().lower() for p in re.split(r"vs\.?| - | @ ", match_name, flags=re.IGNORECASE) if p.strip()]
+
         for ev in events:
             h_name = ev.get("homeTeam", {}).get("name", "").lower()
             a_name = ev.get("awayTeam", {}).get("name", "").lower()
 
-            # Prüfen ob ein Teamname übereinstimmt
             matched = False
             for p in parts:
                 if len(p) > 3 and (p in h_name or p in a_name):
                     matched = True
                     break
-            
+
             if matched:
                 h_score = ev.get("homeScore", {}).get("current", 0)
                 a_score = ev.get("awayScore", {}).get("current", 0)
@@ -149,9 +182,13 @@ def fetch_rapidapi_sportapi(match_name):
 
                 time_str = "Live"
                 if "1st" in status_raw or "first" in status_raw:
-                    time_str = "1. HZ"
+                    time_str = "1. HZ" if sport_slug == "football" else "Q1"
                 elif "2nd" in status_raw or "second" in status_raw:
-                    time_str = "2. HZ"
+                    time_str = "2. HZ" if sport_slug == "football" else "Q2"
+                elif "3rd" in status_raw:
+                    time_str = "Q3" if sport_slug == "basketball" else "3. Drittel"
+                elif "4th" in status_raw:
+                    time_str = "Q4"
                 elif "halftime" in status_raw or "ht" in status_raw:
                     time_str = "Halbzeit"
                 elif "finished" in status_raw or status_code in ["finished", "ended"]:
@@ -169,7 +206,7 @@ def fetch_rapidapi_sportapi(match_name):
 
     return None
 
-def fetch_gemini_search(match_name, match_date, pick_text):
+def fetch_gemini_search(match_name, match_date, pick_text, sport_name="soccer"):
     """Fallback-Recherche via Gemini und Google Search."""
     if not GEMINI_API_KEY:
         return None
@@ -177,18 +214,19 @@ def fetch_gemini_search(match_name, match_date, pick_text):
     prompt = f"""
 Du bist ein automatisierter Sport-Settlement- und Live-Tracker.
 Recherchiere via Google Search den offiziellen Status für folgende Partie:
+- Sportart: {sport_name}
 - Begegnung: {match_name}
 - Datum: {match_date}
 - Tipp: {pick_text}
 
 REGELN:
 1. STATUS:
-   - 'FINISHED' (Spiel ist offiziell beendet)
+   - 'FINISHED' (Spiel ist offiziell beendet, inkl. OT/Shootout)
    - 'LIVE' (Spiel läuft aktuell)
    - 'UPCOMING' (Spiel hat noch nicht begonnen)
-2. SCORE: Aktueller Spielstand (z.B. '2:1').
-3. QUARTER_OR_TIME: z.B. '65. Min', 'Halbzeit' oder 'FINAL'.
-4. ASSESSMENT: 'ON_TRACK' (wenn Tipp gewinnt/führt) oder 'AT_RISK'.
+2. SCORE: Aktueller Spielstand (z.B. '2:1' bei Fussball oder '108:102' bei Basketball).
+3. TIME_INFO: z.B. '65. Min', 'Q3', 'Halbzeit' oder 'FINAL'.
+4. ASSESSMENT: 'ON_TRACK' (wenn Tipp auf Gewinnkurs) oder 'AT_RISK'.
 5. OUTCOME: Falls STATUS == 'FINISHED', bewerte '{pick_text}':
    - 'WON' (gewonnen)
    - 'LOST' (verloren)
@@ -262,9 +300,10 @@ def run_live_update():
     match_name = active.get("match", "")
     match_date = active.get("date", "")
     pick_text = active.get("pick", "")
+    sport = detect_sport(active)
 
     now_berlin = datetime.now(LOCAL_TZ)
-    print(f"Prüfe Live-Status für: {match_name} ({now_berlin.strftime('%H:%M Uhr')})...")
+    print(f"Prüfe Live-Status ({sport.upper()}): {match_name} ({now_berlin.strftime('%H:%M Uhr')})...")
 
     # 1. Zeitschutz: Vor Anstoß kein Abfrage-Spam
     match_time_match = re.search(r"(\d{1,2}):(\d{2})\s*Uhr", raw_text)
@@ -281,8 +320,8 @@ def run_live_update():
         except Exception:
             pass
 
-    # 2. Versuch 1: Live-Daten direkt über SportAPI (RapidAPI)
-    api_data = fetch_rapidapi_sportapi(match_name)
+    # 2. Versuch 1: SportAPI via RapidAPI für die erkannte Sportart
+    api_data = fetch_rapidapi_sportapi(match_name, sport_name=sport)
     
     status = "UPCOMING"
     score = "-"
@@ -296,21 +335,22 @@ def run_live_update():
         time_info = api_data["time_info"]
         print(f"[SportAPI Treffer] Status: {status} | Stand: {score} ({time_info})")
 
-        # Einfache Trend-Ermittlung bei Live-Daten
-        total_goals = api_data["h"] + api_data["a"]
-        if "über 1.5" in pick_text.lower() or "over 1.5" in pick_text.lower():
-            track = "ON_TRACK" if total_goals >= 2 else "AT_RISK"
-        elif "über 2.5" in pick_text.lower() or "over 2.5" in pick_text.lower():
-            track = "ON_TRACK" if total_goals >= 3 else "AT_RISK"
+        # Trend-Ermittlung
+        if sport == "football":
+            total_goals = api_data["h"] + api_data["a"]
+            if "über 1.5" in pick_text.lower() or "over 1.5" in pick_text.lower():
+                track = "ON_TRACK" if total_goals >= 2 else "AT_RISK"
+            elif "über 2.5" in pick_text.lower() or "over 2.5" in pick_text.lower():
+                track = "ON_TRACK" if total_goals >= 3 else "AT_RISK"
 
-        # Falls beendet, Settlement durch Gemini gegenprüfen
+        # Falls beendet, Settlement durch Gemini verifizieren
         if status == "FINISHED":
-            g_data = fetch_gemini_search(match_name, match_date, pick_text)
+            g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
             outcome = g_data.get("outcome", "PENDING") if g_data else "PENDING"
     else:
         # Versuch 2: Fallback auf Gemini Search
-        print("[Info] Nutze Fallback auf Gemini Search...")
-        g_data = fetch_gemini_search(match_name, match_date, pick_text)
+        print(f"[Info] Nutze Fallback auf Gemini Search ({sport})...")
+        g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
         if g_data:
             status = g_data["status"]
             score = g_data["score"]
