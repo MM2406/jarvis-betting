@@ -32,21 +32,19 @@ def make_progress_bar(current, total=90, length=10):
     return f"[{bar}] {int(pct * 100)}%"
 
 def get_match_minute(ev):
-    """Ermittelt die exakte Spielminute aus den Rohdaten von SportAPI."""
+    """Ermittelt die Spielminute und den Status aus den SportAPI-Daten."""
     status = ev.get("status", {})
     desc = status.get("description", "").lower()
 
-    if "halftime" in desc or "half time" in desc:
-        return 45, "Halbzeit"
-    if "ended" in desc or "finished" in desc or "ft" in desc:
-        return 90, "Endstand"
+    if any(k in desc for k in ["ended", "finished", "ft", "aet", "pen"]):
+        return 90, "Endstand", True
+    if "halftime" in desc or "half time" in desc or "ht" in desc:
+        return 45, "Halbzeit", False
 
-    # 1. Direkte Minute im Event prüfen
     minute = status.get("minute") or ev.get("time", {}).get("minute")
     if minute and isinstance(minute, (int, float)):
-        return int(minute), f"{int(minute)}'"
+        return int(minute), f"{int(minute)}'", False
 
-    # 2. Aus Anstoßzeit und Halbzeit errechnen
     start_ts = ev.get("startTimestamp")
     if start_ts:
         now_ts = int(time.time())
@@ -55,12 +53,12 @@ def get_match_minute(ev):
             calc_min = min(90, max(46, elapsed - 15))
         else:
             calc_min = min(45, max(1, elapsed))
-        return calc_min, f"{calc_min}'"
+        return calc_min, f"{calc_min}'", False
 
-    return 0, status.get("description", "Live")
+    return 0, status.get("description", "Live"), False
 
-def evaluate_pick_progress(pick_text, h_score, a_score):
-    """Prüft den Zwischenstand einer Torwette / Sieg / BTTS."""
+def evaluate_pick_progress(pick_text, h_score, a_score, is_finished=False):
+    """Ermittelt den Zwischen- oder Endstand einer Tor-/BTTS-Wette."""
     pt = pick_text.lower()
     total_goals = h_score + a_score
 
@@ -68,20 +66,20 @@ def evaluate_pick_progress(pick_text, h_score, a_score):
     if "über 2.5" in pt or "over 2.5" in pt:
         if total_goals >= 3:
             return f"✅ {total_goals}/3 Tore"
-        return f"⏳ {total_goals}/3 Tore"
+        return f"❌ {total_goals}/3 Tore" if is_finished else f"⏳ {total_goals}/3 Tore"
 
     # Über 1.5 Tore
     if "über 1.5" in pt or "over 1.5" in pt:
         if total_goals >= 2:
             return f"✅ {total_goals}/2 Tore"
-        return f"⏳ {total_goals}/2 Tore"
+        return f"❌ {total_goals}/2 Tore" if is_finished else f"⏳ {total_goals}/2 Tore"
 
     # Beide Teams treffen (BTTS)
     if "beide" in pt or "btts" in pt:
         hit = (1 if h_score > 0 else 0) + (1 if a_score > 0 else 0)
         if hit == 2:
             return "✅ Beide getroffen"
-        return f"⏳ {hit}/2 Teams"
+        return f"❌ {hit}/2 Teams" if is_finished else f"⏳ {hit}/2 Teams"
 
     return None
 
@@ -162,7 +160,9 @@ def run_soccer_live():
         print("[SoccerLive] Kein original_text hinterlegt.")
         return
 
-    # Sammle alle relevanten Partien & zugehörige Picks
+    # Gespeicherte beendete Spiele laden (oder initialisieren)
+    finished_matches = state.get("finished_matches", {})
+
     match_picks = {}
     if "potd" in state and isinstance(state["potd"], dict):
         m = state["potd"].get("match")
@@ -186,6 +186,28 @@ def run_soccer_live():
     live_status_lines = []
 
     for match, picks in sorted(match_picks.items()):
+        # 1. Prüfen, ob das Spiel bereits als beendet gespeichert wurde
+        if match in finished_matches:
+            f_data = finished_matches[match]
+            h_score = f_data["h_score"]
+            a_score = f_data["a_score"]
+            progress_bar = make_progress_bar(90, total=90, length=10)
+
+            pick_evals = []
+            for pick_desc in picks:
+                eval_str = evaluate_pick_progress(pick_desc, h_score, a_score, is_finished=True)
+                if eval_str:
+                    pick_evals.append(f"   ↳ {eval_str} ({pick_desc.split(':')[0]})")
+            eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
+
+            live_status_lines.append(
+                f"🏁 <b>{match}</b> | <b>{h_score}:{a_score}</b> (Endstand)\n"
+                f"   Zeit: <code>{progress_bar}</code>"
+                f"{eval_block}"
+            )
+            continue
+
+        # 2. Match in Live-Events suchen
         parts = [p.strip().lower() for p in re.split(r"vs\.?| - ", match, flags=re.IGNORECASE) if len(p.strip()) > 3]
         matched_ev = None
 
@@ -199,26 +221,36 @@ def run_soccer_live():
         if matched_ev:
             h_score = matched_ev.get("homeScore", {}).get("current", 0)
             a_score = matched_ev.get("awayScore", {}).get("current", 0)
-            curr_min, min_label = get_match_minute(matched_ev)
+            curr_min, min_label, is_finished = get_match_minute(matched_ev)
+
+            if is_finished:
+                # Dauerhaft im State sichern
+                finished_matches[match] = {
+                    "h_score": h_score,
+                    "a_score": a_score,
+                    "finished_at": datetime.now(LOCAL_TZ).isoformat()
+                }
+                state["finished_matches"] = finished_matches
+
             progress_bar = make_progress_bar(curr_min, total=90, length=10)
 
-            # Ticket-Fortschritt berechnen
             pick_evals = []
             for pick_desc in picks:
-                eval_str = evaluate_pick_progress(pick_desc, h_score, a_score)
+                eval_str = evaluate_pick_progress(pick_desc, h_score, a_score, is_finished=is_finished)
                 if eval_str:
                     pick_evals.append(f"   ↳ {eval_str} ({pick_desc.split(':')[0]})")
 
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
+            icon = "🏁" if is_finished else "🔴"
 
             live_status_lines.append(
-                f"🔴 <b>{match}</b> | <b>{h_score}:{a_score}</b> ({min_label})\n"
+                f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({min_label})\n"
                 f"   Zeit: <code>{progress_bar}</code>"
                 f"{eval_block}"
             )
 
     if not live_status_lines:
-        print("[SoccerLive] Aktuell läuft keine der getrackten Soccer-Partien.")
+        print("[SoccerLive] Aktuell weder aktive noch beendete Partien zum Anzeigen vorhanden.")
         return
 
     live_block = (
@@ -236,7 +268,10 @@ def run_soccer_live():
         if edit_telegram(msg_id, new_text):
             state["original_text"] = new_text
             save_state(state)
-            print("[SoccerLive] Soccer-Ticket in Telegram erfolgreich mit Fortschrittsbalken aktualisiert.")
+            print("[SoccerLive] Soccer-Ticket in Telegram erfolgreich live aktualisiert.")
+    else:
+        # State speichern, falls Spiele als fertig markiert wurden
+        save_state(state)
 
 if __name__ == "__main__":
     run_soccer_live()
