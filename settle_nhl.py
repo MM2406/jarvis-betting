@@ -32,22 +32,22 @@ def make_progress_bar(percentage, segments=10):
     return f"[{'🟩' * filled}{'⬜' * empty}]"
 
 def append_to_history(settled_items):
-    """Speichert abgerechnete Wetten dauerhaft für analytics_engine.py ab."""
+    """Speichert abgerechnete Wetten mit PnL dauerhaft für analytics_engine.py ab."""
     if not settled_items:
         return
-    history = {"settled": [], "pending": []}
+    history = []
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
                 content = json.load(f)
-                if isinstance(content, dict):
+                if isinstance(content, list):
                     history = content
-                elif isinstance(content, list):
-                    history = {"settled": content, "pending": []}
+                elif isinstance(content, dict) and "settled" in content:
+                    history = content["settled"]
         except Exception as e:
             print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
 
-    history.setdefault("settled", []).extend(settled_items)
+    history.extend(settled_items)
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
@@ -131,8 +131,8 @@ Offene NHL-Wetten:
 
 REGELN:
 1. Prüfe, ob alle Spiele beendet sind (FINAL). Tore + Assists = Punkte!
-2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH.
-3. Bei Kombiwetten: Zeige jedes einzelne Bein (Leg) mit Ergebnis und Status (z.B. [✅] Team A, [❌] Team B).
+2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
+3. Bei Kombiwetten: Zeige jedes einzelne Bein (Leg) mit Ergebnis und Status.
 4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Wette/Schein).
 
 Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
@@ -146,7 +146,19 @@ Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
   "total_returned": 5.91,
   "net_profit": 1.91,
   "roi": 47.75,
-  "is_complete": true
+  "is_complete": true,
+  "settled_picks": [
+    {{
+      "match": "Heim vs Gast",
+      "pick": "Tipp",
+      "odds": 1.85,
+      "stake": 1.0,
+      "pnl": 0.85,
+      "status": "WON",
+      "sport": "NHL",
+      "date": "{today_iso}"
+    }}
+  ]
 }}
 {bt}
 
@@ -155,10 +167,10 @@ FORMAT-VORLAGE FÜR TELEGRAM:
 <i>Abrechnung der NHL-Slate vom {date_display}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-[Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen aufführen]
+[Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen übersichtlich darstellen]
 """
-    
-    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){GEMINI_API_KEY}"
+
+    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=){GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -169,7 +181,7 @@ FORMAT-VORLAGE FÜR TELEGRAM:
         res = requests.post(url, json=payload, timeout=120)
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        
+
         json_metrics = None
         if f"{bt}json" in raw_text:
             try:
@@ -217,13 +229,17 @@ FORMAT-VORLAGE FÜR TELEGRAM:
 
         if is_complete:
             items_to_archive = []
-            raw_list = data if isinstance(data, list) else data.get("picks", [data])
-            for item in raw_list:
-                if isinstance(item, dict):
-                    archived_item = dict(item)
-                    archived_item.setdefault("date", today_iso)
-                    archived_item.setdefault("status", "WON" if json_metrics and json_metrics.get("net_profit", 0) > 0 else "SETTLED")
-                    items_to_archive.append(archived_item)
+            if json_metrics and "settled_picks" in json_metrics and json_metrics["settled_picks"]:
+                items_to_archive = json_metrics["settled_picks"]
+            else:
+                raw_list = data if isinstance(data, list) else data.get("picks", [data])
+                for item in raw_list:
+                    if isinstance(item, dict):
+                        archived_item = dict(item)
+                        archived_item.setdefault("date", today_iso)
+                        archived_item.setdefault("sport", "NHL")
+                        archived_item.setdefault("status", "WON" if json_metrics and json_metrics.get("net_profit", 0) > 0 else "LOST")
+                        items_to_archive.append(archived_item)
 
             append_to_history(items_to_archive)
 
