@@ -36,6 +36,10 @@ SOCCER_LEAGUES = [
 ]
 
 def send_telegram(text):
+    """
+    Sendet den Report an Telegram und gibt die message_id zurueck,
+    damit der Live-Tracker spaeter Zwischenstaende hineineditieren kann.
+    """
     if send_to_telegram:
         return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_SOCCER")
 
@@ -61,6 +65,7 @@ def send_telegram(text):
     if text:
         chunks.append(text)
 
+    first_message_id = None
     for chunk in chunks:
         payload = {
             "chat_id": TELEGRAM_CHAT_ID,
@@ -72,9 +77,19 @@ def send_telegram(text):
         res = requests.post(url, json=payload, timeout=25)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=25)
-            if res2.status_code != 200:
-                print(f"[Telegram] Fehler: {res2.text}")
+            res = requests.post(url, json=payload, timeout=25)
+            if res.status_code != 200:
+                print(f"[Telegram] Fehler: {res.text}")
+                continue
+
+        # message_id der ersten/Haupt-Nachricht festhalten
+        if not first_message_id:
+            try:
+                first_message_id = res.json().get("result", {}).get("message_id")
+            except Exception:
+                pass
+
+    return first_message_id
 
 def fetch_soccer_odds():
     all_events = []
@@ -270,8 +285,7 @@ REPORT-HTML:
   ]
 }}
 """
-    # Aktiver Standard-Endpunkt mit voller Google-Search-Unterstützung
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -284,20 +298,34 @@ REPORT-HTML:
             if res.status_code == 200:
                 full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 report = full_reply
+                tracking_data = {}
+
                 if "---JSON_TRACKING---" in full_reply:
                     parts = full_reply.split("---JSON_TRACKING---")
                     report = parts[0].strip()
                     json_str = parts[1].replace("```json", "").replace("```", "").strip()
                     try:
                         tracking_data = json.loads(json_str)
-                        with open(PENDING_FILE, "w", encoding="utf-8") as f:
-                            json.dump(tracking_data, f, ensure_ascii=False, indent=2)
-                        print(f"Soccer-Picks erfolgreich in {PENDING_FILE} gespeichert.")
                     except Exception as je:
-                        print(f"Fehler beim Speichern der Tracking-Picks: {je}")
+                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
-                send_telegram(report)
+                
+                # Report absenden und message_id abfangen
+                msg_id = send_telegram(report)
+
+                # Nachricht und ID im Tracking-JSON verankern
+                if tracking_data:
+                    if msg_id:
+                        tracking_data["message_id"] = int(msg_id)
+                    tracking_data["original_text"] = report
+                    try:
+                        with open(PENDING_FILE, "w", encoding="utf-8") as f:
+                            json.dump(tracking_data, f, ensure_ascii=False, indent=2)
+                        print(f"Soccer-Picks inklusive message_id ({msg_id}) in {PENDING_FILE} gespeichert.")
+                    except Exception as fe:
+                        print(f"Fehler beim Speichern von {PENDING_FILE}: {fe}")
+
                 return
             elif res.status_code in [500, 502, 503, 504]:
                 time.sleep(6)
