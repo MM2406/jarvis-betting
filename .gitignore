@@ -1,3 +1,21 @@
+# Bytecode & Caches
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Temporäre Analytics & Plot-Dateien
+performance_recap.png
+*.png
+*.jpg
+*.jpeg
+
+# Umgebungsvariablen & Lokale Tests
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Betriebssystem-Reste
+.DS_Store
+Thumbs.db
