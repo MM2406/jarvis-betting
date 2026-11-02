@@ -2,8 +2,8 @@ name: settle-nhl
 
 on:
   schedule:
-    # Täglich um 09:00 UTC (10:00 Uhr MEZ) zur Abrechnung der NHL-Nachtspiele
-    - cron: '0 9 * * *'
+    # Täglich um 06:45 UTC (= 07:45 Uhr MEZ) zur Abrechnung der NHL-Nachtspiele
+    - cron: '45 6 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -51,6 +51,8 @@ jobs:
             echo "Keine relevanten Aenderungen an nhl_history.json zu committen."
           else
             git commit -m "Update NHL history [skip ci]"
+            git checkout -- . 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
             git pull --rebase origin main
             git push origin main
           fi
