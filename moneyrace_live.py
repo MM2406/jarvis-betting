@@ -6,10 +6,20 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+# Sichere Anbindung der zentralen Telegram-Hilfsfunktion
+try:
+    from telegram_sender import send_to_telegram
+except ImportError:
+    send_to_telegram = None
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_THREAD_ID = os.environ.get("TELEGRAM_MONEYRACE_THREAD_ID", os.environ.get("TELEGRAM_THREAD_ID", "")).strip()
+TELEGRAM_THREAD_ID = (
+    os.environ.get("TELEGRAM_MONEYRACE_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_MONEYRACE", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
+)
 
 STATE_FILE = "moneyrace_state.json"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
@@ -67,8 +77,11 @@ def edit_telegram(message_id, text):
         return False
 
 def send_telegram_notification(text):
+    if send_to_telegram:
+        return send_to_telegram(text, thread_env_var="TELEGRAM_MONEYRACE_THREAD_ID")
+
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        return
+        return None
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -79,12 +92,14 @@ def send_telegram_notification(text):
     if TELEGRAM_THREAD_ID:
         try:
             payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-        except:
+        except Exception:
             pass
     try:
-        requests.post(url, json=payload, timeout=20)
+        res = requests.post(url, json=payload, timeout=20)
+        return res.json().get("result", {}).get("message_id") if res.status_code == 200 else None
     except Exception as e:
         print(f"Fehler beim Senden der Telegram-Meldung: {e}")
+        return None
 
 def run_live_update():
     state = load_state()
@@ -155,7 +170,10 @@ ASSESSMENT: ON_TRACK oder AT_RISK
 OUTCOME: WON oder LOST oder VOID oder PENDING
 """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -163,7 +181,7 @@ OUTCOME: WON oder LOST oder VOID oder PENDING
     }
 
     try:
-        res = requests.post(url, json=payload, timeout=45)
+        res = requests.post(api_url, json=payload, timeout=45)
         if res.status_code != 200:
             print(f"Gemini API Fehler: {res.status_code}")
             return
@@ -177,7 +195,7 @@ OUTCOME: WON oder LOST oder VOID oder PENDING
         track = "ON_TRACK"
         outcome = "PENDING"
 
-        for line in ans.split("\n"):
+        for line in ans.splitlines():
             line = line.strip()
             if line.startswith("STATUS:"):
                 status = line.replace("STATUS:", "").strip().upper()
@@ -224,10 +242,21 @@ OUTCOME: WON oder LOST oder VOID oder PENDING
 
         # 4. Automatisches Settlement bei Spielende
         if status == "FINISHED" and outcome in ["WON", "LOST", "VOID"]:
-            step_num = active.get("step", 2)
-            stake = float(active.get("stake", 0))
-            odds_val = float(active.get("odds", 1.0))
-            expected_return = float(active.get("expected_return", round(stake * odds_val, 2)))
+            step_num = int(active.get("step", 1))
+            
+            try:
+                stake = float(str(active.get("stake", 5.0)).replace(",", "."))
+            except ValueError:
+                stake = 5.0
+            try:
+                odds_val = float(str(active.get("odds", 1.5)).replace(",", "."))
+            except ValueError:
+                odds_val = 1.5
+
+            try:
+                expected_return = float(str(active.get("expected_return", round(stake * odds_val, 2))).replace(",", "."))
+            except ValueError:
+                expected_return = round(stake * odds_val, 2)
 
             if outcome == "WON":
                 state["bankroll"] = round(expected_return, 2)
@@ -237,7 +266,7 @@ OUTCOME: WON oder LOST oder VOID oder PENDING
                     "step": step_num,
                     "match": match_name,
                     "pick": pick_text,
-                    "odds": active.get("odds"),
+                    "odds": odds_val,
                     "stake": stake,
                     "return": round(expected_return, 2),
                     "status": "WON",
@@ -265,7 +294,7 @@ OUTCOME: WON oder LOST oder VOID oder PENDING
                     "step": step_num,
                     "match": match_name,
                     "pick": pick_text,
-                    "odds": active.get("odds"),
+                    "odds": odds_val,
                     "stake": stake,
                     "return": 0.0,
                     "status": "LOST",
@@ -282,6 +311,18 @@ OUTCOME: WON oder LOST oder VOID oder PENDING
                     f"🔄 <b>Challenge-Reset:</b> Rückkehr zu Stufe 1 ({state['bankroll']:.2f} €)."
                 )
                 send_telegram_notification(lose_msg)
+
+            elif outcome == "VOID":
+                state["active_pick"] = None
+                save_state(state)
+
+                void_msg = (
+                    f"🟡 <b>MONEYRACE • STUFE {step_num} VOID / PUSH</b>\n\n"
+                    f"📌 <b>Match:</b> {match_name}\n"
+                    f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
+                    f"Einsatz von {stake:.2f} € erstattet. Stufe {step_num} wird wiederholt."
+                )
+                send_telegram_notification(void_msg)
 
         else:
             save_state(state)
