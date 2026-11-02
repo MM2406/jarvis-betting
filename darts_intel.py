@@ -75,10 +75,16 @@ def load_history():
         return {"settled": [], "pending": []}
     try:
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if isinstance(data, dict):
+                data.setdefault("settled", [])
+                data.setdefault("pending", [])
+                return data
+            elif isinstance(data, list):
+                return {"settled": data, "pending": []}
     except Exception as e:
         print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
-        return {"settled": [], "pending": []}
+    return {"settled": [], "pending": []}
 
 def save_history(history):
     try:
@@ -96,6 +102,10 @@ def settle_pending_picks(history):
     still_pending = []
     settled_now = []
 
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     for item in pending:
         prompt_settle = f"""
 Recherchiere via Google Search das offizielle Endergebnis fuer folgendes Darts-Match:
@@ -105,17 +115,16 @@ Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Pruefe, ob das Match bereits beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Pruefe, ob das Match bereits beendet ist (FINAL). Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Spielabsage oder Push gib 'VOID' aus.
-4. Gib eine kurze Begruendung an (z.B. Averages, 180s-Quote, Checkout-Staerke).
+4. Gib eine kurze Begruendung an (Averages, 180s-Quote, Checkout-Staerke).
 
 Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
 SCORE: [Offizielles Endergebnis, z.B. 6:4 Legs]
 INFO: [1-2 Saetze Erklaerung/Begruendung]
 """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{"parts": [{"text": prompt_settle}]}],
             "tools": [{"googleSearch": {}}],
@@ -123,28 +132,46 @@ INFO: [1-2 Saetze Erklaerung/Begruendung]
         }
 
         try:
-            res = requests.post(url, json=payload, timeout=60)
+            res = requests.post(api_url, json=payload, timeout=60)
             if res.status_code == 200:
                 text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
                 score_val = ""
                 info_val = ""
+                result_val = "PENDING"
                 for line in text.splitlines():
                     if line.startswith("SCORE:"):
                         score_val = line.replace("SCORE:", "").strip()
                     elif line.startswith("INFO:"):
                         info_val = line.replace("INFO:", "").strip()
+                    elif line.startswith("RESULT:"):
+                        result_val = line.replace("RESULT:", "").strip().upper()
 
                 item["score"] = score_val
                 item["info"] = info_val
 
-                if "RESULT: WON" in text:
-                    item["status"] = "WON"
-                    settled_now.append(item)
-                elif "RESULT: LOST" in text:
-                    item["status"] = "LOST"
-                    settled_now.append(item)
-                elif "RESULT: VOID" in text:
-                    item["status"] = "VOID"
+                if result_val in ["WON", "LOST", "VOID"]:
+                    item["status"] = result_val
+                    item["sport"] = "Darts"
+                    
+                    try:
+                        odds_val = float(str(item.get("odds", "1.0")).replace(",", "."))
+                    except ValueError:
+                        odds_val = 1.0
+                    try:
+                        stake_val = float(str(item.get("stake", "1.0")).replace(",", "."))
+                    except ValueError:
+                        stake_val = 1.0
+
+                    item["stake"] = stake_val
+                    item["odds"] = odds_val
+
+                    if result_val == "WON":
+                        item["pnl"] = round((odds_val - 1.0) * stake_val, 2)
+                    elif result_val == "LOST":
+                        item["pnl"] = round(-stake_val, 2)
+                    else:
+                        item["pnl"] = 0.0
+
                     settled_now.append(item)
                 else:
                     still_pending.append(item)
@@ -171,12 +198,8 @@ INFO: [1-2 Saetze Erklaerung/Begruendung]
         msg += f"<i>Abrechnung der Matches vom {today_display}</i>\n"
 
         for p in settled_now:
-            try:
-                odds_val = float(str(p.get("odds", "1.0")).replace(",", "."))
-            except ValueError:
-                odds_val = 1.0
-
-            stake = 1.0
+            odds_val = float(p.get("odds", 1.0))
+            stake = float(p.get("stake", 1.0))
             total_staked += stake
 
             status = p["status"]
@@ -343,14 +366,18 @@ REPORT-HTML:
 [
   {{
     "match": "Player A vs Player B",
-    "sport": "darts",
+    "sport": "Darts",
     "pick": "Player A Sieg",
-    "odds": "1.70",
+    "odds": 1.70,
+    "stake": 1.0,
     "date": "{today_iso}"
   }}
 ]
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -359,7 +386,7 @@ REPORT-HTML:
 
     for attempt in range(1, 4):
         try:
-            res = requests.post(url, json=payload, timeout=90)
+            res = requests.post(api_url, json=payload, timeout=90)
             if res.status_code == 200:
                 full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 report = full_reply
@@ -371,6 +398,7 @@ REPORT-HTML:
                         new_picks = json.loads(json_str)
                         for np in new_picks:
                             np["status"] = "PENDING"
+                            np["sport"] = "Darts"
                         history["pending"].extend(new_picks)
                         save_history(history)
                         print(f"{len(new_picks)} Darts-Picks hinzugefuegt.")
