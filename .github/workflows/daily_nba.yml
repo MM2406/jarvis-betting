@@ -5,11 +5,11 @@ on:
     # 1. MORGEN-SETTLE (Täglich): 06:45 UTC (= 07:45 Uhr MEZ) - Alle Nachtspiele abrechnen
     - cron: '45 6 * * *'
 
-    # 2. WOCHENENDE-PICKS (Samstag & Sonntag): 16:30 UTC (= 17:30 Uhr MEZ) - Rechtzeitig vor frühen Tip-offs (ab 19:00 / 21:30 Uhr MEZ)
+    # 2. WOCHENENDE-PICKS (Samstag & Sonntag): 16:30 UTC (= 17:30 Uhr MEZ) - Frühe Tip-offs (ab 19:00 / 21:30 Uhr MEZ)
     - cron: '30 16 * * 6,0'
 
-    # 3. WOCHENTAGS-PICKS (Montag bis Freitag): 21:00 UTC (= 22:00 Uhr MEZ) - Aktuelle Injury Reports & finale Lineups für die Nacht
-    - cron: '0 21 * * 1-5'
+    # 3. WOCHENTAGS-PICKS (Montag bis Freitag): 20:15 UTC (= 21:15 Uhr MEZ) - Nacht-Slate
+    - cron: '15 20 * * 1-5'
 
   workflow_dispatch:
 
