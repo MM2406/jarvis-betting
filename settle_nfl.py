@@ -84,23 +84,23 @@ def save_pending(pending_list):
 def append_to_history(settled_picks):
     if not settled_picks:
         return
-    history = {"settled": [], "pending": []}
+    history = []
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
                 content = json.load(f)
-                if isinstance(content, dict):
+                if isinstance(content, list):
                     history = content
-                elif isinstance(content, list):
-                    history = {"settled": content, "pending": []}
+                elif isinstance(content, dict) and "settled" in content:
+                    history = content["settled"]
         except Exception as e:
             print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
 
-    history.setdefault("settled", []).extend(settled_picks)
+    history.extend(settled_picks)
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
-        print(f"[History] {len(settled_picks)} Picks in {HISTORY_FILE} archiviert.")
+        print(f"[History] {len(settled_picks)} NFL-Picks in {HISTORY_FILE} archiviert.")
     except Exception as e:
         print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
 
@@ -113,15 +113,20 @@ def settle_nfl():
     still_pending = []
     settled_now = []
 
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     for item in pending:
         prompt_settle = f"""
+Du bist 'JARVIS NFL SETTLEMENT AGENT'.
 Recherchiere via Google Search das offizielle Endergebnis für folgendes NFL-Spiel:
 Match: {item.get('match')}
 Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Prüfe, ob das Match regulär beendet ist. Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Prüfe, ob das Match regulär beendet ist (FINAL, inkl. OT). Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Push (z.B. Handicap genau getroffen) gib 'VOID' aus.
 4. Gib eine kurze, präzise Begründung an.
@@ -131,7 +136,6 @@ RESULT: WON oder LOST oder PENDING oder VOID
 SCORE: [Endergebnis]
 INFO: [1-2 Sätze Begründung]
 """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{"parts": [{"text": prompt_settle}]}],
             "tools": [{"googleSearch": {}}],
@@ -139,28 +143,43 @@ INFO: [1-2 Sätze Begründung]
         }
 
         try:
-            res = requests.post(url, json=payload, timeout=60)
+            res = requests.post(api_url, json=payload, timeout=60)
             if res.status_code == 200:
                 text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
                 score_val = ""
                 info_val = ""
+                result_val = "PENDING"
                 for line in text.splitlines():
                     if line.startswith("SCORE:"):
                         score_val = line.replace("SCORE:", "").strip()
                     elif line.startswith("INFO:"):
                         info_val = line.replace("INFO:", "").strip()
+                    elif line.startswith("RESULT:"):
+                        result_val = line.replace("RESULT:", "").strip().upper()
 
                 item["score"] = score_val
                 item["info"] = info_val
 
-                if "RESULT: WON" in text:
-                    item["status"] = "WON"
-                    settled_now.append(item)
-                elif "RESULT: LOST" in text:
-                    item["status"] = "LOST"
-                    settled_now.append(item)
-                elif "RESULT: VOID" in text:
-                    item["status"] = "VOID"
+                if result_val in ["WON", "LOST", "VOID"]:
+                    item["status"] = result_val
+                    item["sport"] = "NFL"
+                    
+                    try:
+                        odds_val = float(str(item.get("odds", "1.0")).replace(",", "."))
+                    except ValueError:
+                        odds_val = 1.0
+                    try:
+                        stake_val = float(str(item.get("stake", "1.0")).replace(",", "."))
+                    except ValueError:
+                        stake_val = 1.0
+
+                    if result_val == "WON":
+                        item["pnl"] = (odds_val - 1.0) * stake_val
+                    elif result_val == "LOST":
+                        item["pnl"] = -stake_val
+                    else:
+                        item["pnl"] = 0.0
+
                     settled_now.append(item)
                 else:
                     still_pending.append(item)
