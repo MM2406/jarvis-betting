@@ -1,9 +1,6 @@
 name: moneyrace-live
 
 on:
-  schedule:
-    # Laeuft tagsueber alle 5 Minuten (11:00 bis 23:55 UTC = 12:00 bis 00:55 Uhr MEZ)
-    - cron: '*/5 11-23 * * *'
   workflow_dispatch:
 
 concurrency:
