@@ -170,7 +170,8 @@ FORMAT-VORLAGE FÜR TELEGRAM:
 [Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen übersichtlich darstellen]
 """
 
-    url = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=)" + GEMINI_API_KEY
+    base_url = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent)"
+    endpoint = f"{base_url}?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -178,7 +179,7 @@ FORMAT-VORLAGE FÜR TELEGRAM:
     }
 
     try:
-        res = requests.post(url, json=payload, timeout=120)
+        res = requests.post(endpoint, json=payload, timeout=120)
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
 
