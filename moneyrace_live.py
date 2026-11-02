@@ -41,7 +41,7 @@ SPORT_ENDPOINT_MAP = {
 
 def clean_team_name(name):
     """Entfernt Club-Kürzel für zuverlässigen API-Abgleich."""
-    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb)\b", "", name.lower())
+    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio)\b", "", name.lower())
     return clean.strip()
 
 def load_state():
@@ -141,20 +141,23 @@ def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
     try:
         res = requests.get(url, headers=headers, timeout=12)
         if res.status_code != 200:
+            print(f"[SportAPI Error HTTP {res.status_code}] {res.text}")
             return None
 
         events = res.json().get("events", [])
-        parts = [clean_team_name(p) for p in re.split(r"vs\.?| - | @ ", match_name, flags=re.IGNORECASE) if clean_team_name(p)]
+        raw_parts = [p.strip().lower() for p in re.split(r"vs\.?| - | @ ", match_name, flags=re.IGNORECASE) if p.strip()]
+        
+        search_terms = []
+        for p in raw_parts:
+            words = [w for w in re.findall(r"[a-z0-9]+", p) if w not in ["bc", "fc", "cf", "sc", "ac", "united", "city", "calcio"]]
+            if words:
+                search_terms.append(words[0])
 
         for ev in events:
-            h_name = clean_team_name(ev.get("homeTeam", {}).get("name", ""))
-            a_name = clean_team_name(ev.get("awayTeam", {}).get("name", ""))
+            h_name = ev.get("homeTeam", {}).get("name", "").lower()
+            a_name = ev.get("awayTeam", {}).get("name", "").lower()
 
-            matched = False
-            for p in parts:
-                if len(p) >= 3 and (p in h_name or p in a_name):
-                    matched = True
-                    break
+            matched = any(t in h_name or t in a_name for t in search_terms)
 
             if matched:
                 h_score = ev.get("homeScore", {}).get("current", 0)
@@ -186,7 +189,7 @@ def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
                     "a": a_score
                 }
     except Exception as e:
-        print(f"[SportAPI Error] {e}")
+        print(f"[SportAPI Exception] {e}")
 
     return None
 
@@ -279,21 +282,19 @@ def run_live_update():
         time_info = api_data["time_info"]
         h, a = api_data["h"], api_data["a"]
 
-        # Sieg-Trend Ermittlung
         if "sieg" in pick_text.lower():
             p_clean = clean_team_name(pick_text)
             parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", match_name, flags=re.IGNORECASE)]
             if len(parts) >= 2:
-                if parts[0] in p_clean: # Heimteam
+                if parts[0] in p_clean:
                     track = "ON_TRACK" if h > a else "AT_RISK"
-                elif parts[1] in p_clean: # Auswärtsteam
+                elif parts[1] in p_clean:
                     track = "ON_TRACK" if a > h else "AT_RISK"
 
         if status == "FINISHED":
             g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
             outcome = g_data.get("outcome", "PENDING") if g_data else "PENDING"
     else:
-        # Fallback auf Gemini Search
         g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
         if g_data:
             status = g_data["status"]
