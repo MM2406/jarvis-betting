@@ -268,20 +268,5 @@ def run_soccer_live():
     else:
         save_state(state)
 
-def main_loop(total_minutes=55, interval_seconds=300):
-    """Führt das Update im exakten 5-Minuten-Takt aus."""
-    iterations = total_minutes * 60 // interval_seconds
-    print(f"[SoccerLive] Starte Präzisions-Loop: {iterations} Zyklen à {interval_seconds}s...")
-
-    for i in range(iterations):
-        print(f"\n[SoccerLive] Zyklus {i + 1}/{iterations} um {datetime.now(LOCAL_TZ).strftime('%H:%M:%S')}")
-        try:
-            run_soccer_live()
-        except Exception as e:
-            print(f"[SoccerLive Fehler] {e}")
-
-        if i < iterations - 1:
-            time.sleep(interval_seconds)
-
 if __name__ == "__main__":
-    main_loop(total_minutes=55, interval_seconds=300)
+    run_soccer_live()
