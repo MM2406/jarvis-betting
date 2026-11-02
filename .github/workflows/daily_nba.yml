@@ -2,11 +2,20 @@ name: JARVIS NBA Intel
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
+    # 1. MORGEN-SETTLE (Täglich): 06:45 UTC (= 07:45 Uhr MEZ) - Alle Nachtspiele abrechnen
     - cron: '45 6 * * *'
-    # 2. PICKS: 17:00 UTC (= 18:00 MEZ)
-    - cron: '0 17 * * *'
+
+    # 2. WOCHENENDE-PICKS (Samstag & Sonntag): 16:30 UTC (= 17:30 Uhr MEZ) - Rechtzeitig vor frühen Tip-offs (ab 19:00 / 21:30 Uhr MEZ)
+    - cron: '30 16 * * 6,0'
+
+    # 3. WOCHENTAGS-PICKS (Montag bis Freitag): 21:00 UTC (= 22:00 Uhr MEZ) - Aktuelle Injury Reports & finale Lineups für die Nacht
+    - cron: '0 21 * * 1-5'
+
   workflow_dispatch:
+
+concurrency:
+  group: daily-nba-intel
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -17,6 +26,8 @@ jobs:
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Python einrichten
         uses: actions/setup-python@v5
@@ -42,5 +53,13 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add pending_nba.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update NBA pending picks [skip ci]" && git pull --rebase origin main && git push)
+          git add pending_nba.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "Keine relevanten Aenderungen an pending_nba.json vorhanden."
+          else
+            git commit -m "Update NBA pending picks [skip ci]"
+            git checkout -- . 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
+            git pull --rebase origin main
+            git push origin main
+          fi
