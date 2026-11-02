@@ -72,6 +72,13 @@ def normalize_sport_name(sport_raw, fallback="Sonstige"):
 
 def is_parlay(bet):
     """Ermittelt, ob ein Datensatz eine Kombiwette ist."""
+    # 1. Spezifische JARVIS-Syntax: '+' im Tipp oder '/' in den Match-Namen
+    pick_str = str(bet.get("pick") or "")
+    match_str = str(bet.get("match") or "")
+    if " + " in pick_str or " / " in match_str:
+        return True
+
+    # 2. Explizite Tags / Keys
     b_type = str(bet.get("bet_type") or bet.get("type") or "").lower()
     if any(k in b_type for k in ["parlay", "kombi", "acca", "multi"]):
         return True
@@ -79,6 +86,7 @@ def is_parlay(bet):
         return True
     if isinstance(bet.get("selections"), list) and len(bet["selections"]) > 1:
         return True
+
     return False
 
 def load_all_history():
@@ -144,12 +152,32 @@ def compute_metrics(bets):
         pushes = sum(1 for b in items if str(b.get("status", "")).upper() in ["PUSH", "VOID"])
         total_valid = wins + losses
         win_rate = (wins / total_valid * 100) if total_valid > 0 else 0.0
+
+        total_pnl = 0.0
+        total_stake = 0.0
+        for b in items:
+            total_stake += float(b.get("stake") or 1.0)
+            if "pnl" in b and b["pnl"] is not None:
+                total_pnl += float(b["pnl"])
+            else:
+                st = str(b.get("status", "")).upper()
+                odd = float(b.get("odds") or 0.0)
+                stake = float(b.get("stake") or 1.0)
+                if st in ["WON", "HIT", "WIN"]:
+                    total_pnl += (odd - 1.0) * stake
+                elif st in ["LOST", "MISS", "LOSS"]:
+                    total_pnl -= stake
+
+        roi = (total_pnl / total_stake * 100) if total_stake > 0 else 0.0
+
         return {
             "total": len(items),
             "wins": wins,
             "losses": losses,
             "pushes": pushes,
-            "win_rate": win_rate
+            "win_rate": win_rate,
+            "pnl": total_pnl,
+            "roi": roi
         }
 
     singles_metrics = calc_group(singles)
@@ -159,7 +187,7 @@ def compute_metrics(bets):
     for b in singles:
         sport = normalize_sport_name(b.get("sport"), "Sonstige")
         if sport not in by_sport:
-            by_sport[sport] = {"total": 0, "wins": 0, "losses": 0}
+            by_sport[sport] = {"total": 0, "wins": 0, "losses": 0, "pnl": 0.0}
 
         status = str(b.get("status", "")).upper()
         by_sport[sport]["total"] += 1
@@ -167,6 +195,16 @@ def compute_metrics(bets):
             by_sport[sport]["wins"] += 1
         elif status in ["LOST", "MISS", "LOSS"]:
             by_sport[sport]["losses"] += 1
+
+        if "pnl" in b and b["pnl"] is not None:
+            by_sport[sport]["pnl"] += float(b["pnl"])
+        else:
+            odd = float(b.get("odds") or 0.0)
+            stake = float(b.get("stake") or 1.0)
+            if status in ["WON", "HIT", "WIN"]:
+                by_sport[sport]["pnl"] += (odd - 1.0) * stake
+            elif status in ["LOST", "MISS", "LOSS"]:
+                by_sport[sport]["pnl"] -= stake
 
     parlay_odds = []
     for p in parlays:
@@ -208,7 +246,6 @@ def generate_performance_chart(metrics, timeframe):
     ax.barh(y_pos, wins, color="#00ffcc", height=0.5, label="Gewonnen (Won)")
     ax.barh(y_pos, losses, left=wins, color="#ff3366", height=0.5, label="Verloren (Lost)")
 
-    # Genug Puffer rechts, um Text-Clipping zu verhindern
     max_t = max(totals) if totals else 1
     ax.set_xlim(0, max(max_t * 1.35, 5))
 
@@ -217,7 +254,6 @@ def generate_performance_chart(metrics, timeframe):
     ax.set_xlabel("Anzahl Einzel-Picks", color="#aaaaaa")
     ax.set_title(f"JARVIS Einzel-Picks nach Sportart ({timeframe.upper()})", fontsize=11, fontweight="bold", color="#ffffff", pad=25)
     
-    # Legende nach oben außerhalb des Datenbereichs setzen
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=2, frameon=False)
     ax.grid(True, linestyle=":", alpha=0.3, axis="x")
 
@@ -254,11 +290,22 @@ def build_simple_caption(metrics, timeframe):
             icon = SPORT_ICONS.get(sport, "📌")
             pct = (data["wins"] / data["total"] * 100)
             bar = make_mini_bar(pct, segments=5)
-            sport_lines.append(f"{icon} <b>{sport}:</b> <code>{data['wins']:>2}/{data['total']:<2}</code> ({pct:.0f}%) {bar}")
+            pnl_sign = "+" if data["pnl"] >= 0 else ""
+            pnl_str = f"{pnl_sign}{data['pnl']:.2f}u"
+            # Formatierung in 2 sauberen Zeilen verhindert jeglichen Zeilenumbruch mobil
+            sport_lines.append(
+                f"{icon} <b>{sport}:</b> <code>{data['wins']:>2}/{data['total']:<2}</code> ({pct:.0f}%) | <b>{pnl_str}</b>\n"
+                f"   {bar}"
+            )
 
     sports_text = "\n".join(sport_lines) if sport_lines else "• Keine Einzel-Picks vorhanden"
 
+    s_pnl_sign = "+" if s["pnl"] >= 0 else ""
+    s_roi_sign = "+" if s["roi"] >= 0 else ""
     s_bar = make_mini_bar(s["win_rate"], segments=5)
+
+    p_pnl_sign = "+" if p["pnl"] >= 0 else ""
+    p_roi_sign = "+" if p["roi"] >= 0 else ""
     p_bar = make_mini_bar(p["win_rate"], segments=5)
     
     parlay_odds_str = f" • Avg: @{metrics['avg_parlay_odds']:.2f}" if metrics["avg_parlay_odds"] > 0 else ""
@@ -267,8 +314,10 @@ def build_simple_caption(metrics, timeframe):
 🗓️ <i>Stand: {now_str}</i>
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>TEIL 1: EINZEL-PICKS (SINGLES)</b>
-• <b>Bilanz:</b> <code>{s['wins']} Won • {s['losses']} Lost • {s['pushes']} Void</code>
-• <b>Trefferquote:</b> <b>{s['wins']}/{s['total']}</b> ({s['win_rate']:.1f}%) {s_bar}
+• <b>Bilanz:</b> <code>{s['wins']}W - {s['losses']}L - {s['pushes']}V</code>
+• <b>Profit:</b> <b>{s_pnl_sign}{s['pnl']:.2f} Units</b> ({s_roi_sign}{s['roi']:.1f}% ROI)
+• <b>Trefferquote:</b> <b>{s['wins']}/{s['total']}</b> ({s['win_rate']:.1f}%)
+  {s_bar}
 
 🏆 <b>Singles nach Sportart:</b>
 {sports_text}
@@ -276,9 +325,10 @@ def build_simple_caption(metrics, timeframe):
 ━━━━━━━━━━━━━━━━━━━━
 ⚡ <b>TEIL 2: KOMBIWETTEN (PARLAYS)</b>
 • <b>Gespielt:</b> <code>{p['total']} Kombis</code>
-• <b>Bilanz:</b> <code>{p['wins']} Won • {p['losses']} Lost • {p['pushes']} Void</code>
+• <b>Bilanz:</b> <code>{p['wins']}W - {p['losses']}L - {p['pushes']}V</code>
+• <b>Profit:</b> <b>{p_pnl_sign}{p['pnl']:.2f} Units</b> ({p_roi_sign}{p['roi']:.1f}% ROI)
 • <b>Trefferquote:</b> <b>{p['wins']}/{p['total']}</b> ({p['win_rate']:.1f}%){parlay_odds_str}
-{p_bar}"""
+  {p_bar}"""
     return caption
 
 def send_telegram_recap(caption, image_path=None):
