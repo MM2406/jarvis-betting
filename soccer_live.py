@@ -160,7 +160,6 @@ def run_soccer_live():
         print("[SoccerLive] Kein original_text hinterlegt.")
         return
 
-    # Gespeicherte beendete Spiele laden (oder initialisieren)
     finished_matches = state.get("finished_matches", {})
 
     match_picks = {}
@@ -186,7 +185,6 @@ def run_soccer_live():
     live_status_lines = []
 
     for match, picks in sorted(match_picks.items()):
-        # 1. Prüfen, ob das Spiel bereits als beendet gespeichert wurde
         if match in finished_matches:
             f_data = finished_matches[match]
             h_score = f_data["h_score"]
@@ -207,7 +205,6 @@ def run_soccer_live():
             )
             continue
 
-        # 2. Match in Live-Events suchen
         parts = [p.strip().lower() for p in re.split(r"vs\.?| - ", match, flags=re.IGNORECASE) if len(p.strip()) > 3]
         matched_ev = None
 
@@ -224,7 +221,6 @@ def run_soccer_live():
             curr_min, min_label, is_finished = get_match_minute(matched_ev)
 
             if is_finished:
-                # Dauerhaft im State sichern
                 finished_matches[match] = {
                     "h_score": h_score,
                     "a_score": a_score,
@@ -270,8 +266,22 @@ def run_soccer_live():
             save_state(state)
             print("[SoccerLive] Soccer-Ticket in Telegram erfolgreich live aktualisiert.")
     else:
-        # State speichern, falls Spiele als fertig markiert wurden
         save_state(state)
 
+def main_loop(total_minutes=55, interval_seconds=300):
+    """Führt das Update im exakten 5-Minuten-Takt aus."""
+    iterations = total_minutes * 60 // interval_seconds
+    print(f"[SoccerLive] Starte Präzisions-Loop: {iterations} Zyklen à {interval_seconds}s...")
+
+    for i in range(iterations):
+        print(f"\n[SoccerLive] Zyklus {i + 1}/{iterations} um {datetime.now(LOCAL_TZ).strftime('%H:%M:%S')}")
+        try:
+            run_soccer_live()
+        except Exception as e:
+            print(f"[SoccerLive Fehler] {e}")
+
+        if i < iterations - 1:
+            time.sleep(interval_seconds)
+
 if __name__ == "__main__":
-    run_soccer_live()
+    main_loop(total_minutes=55, interval_seconds=300)
