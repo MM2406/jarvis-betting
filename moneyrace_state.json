@@ -1,6 +1,6 @@
 {
-  "current_step": 1,
-  "bankroll": 7.4,
+  "current_step": 2,
+  "bankroll": 10.06,
   "start_amount": 5.0,
   "target_amount": 100.0,
   "history": [
@@ -56,18 +56,18 @@
       "return": 7.4,
       "status": "WON",
       "date": "2026-11-01"
+    },
+    {
+      "step": 2,
+      "match": "Orlando Magic vs. Boston Celtics",
+      "pick": "Boston Celtics (Moneyline)",
+      "odds": 1.36,
+      "stake": 7.4,
+      "return": 10.06,
+      "status": "WON",
+      "date": "2026-11-01"
     }
   ],
-  "active_pick": {
-    "step": 2,
-    "match": "Orlando Magic vs. Boston Celtics",
-    "pick": "Boston Celtics (Moneyline)",
-    "odds": 1.36,
-    "stake": 7.4,
-    "expected_return": 10.06,
-    "date": "2026-11-01",
-    "message_id": 143,
-    "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 2 / 7</b>\nProgress: [🟩⬜⬜⬜⬜⬜⬜] (7.40 € / 100.00 €)\n\nEinsatz:  <b>7.40 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   Orlando Magic vs. Boston Celtics\n🏆 <b>Sport:</b>   Basketball / NBA\n⏰ <b>Beginn:</b>  21:40 Uhr\n🎯 <b>Tipp:</b>    <b>Boston Celtics (Moneyline / Sieg inkl. OT)</b> @ 1.36\n🔄 <b>Buchmacher-Alternative:</b> Boston Celtics (-7.0 Spread) @ 1.91\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.30\n💰 <b>Return:</b>  <b>10.06 €</b> (+2.66 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE &amp; QUANT-ANALYSE</b>\n• <b>Modell-Chance:</b> 76.2% | <b>Fair Odds:</b> ~1.31\n• <b>Mathematischer Edge:</b> +3.6% EV\n• <b>Rationale:</b> In Stufe 2 greift die quantitative Risikovermeidung: 2-Weg-Märkte im US-Sport eliminieren das Unentschieden-Risiko klassischer 3-Weg-Fußballwetten komplett. Boston ist mit einer 7.0-Punkte-Handicap-Linie (-7.0 @ 1.91) der dominanteste Favorit des heutigen Boards. Während die regulären Fußball-Favoriten (z. B. Braga oder Charleroi @ 1.50) durch Remis-Varianz gefährdet sind, fängt die reine Moneyline @ 1.36 selbst knappe Siege im Clutch-Bereich mit 1 bis 6 Punkten Vorsprung vollständig ab.\n\n━━━━━━━━━━━━━━━━━━━━\n⏱️ <b>LIVE-TRACKER • SPIEL LÄUFT</b>\n[████░░░░░░░░] 34% (31. Min)\n• <b>Spielstand:</b> <b>59:69</b>\n• <b>Trend:</b> 🟢 Pick auf Kurs\n━━━━━━━━━━━━━━━━━━━━\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 10.06 € direkt in Stufe 3."
-  },
+  "active_pick": null,
   "last_run_date": "2026-11-01"
 }
