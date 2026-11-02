@@ -49,6 +49,16 @@ SPORT_ALIAS_MAP = {
     "college": "US College"
 }
 
+SPORT_ICONS = {
+    "Soccer": "⚽",
+    "NBA": "🏀",
+    "NHL": "🏒",
+    "NFL": "🏈",
+    "Euro-Hoops & Ice": "🇪🇺",
+    "US College": "🎓",
+    "Darts": "🎯"
+}
+
 def normalize_sport_name(sport_raw, fallback="Sonstige"):
     if not sport_raw:
         return fallback
@@ -241,19 +251,23 @@ def build_compact_caption(metrics, timeframe):
     sport_lines = []
     # Sortiert nach bestem P&L absteigend
     sorted_sports = sorted(metrics["by_sport"].items(), key=lambda x: x[1]["profit"], reverse=True)
+    
     for sport, data in sorted_sports:
         if data["bets"] > 0:
+            icon = SPORT_ICONS.get(sport, "📌")
             s_pnl = f"{'+' if data['profit'] >= 0 else ''}{data['profit']:.2f}u"
-            sport_lines.append(f"• <b>{sport}:</b> {s_pnl} ({data['wins']}/{data['bets']} Treffer)")
+            hit_pct = (data['wins'] / data['bets'] * 100) if data['bets'] > 0 else 0.0
+            sport_lines.append(f"{icon} <b>{sport}:</b> <code>{s_pnl:>7}</code> ({data['wins']}/{data['bets']} • {hit_pct:.0f}%)")
 
     sports_text = "\n".join(sport_lines) if sport_lines else "• Keine Daten"
 
-    caption = f"""📊 <b>JARVIS QUANT {label} RECAP</b> • {now_str}
+    caption = f"""📊 <b>JARVIS QUANT {label} RECAP</b>
+🗓️ <i>Stand: {now_str}</i>
 ━━━━━━━━━━━━━━━━━━━━
-💰 <b>Net P&L:</b> <code>{pnl_sign}{metrics['total_profit']:.2f} Units</code>
-📈 <b>ROI:</b> <code>{roi_sign}{metrics['roi']:.2f}%</code>
-🎯 <b>Trefferquote:</b> <code>{metrics['win_rate']:.1f}%</code> ({metrics['wins']}W - {metrics['losses']}L - {metrics['pushes']}P)
-⚡ <b>Avg. CLV:</b> <code>{clv_sign}{metrics['avg_clv']:.2f}%</code>
+💰 <b>Net P&L:</b>        <code>{pnl_sign}{metrics['total_profit']:.2f} Units</code>
+📈 <b>ROI:</b>            <code>{roi_sign}{metrics['roi']:.2f}%</code>
+🎯 <b>Trefferquote:</b>   <code>{metrics['win_rate']:.1f}%</code> ({metrics['wins']}W - {metrics['losses']}L - {metrics['pushes']}P)
+⚡ <b>Avg. CLV:</b>       <code>{clv_sign}{metrics['avg_clv']:.2f}%</code>
 
 ━━━━━━━━━━━━━━━━━━━━
 🏆 <b>Sportarten-Übersicht:</b>
