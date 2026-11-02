@@ -2,8 +2,12 @@ name: JARVIS Moneyrace Live Board
 
 on:
   schedule:
-    # Samstag & Sonntag von 12:00 bis 21:00 UTC (13:00 bis 22:00 Uhr MEZ) alle 10 Minuten
-    - cron: '*/10 12-21 * * 6,0'
+    # 1. Haupt-Fenster (täglich): 12:00 bis 23:59 UTC alle 15 Minuten (Europa-Nachmittag & Primetime)
+    - cron: '*/15 12-23 * * *'
+    # 2. US-Late-Night-Fenster (täglich): 00:00 bis 04:00 UTC alle 15 Minuten (NBA/NHL-Nachtspiele)
+    - cron: '*/15 0-4 * * *'
+    # 3. Morgen-Sicherheitsnetz (täglich): 06:00 und 08:00 UTC zur finalen Abrechnung
+    - cron: '0 6,8 * * *'
   workflow_dispatch:
 
 concurrency:
