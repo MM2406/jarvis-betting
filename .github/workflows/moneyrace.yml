@@ -59,5 +59,13 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add moneyrace_state.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Moneyrace state [skip ci]" && git pull --rebase origin main && git push origin main)
+          git add moneyrace_state.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "Keine relevanten Änderungen an moneyrace_state.json vorhanden."
+          else
+            git commit -m "Update Moneyrace state [skip ci]"
+            git checkout -- . 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
+            git pull --rebase origin main
+            git push origin main
+          fi
