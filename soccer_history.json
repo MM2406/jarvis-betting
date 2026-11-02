@@ -1,54 +1,102 @@
-{
-  "settled": [
-    {
-      "match": "Fiorentina vs Atalanta BC",
-      "league": "soccer_italy_serie_a",
-      "pick": "Under 3.25 Tore",
-      "odds": "1.97",
-      "date": "2026-10-29",
-      "status": "LOST"
-    },
-    {
-      "match": "Fiorentina vs Atalanta BC",
-      "league": "soccer_italy_serie_a",
-      "pick": "Atalanta BC (+0.25)",
-      "odds": "1.85",
-      "date": "2026-10-29",
-      "status": "WON"
-    },
-    {
-      "match": "Villarreal vs Espanyol",
-      "league": "soccer_spain_la_liga",
-      "pick": "Villarreal (-1.25)",
-      "odds": "1.83",
-      "date": "2026-10-30",
-      "status": "LOST"
-    },
-    {
-      "match": "Arminia Bielefeld vs Eintracht Braunschweig",
-      "league": "soccer_germany_bundesliga2",
-      "pick": "Arminia Bielefeld Sieg",
-      "odds": "1.85",
-      "date": "2026-10-30",
-      "status": "WON"
-    },
-    {
-      "match": "Elversberg vs FSV Mainz 05",
-      "league": "soccer_germany_bundesliga",
-      "pick": "FSV Mainz 05 (-0.5)",
-      "odds": "2.04",
-      "date": "2026-10-30",
-      "status": "LOST"
-    }
-  ],
-  "pending": [
-    {
-      "match": "FC Schalke 04 vs. RB Leipzig",
-      "league": "soccer_germany_bundesliga",
-      "pick": "RB Leipzig (-0.5)",
-      "odds": "1.87",
-      "date": "2026-10-31",
-      "status": "PENDING"
-    }
-  ]
-}
+[
+  {
+    "match": "Fiorentina vs Atalanta BC",
+    "league": "soccer_italy_serie_a",
+    "pick": "Under 3.25 Tore",
+    "odds": "1.97",
+    "date": "2026-10-29",
+    "status": "LOST"
+  },
+  {
+    "match": "Fiorentina vs Atalanta BC",
+    "league": "soccer_italy_serie_a",
+    "pick": "Atalanta BC (+0.25)",
+    "odds": "1.85",
+    "date": "2026-10-29",
+    "status": "WON"
+  },
+  {
+    "match": "Villarreal vs Espanyol",
+    "league": "soccer_spain_la_liga",
+    "pick": "Villarreal (-1.25)",
+    "odds": "1.83",
+    "date": "2026-10-30",
+    "status": "LOST"
+  },
+  {
+    "match": "Arminia Bielefeld vs Eintracht Braunschweig",
+    "league": "soccer_germany_bundesliga2",
+    "pick": "Arminia Bielefeld Sieg",
+    "odds": "1.85",
+    "date": "2026-10-30",
+    "status": "WON"
+  },
+  {
+    "match": "Elversberg vs FSV Mainz 05",
+    "league": "soccer_germany_bundesliga",
+    "pick": "FSV Mainz 05 (-0.5)",
+    "odds": "2.04",
+    "date": "2026-10-30",
+    "status": "LOST"
+  },
+  {
+    "match": "Marseille vs. Toulouse",
+    "pick": "POTD: Marseille Sieg",
+    "odds": 1.95,
+    "stake": 1.0,
+    "pnl": 0.95,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Lyon vs. Angers / Nashville SC vs. New York Red Bulls",
+    "pick": "CONSERVATIVE 2-LEG BANKER (Lyon Sieg & Nashville SC Sieg)",
+    "odds": 2.12,
+    "stake": 1.0,
+    "pnl": 1.12,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Frankfurt vs. HSV / Vancouver vs. Seattle / LAFC vs. Minnesota",
+    "pick": "BALANCED VALUE ACCA (Frankfurt, Vancouver, LAFC Sieg)",
+    "odds": 3.89,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Liverpool vs. Arsenal / Marseille vs. Toulouse / Bilbao vs. Sociedad",
+    "pick": "HYBRID QUANT MULTI (BTTS Ja, Marseille Sieg, Bilbao U2.5)",
+    "odds": 5.84,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Frankfurt vs. HSV / Marseille vs. Toulouse",
+    "pick": "GOALS & BTTS VALUE ACCA (Frankfurt Ü2.5 & Marseille Ü2.5)",
+    "odds": 3.79,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Marseille vs. Toulouse / New England vs. Inter Miami",
+    "pick": "PLAYER PROP SPOTLIGHT (Greenwood 1+ SOT [VOID] & Messi 1+ SOT [WON])",
+    "odds": 1.38,
+    "stake": 1.0,
+    "pnl": 0.38,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  }
+]
