@@ -34,16 +34,22 @@ def load_all_history():
             try:
                 with open(filename, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                    items_list = []
                     if isinstance(data, list):
-                        for item in data:
-                            item["sport"] = sport
-                            all_bets.append(item)
+                        items_list = data
                     elif isinstance(data, dict):
-                        for k, v in data.items():
-                            if isinstance(v, list):
-                                for item in v:
-                                    item["sport"] = sport
-                                    all_bets.append(item)
+                        if "settled" in data and isinstance(data["settled"], list):
+                            items_list = data["settled"]
+                        else:
+                            for k, v in data.items():
+                                if isinstance(v, list):
+                                    items_list.extend(v)
+
+                    for item in items_list:
+                        if isinstance(item, dict):
+                            item_copy = dict(item)
+                            item_copy.setdefault("sport", sport)
+                            all_bets.append(item_copy)
             except Exception as e:
                 print(f"[Warnung] Konnte {filename} nicht laden: {e}")
     return all_bets
@@ -61,10 +67,11 @@ def filter_bets(bets, timeframe="weekly"):
         if not date_str:
             continue
         try:
-            if "T" in date_str:
-                dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            date_clean = str(date_str).strip()
+            if "T" in date_clean:
+                dt = datetime.fromisoformat(date_clean.replace("Z", "+00:00"))
             else:
-                dt = datetime.strptime(date_str[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                dt = datetime.strptime(date_clean[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
             
             if dt >= start_date:
                 filtered.append(b)
@@ -91,15 +98,30 @@ def compute_metrics(bets):
         if sport not in by_sport:
             by_sport[sport] = {"bets": 0, "profit": 0.0, "stake": 0.0, "wins": 0}
 
-        stake = float(b.get("stake", 1.0))
-        status = str(b.get("status", "")).upper()
-        odds = float(b.get("odds") or b.get("price") or 1.0)
+        try:
+            stake = float(str(b.get("stake", 1.0)).replace(",", "."))
+        except (ValueError, TypeError):
+            stake = 1.0
 
-        # Robuste P&L-Erkennung: Falls 'profit' oder 'pnl' fehlt, aus Status & Quote berechnen
+        status = str(b.get("status", "")).upper()
+        
+        raw_odds = b.get("odds") or b.get("price") or 1.0
+        try:
+            odds = float(str(raw_odds).replace(",", "."))
+        except (ValueError, TypeError):
+            odds = 1.0
+
+        # Robuste P&L-Erkennung
         if "profit" in b and b["profit"] is not None:
-            pnl = float(b["profit"])
+            try:
+                pnl = float(str(b["profit"]).replace(",", "."))
+            except ValueError:
+                pnl = 0.0
         elif "pnl" in b and b["pnl"] is not None:
-            pnl = float(b["pnl"])
+            try:
+                pnl = float(str(b["pnl"]).replace(",", "."))
+            except ValueError:
+                pnl = 0.0
         else:
             if status in ["WON", "HIT", "WIN"]:
                 pnl = (odds - 1.0) * stake
@@ -120,7 +142,7 @@ def compute_metrics(bets):
 
         if "clv" in b and b["clv"] is not None:
             try:
-                clv_list.append(float(b["clv"]))
+                clv_list.append(float(str(b["clv"]).replace(",", ".")))
             except ValueError:
                 pass
 
@@ -145,7 +167,6 @@ def generate_performance_chart(bets, metrics, timeframe):
     plt.style.use("dark_background")
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
 
-    # Linker Plot: Kumulierte Equity
     cumulative_pnl = [0.0]
     running = 0.0
     for b in bets:
@@ -159,7 +180,6 @@ def generate_performance_chart(bets, metrics, timeframe):
     ax1.set_ylabel("Profit (Units)", color="#aaaaaa")
     ax1.grid(True, linestyle=":", alpha=0.3)
 
-    # Rechter Plot: P&L nach Sportart
     sports = list(metrics["by_sport"].keys())
     pnls = [metrics["by_sport"][s]["profit"] for s in sports]
     colors = ["#00ffcc" if p >= 0 else "#ff3366" for p in pnls]
