@@ -70,6 +70,17 @@ def normalize_sport_name(sport_raw, fallback="Sonstige"):
     key = str(sport_raw).strip().lower()
     return SPORT_ALIAS_MAP.get(key, str(sport_raw).strip())
 
+def is_parlay(bet):
+    """Prüft, ob es sich um eine Kombiwette / Parlay handelt."""
+    b_type = str(bet.get("bet_type") or bet.get("type") or "").lower()
+    if any(k in b_type for k in ["parlay", "kombi", "acca", "multi"]):
+        return True
+    if isinstance(bet.get("legs"), list) and len(bet["legs"]) > 1:
+        return True
+    if isinstance(bet.get("selections"), list) and len(bet["selections"]) > 1:
+        return True
+    return False
+
 def load_all_history():
     all_bets = []
     for default_sport, filename in SPORT_FILES.items():
@@ -124,12 +135,29 @@ def compute_metrics(bets):
     if not bets:
         return None
 
-    wins = sum(1 for b in bets if str(b.get("status", "")).upper() in ["WON", "HIT", "WIN"])
-    losses = sum(1 for b in bets if str(b.get("status", "")).upper() in ["LOST", "MISS", "LOSS"])
-    pushes = sum(1 for b in bets if str(b.get("status", "")).upper() in ["PUSH", "VOID"])
-    
+    singles = [b for b in bets if not is_parlay(b)]
+    parlays = [b for b in bets if is_parlay(b)]
+
+    def calc_group(items):
+        wins = sum(1 for b in items if str(b.get("status", "")).upper() in ["WON", "HIT", "WIN"])
+        losses = sum(1 for b in items if str(b.get("status", "")).upper() in ["LOST", "MISS", "LOSS"])
+        pushes = sum(1 for b in items if str(b.get("status", "")).upper() in ["PUSH", "VOID"])
+        total_valid = wins + losses
+        win_rate = (wins / total_valid * 100) if total_valid > 0 else 0.0
+        return {
+            "total": len(items),
+            "wins": wins,
+            "losses": losses,
+            "pushes": pushes,
+            "win_rate": win_rate
+        }
+
+    singles_metrics = calc_group(singles)
+    parlays_metrics = calc_group(parlays)
+
+    # Einzelwetten nach Sportart
     by_sport = {}
-    for b in bets:
+    for b in singles:
         sport = normalize_sport_name(b.get("sport"), "Sonstige")
         if sport not in by_sport:
             by_sport[sport] = {"total": 0, "wins": 0, "losses": 0}
@@ -141,41 +169,58 @@ def compute_metrics(bets):
         elif status in ["LOST", "MISS", "LOSS"]:
             by_sport[sport]["losses"] += 1
 
-    total_valid = wins + losses
-    win_rate = (wins / total_valid * 100) if total_valid > 0 else 0.0
+    # Durchschnittsquote für Kombis berechnen (falls odds vorhanden)
+    parlay_odds = []
+    for p in parlays:
+        odd = p.get("odds") or p.get("quote") or p.get("total_odds")
+        if odd:
+            try:
+                parlay_odds.append(float(odd))
+            except ValueError:
+                pass
+    avg_parlay_odds = (sum(parlay_odds) / len(parlay_odds)) if parlay_odds else 0.0
 
     return {
-        "total_bets": len(bets),
-        "wins": wins,
-        "losses": losses,
-        "pushes": pushes,
-        "win_rate": win_rate,
+        "singles": singles_metrics,
+        "parlays": parlays_metrics,
+        "avg_parlay_odds": avg_parlay_odds,
         "by_sport": by_sport
     }
 
 def generate_performance_chart(metrics, timeframe):
     plt.style.use("dark_background")
-    fig, ax = plt.subplots(figsize=(8, 4))
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+
+    by_sport = metrics["by_sport"]
+    if not by_sport:
+        plt.close()
+        return None
 
     sports = sorted(
-        list(metrics["by_sport"].keys()),
-        key=lambda s: (metrics["by_sport"][s]["wins"] / metrics["by_sport"][s]["total"]) if metrics["by_sport"][s]["total"] > 0 else 0,
+        list(by_sport.keys()),
+        key=lambda s: (by_sport[s]["wins"] / by_sport[s]["total"]) if by_sport[s]["total"] > 0 else 0,
         reverse=False
     )
     
-    wins = [metrics["by_sport"][s]["wins"] for s in sports]
-    totals = [metrics["by_sport"][s]["total"] for s in sports]
+    wins = [by_sport[s]["wins"] for s in sports]
+    totals = [by_sport[s]["total"] for s in sports]
     losses = [totals[i] - wins[i] for i in range(len(sports))]
 
     y_pos = range(len(sports))
     ax.barh(y_pos, wins, color="#00ffcc", height=0.5, label="Gewonnen (Won)")
     ax.barh(y_pos, losses, left=wins, color="#ff3366", height=0.5, label="Verloren (Lost)")
 
+    # Puffer rechts, um Text-Clipping zu verhindern
+    max_t = max(totals) if totals else 1
+    ax.set_xlim(0, max(max_t * 1.35, 5))
+
     ax.set_yticks(y_pos)
     ax.set_yticklabels(sports, fontsize=10, fontweight="bold", color="#ffffff")
-    ax.set_xlabel("Anzahl Picks", color="#aaaaaa")
-    ax.set_title(f"JARVIS Treffer nach Sportart ({timeframe.upper()})", fontsize=11, fontweight="bold", color="#ffffff")
-    ax.legend(loc="lower right")
+    ax.set_xlabel("Anzahl Einzel-Picks", color="#aaaaaa")
+    ax.set_title(f"JARVIS Einzel-Picks nach Sportart ({timeframe.upper()})", fontsize=11, fontweight="bold", color="#ffffff", pad=25)
+    
+    # Legende nach oben außerhalb des Plots setzen
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=2, frameon=False)
     ax.grid(True, linestyle=":", alpha=0.3, axis="x")
 
     for i in y_pos:
@@ -183,7 +228,7 @@ def generate_performance_chart(metrics, timeframe):
         t = totals[i]
         pct = (w / t * 100) if t > 0 else 0
         ax.annotate(f"{w}/{t} ({pct:.0f}%)",
-                    xy=(t + 0.3, i),
+                    xy=(t + 0.2, i),
                     va="center", color="#ffffff", fontsize=9, fontweight="bold")
 
     plt.tight_layout()
@@ -195,9 +240,11 @@ def generate_performance_chart(metrics, timeframe):
 def build_simple_caption(metrics, timeframe):
     now_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     label = "WÖCHENTLICHER" if timeframe == "weekly" else "MONATLICHER"
-    total_bar = make_mini_bar(metrics["win_rate"], segments=10)
+    
+    s = metrics["singles"]
+    p = metrics["parlays"]
 
-    # Sortierung nach Trefferquote absteigend
+    # Sportarten nach Winrate
     sorted_sports = sorted(
         metrics["by_sport"].items(),
         key=lambda x: (x[1]["wins"] / x[1]["total"] if x[1]["total"] > 0 else 0),
@@ -210,52 +257,80 @@ def build_simple_caption(metrics, timeframe):
             icon = SPORT_ICONS.get(sport, "📌")
             pct = (data["wins"] / data["total"] * 100)
             bar = make_mini_bar(pct, segments=5)
-            # Saubere Formatierung ohne Umbrüche
-            sport_lines.append(f"{icon} <b>{sport}:</b> <code>{data['wins']:>2}/{data['total']:<2}</code> ({pct:>3.0f}%) {bar}")
+            sport_lines.append(f"{icon} <b>{sport}:</b> <code>{data['wins']:>2}/{data['total']:<2}</code> ({pct:.0f}%) {bar}")
 
-    sports_text = "\n".join(sport_lines) if sport_lines else "• Keine Daten"
+    sports_text = "\n".join(sport_lines) if sport_lines else "• Keine Einzel-Picks vorhanden"
+
+    s_bar = make_mini_bar(s["win_rate"], segments=5)
+    p_bar = make_mini_bar(p["win_rate"], segments=5)
+    
+    parlay_odds_str = f" • Avg: @{metrics['avg_parlay_odds']:.2f}" if metrics["avg_parlay_odds"] > 0 else ""
 
     caption = f"""📊 <b>JARVIS {label} RECAP</b>
 🗓️ <i>Stand: {now_str}</i>
 ━━━━━━━━━━━━━━━━━━━━
-🎯 <b>Gesamt-Treffer:</b> <b>{metrics['wins']}/{metrics['total_bets']}</b> ({metrics['win_rate']:.1f}%)
-{total_bar}
-📦 <b>Bilanz:</b> <code>{metrics['wins']} Won • {metrics['losses']} Lost • {metrics['pushes']} Void</code>
+🎯 <b>TEIL 1: EINZEL-PICKS (SINGLES)</b>
+• <b>Bilanz:</b> <code>{s['wins']} Won • {s['losses']} Lost • {s['pushes']} Void</code>
+• <b>Trefferquote:</b> <b>{s['wins']}/{s['total']}</b> ({s['win_rate']:.1f}%) {s_bar}
+
+🏆 <b>Singles nach Sportart:</b>
+{sports_text}
 
 ━━━━━━━━━━━━━━━━━━━━
-🏆 <b>Sportarten-Trefferquote:</b>
-{sports_text}"""
+⚡ <b>TEIL 2: KOMBIWETTEN (PARLAYS)</b>
+• <b>Gespielt:</b> <code>{p['total']} Kombis</code>
+• <b>Bilanz:</b> <code>{p['wins']} Won • {p['losses']} Lost • {p['pushes']} Void</code>
+• <b>Trefferquote:</b> <b>{p['wins']}/{p['total']}</b> ({p['win_rate']:.1f}%){parlay_odds_str}
+{p_bar}"""
     return caption
 
-def send_telegram_recap(caption, image_path):
+def send_telegram_recap(caption, image_path=None):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
         return
 
     thread_id = int(TELEGRAM_ANALYTICS_THREAD) if TELEGRAM_ANALYTICS_THREAD else None
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "caption": caption,
-        "parse_mode": "HTML"
-    }
-    if thread_id:
-        payload["message_thread_id"] = thread_id
+    
+    if image_path and os.path.exists(image_path):
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "caption": caption,
+            "parse_mode": "HTML"
+        }
+        if thread_id:
+            payload["message_thread_id"] = thread_id
 
-    try:
-        with open(image_path, "rb") as img:
-            files = {"photo": img}
-            res = requests.post(url, data=payload, files=files, timeout=30)
+        try:
+            with open(image_path, "rb") as img:
+                files = {"photo": img}
+                res = requests.post(url, data=payload, files=files, timeout=30)
+                if res.status_code != 200:
+                    print(f"[Telegram] Fehler: {res.text}")
+                else:
+                    print(f"[Telegram] Recap mit Grafik erfolgreich an Topic {thread_id} gesendet.")
+        except Exception as e:
+            print(f"[Telegram Exception] {e}")
+    else:
+        # Fallback rein textuell
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": caption,
+            "parse_mode": "HTML"
+        }
+        if thread_id:
+            payload["message_thread_id"] = thread_id
+        try:
+            res = requests.post(url, json=payload, timeout=30)
             if res.status_code != 200:
-                print(f"[Telegram] Fehler: {res.text}")
-            else:
-                print(f"[Telegram] Recap erfolgreich an Topic {thread_id} gesendet.")
-    except Exception as e:
-        print(f"[Telegram Exception] {e}")
+                print(f"[Telegram] Text-Fehler: {res.text}")
+        except Exception as e:
+            print(f"[Telegram Exception] {e}")
 
 def main():
     timeframe = sys.argv[1].lower() if len(sys.argv) > 1 else "weekly"
-    print(f"Starte einfache Analytics Engine ({timeframe})...")
+    print(f"Starte verbesserte JARVIS Analytics Engine ({timeframe})...")
 
     bets = load_all_history()
     recent_bets = filter_bets(bets, timeframe=timeframe)
