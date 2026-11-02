@@ -3,7 +3,7 @@ import sys
 import json
 import re
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -86,11 +86,6 @@ def send_telegram_notification(text):
     except Exception as e:
         print(f"Fehler beim Senden der Telegram-Meldung: {e}")
 
-def make_minute_bar(minute, total=90):
-    clamped = max(0, min(minute, total))
-    blocks = int((clamped / total) * 12)
-    return f"[{'█' * blocks}{'░' * (12 - blocks)}]"
-
 def run_live_update():
     state = load_state()
     if not state or not state.get("active_pick"):
@@ -111,41 +106,53 @@ def run_live_update():
     match_name = active.get("match", "")
     match_date = active.get("date", "")
     pick_text = active.get("pick", "")
-    now_berlin = datetime.now(LOCAL_TZ).strftime("%H:%M Uhr")
 
-    print(f"Prüfe Live-Status für: {match_name} (Aktuelle Uhrzeit: {now_berlin})...")
+    now_berlin = datetime.now(LOCAL_TZ)
+    print(f"Prüfe Live-Status für: {match_name} ({now_berlin.strftime('%H:%M Uhr')})...")
 
+    # 1. Zeitschutz: Vor offizieller Beginnzeit niemals als LIVE einstufen
+    match_time_match = re.search(r"(\d{1,2}):(\d{2})\s*Uhr", raw_text)
+    if match_time_match:
+        sched_hour = int(match_time_match.group(1))
+        sched_min = int(match_time_match.group(2))
+        try:
+            match_dt = datetime.strptime(match_date, "%Y-%m-%d").replace(
+                hour=sched_hour, minute=sched_min, tzinfo=LOCAL_TZ
+            )
+            if now_berlin < match_dt:
+                print(f"Spiel beginnt erst um {sched_hour:02d}:{sched_min:02d} Uhr. Live-Suche übersprungen.")
+                return
+        except Exception:
+            pass
+
+    # 2. Status-Ermittlung über Gemini 3.8-Flash mit Google Search
     prompt = f"""
-Du bist ein automatisierter Live-Sport-Tracker.
-Recherchiere via Google Search den ECHTEN LIVE-SPIELSTAND für dieses Match:
+Du bist ein automatisierter Sport-Settlement- und Live-Tracker.
+Recherchiere via Google Search den offiziellen Status für folgende Partie:
 - Begegnung: {match_name}
 - Datum: {match_date}
-- Wette: {pick_text}
+- Tipp: {pick_text}
 
-SUCH-ANWEISUNG:
-Suche nach "{match_name} live score", "{match_name} sofascore" oder "{match_name} flashscore".
-
-ERMITTLE:
+REGELN:
 1. STATUS:
-   - 'LIVE' (falls Spiel aktuell läuft oder Halbzeitpause ist)
-   - 'FINISHED' (falls Spiel offiziell abgepfiffen wurde)
-   - 'UPCOMING' (nur wenn noch nicht begonnen)
-2. MINUTE: Aktuelle Spielminute (0 bis 90). Bei FINISHED 90.
-3. SCORE: Exakter aktueller Spielstand (z.B. '0:2').
-4. ASSESSMENT: 
-   - 'ON_TRACK' (wenn der Tipp aktuell gewinnt)
-   - 'AT_RISK' (wenn der Tipp aktuell verlieren würde)
-5. OUTCOME: Falls STATUS == 'FINISHED', bewerte den Tipp '{pick_text}':
-   - 'WON' (Tipp ist definitiv gewonnen)
-   - 'LOST' (Tipp ist verloren)
+   - 'FINISHED' (Spiel ist offiziell beendet, inkl. OT/Shootout)
+   - 'LIVE' (Spiel läuft aktuell)
+   - 'UPCOMING' (Spiel hat noch nicht begonnen)
+2. SCORE: Aktueller Spielstand (z.B. '108:114' oder '2:1').
+3. QUARTER_OR_TIME: Bei Basketball z.B. 'Q3' oder 'Ende Q4', bei Fussball '65. Min', bei Beendet 'FINAL'.
+4. ASSESSMENT: 'ON_TRACK' (wenn Tipp gewinnt) oder 'AT_RISK'.
+5. OUTCOME: Falls STATUS == 'FINISHED', bewerte '{pick_text}':
+   - 'WON' (gewonnen)
+   - 'LOST' (verloren)
+   - 'VOID' (Push / Quote 1.0)
    - 'PENDING' (falls noch nicht beendet)
 
 Antworte STRIKT in diesem Format:
 STATUS: FINISHED oder LIVE oder UPCOMING
-MINUTE: Zahl
 SCORE: Spielstand
+TIME_INFO: Zeitangabe oder FINAL
 ASSESSMENT: ON_TRACK oder AT_RISK
-OUTCOME: WON oder LOST oder PENDING
+OUTCOME: WON oder LOST oder VOID oder PENDING
 """
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
@@ -165,8 +172,8 @@ OUTCOME: WON oder LOST oder PENDING
         print(f"Gemini Antwort:\n{ans}")
 
         status = "UPCOMING"
-        minute = 0
         score = "-"
+        time_info = ""
         track = "ON_TRACK"
         outcome = "PENDING"
 
@@ -174,13 +181,10 @@ OUTCOME: WON oder LOST oder PENDING
             line = line.strip()
             if line.startswith("STATUS:"):
                 status = line.replace("STATUS:", "").strip().upper()
-            elif line.startswith("MINUTE:"):
-                try:
-                    minute = int(re.search(r'\d+', line).group())
-                except:
-                    minute = 90 if status == "FINISHED" else 45
             elif line.startswith("SCORE:"):
                 score = line.replace("SCORE:", "").strip()
+            elif line.startswith("TIME_INFO:"):
+                time_info = line.replace("TIME_INFO:", "").strip()
             elif line.startswith("ASSESSMENT:"):
                 track = line.replace("ASSESSMENT:", "").strip().upper()
             elif line.startswith("OUTCOME:"):
@@ -190,9 +194,7 @@ OUTCOME: WON oder LOST oder PENDING
             print("Spiel hat noch nicht begonnen.")
             return
 
-        # 1. Ticket in Telegram aktualisieren
-        bar = make_minute_bar(minute)
-        pct = int((min(minute, 90) / 90) * 100)
+        # 3. Live-Abschnitt im Ticket editieren
         track_icon = "🟢 Pick auf Kurs" if track == "ON_TRACK" else "🟡 Pick unter Druck"
 
         if status == "FINISHED":
@@ -203,11 +205,10 @@ OUTCOME: WON oder LOST oder PENDING
                 f"• <b>Status:</b> Spiel offiziell beendet"
             )
         else:
-            minute_display = f"{minute}. Min"
+            time_display = f" ({time_info})" if time_info else ""
             new_live_section = (
                 f"⏱️ <b>LIVE-TRACKER • SPIEL LÄUFT</b>\n"
-                f"{bar} {pct}% ({minute_display})\n"
-                f"• <b>Spielstand:</b> <b>{score}</b>\n"
+                f"• <b>Spielstand:</b> <b>{score}</b>{time_display}\n"
                 f"• <b>Trend:</b> {track_icon}"
             )
 
@@ -221,17 +222,16 @@ OUTCOME: WON oder LOST oder PENDING
             edit_telegram(msg_id, new_text)
             active["original_text"] = new_text
 
-        # 2. Vollautomatisches Settlement bei Spielende
-        if status == "FINISHED":
-            print(f"Spiel beendet. Ergebnis der Wette: {outcome}")
-            
-            step_num = active.get("step", 3)
+        # 4. Automatisches Settlement bei Spielende
+        if status == "FINISHED" and outcome in ["WON", "LOST", "VOID"]:
+            step_num = active.get("step", 2)
             stake = float(active.get("stake", 0))
-            expected_return = float(active.get("expected_return", 0))
+            odds_val = float(active.get("odds", 1.0))
+            expected_return = float(active.get("expected_return", round(stake * odds_val, 2)))
 
             if outcome == "WON":
                 state["bankroll"] = round(expected_return, 2)
-                state["current_step"] = step_num  # History enthält jetzt 1 bis step_num
+                state["current_step"] = step_num
                 
                 history_entry = {
                     "step": step_num,
@@ -245,11 +245,8 @@ OUTCOME: WON oder LOST oder PENDING
                 }
                 state.setdefault("history", []).append(history_entry)
                 state["active_pick"] = None
-
                 save_state(state)
-                print("State erfolgreich auf WON aktualisiert!")
 
-                # Erfolgsmeldung in Telegram
                 win_msg = (
                     f"✅ <b>MONEYRACE • STUFE {step_num} GEWONNEN!</b>\n\n"
                     f"📌 <b>Match:</b> {match_name}\n"
@@ -276,9 +273,7 @@ OUTCOME: WON oder LOST oder PENDING
                 }
                 state.setdefault("history", []).append(history_entry)
                 state["active_pick"] = None
-
                 save_state(state)
-                print("State erfolgreich auf LOST aktualisiert!")
 
                 lose_msg = (
                     f"❌ <b>MONEYRACE • STUFE {step_num} VERLOREN</b>\n\n"
