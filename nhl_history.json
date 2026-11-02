@@ -1,0 +1,42 @@
+[
+  {
+    "match": "New York Rangers vs Edmonton Oilers",
+    "pick": "Edmonton Oilers Sieg (inkl. OT)",
+    "odds": 2.08,
+    "stake": 1.0,
+    "pnl": 1.08,
+    "status": "WON",
+    "sport": "NHL",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "Philadelphia Flyers vs Utah Mammoth / Anaheim Ducks vs Ottawa Senators",
+    "pick": "Utah Mammoth ML + Ottawa Senators ML",
+    "odds": 2.87,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NHL",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "Washington Capitals vs Minnesota Wild",
+    "pick": "Unter 6.5 Tore",
+    "odds": 1.75,
+    "stake": 1.0,
+    "pnl": 0.75,
+    "status": "WON",
+    "sport": "NHL",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "New York Rangers vs Edmonton Oilers",
+    "pick": "Connor McDavid Über 1.5 Punkte",
+    "odds": 1.8,
+    "stake": 1.0,
+    "pnl": 0.8,
+    "status": "WON",
+    "sport": "NHL",
+    "date": "2026-11-01"
+  }
+]
