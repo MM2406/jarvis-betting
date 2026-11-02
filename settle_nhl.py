@@ -5,7 +5,6 @@ import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# Sichere Anbindung an telegram_sender.py
 try:
     from telegram_sender import send_to_telegram
 except ImportError:
@@ -15,7 +14,6 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Sichere Fallback-Kette für das NHL-Topic
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
@@ -32,7 +30,6 @@ def make_progress_bar(percentage, segments=10):
     return f"[{'🟩' * filled}{'⬜' * empty}]"
 
 def append_to_history(settled_items):
-    """Speichert abgerechnete Wetten mit PnL dauerhaft für analytics_engine.py ab."""
     if not settled_items:
         return
     history = []
@@ -170,8 +167,10 @@ FORMAT-VORLAGE FÜR TELEGRAM:
 [Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen übersichtlich darstellen]
 """
 
-    base_url = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent)"
-    endpoint = f"{base_url}?key={GEMINI_API_KEY}"
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -179,7 +178,7 @@ FORMAT-VORLAGE FÜR TELEGRAM:
     }
 
     try:
-        res = requests.post(endpoint, json=payload, timeout=120)
+        res = requests.post(api_url, json=payload, timeout=120)
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
 
