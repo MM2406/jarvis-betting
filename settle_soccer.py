@@ -5,7 +5,6 @@ import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# Sichere Anbindung an telegram_sender.py
 try:
     from telegram_sender import send_to_telegram
 except ImportError:
@@ -32,22 +31,22 @@ def make_progress_bar(percentage, segments=10):
     return f"[{'🟩' * filled}{'⬜' * empty}]"
 
 def append_to_history(settled_items):
-    """Speichert abgerechnete Wetten dauerhaft für analytics_engine.py ab."""
+    """Speichert abgerechnete Wetten mit PnL dauerhaft für analytics_engine.py ab."""
     if not settled_items:
         return
-    history = {"settled": [], "pending": []}
+    history = []
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, "r", encoding="utf-8") as f:
                 content = json.load(f)
-                if isinstance(content, dict):
+                if isinstance(content, list):
                     history = content
-                elif isinstance(content, list):
-                    history = {"settled": content, "pending": []}
+                elif isinstance(content, dict) and "settled" in content:
+                    history = content["settled"]
         except Exception as e:
             print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
 
-    history.setdefault("settled", []).extend(settled_items)
+    history.extend(settled_items)
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
@@ -96,11 +95,12 @@ def send_telegram_message(text):
                 print(f"Telegram Fehler: {res2.text}")
 
 def settle_soccer_bets():
-    if not os.path.exists(PENDING_FILE):
+    file_path = PENDING_FILE
+    if not os.path.exists(file_path):
         print("Keine offenen Soccer Wetten gefunden (pending_soccer.json fehlt).")
         return
 
-    with open(PENDING_FILE, "r", encoding="utf-8") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     if not data:
@@ -108,21 +108,31 @@ def settle_soccer_bets():
         return
 
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
-    date_display = data.get("date", datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")) if isinstance(data, dict) else datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    date_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+    if isinstance(data, dict):
+        date_display = data.get("date", date_display)
+    elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+        d_val = data[0].get("date", "")
+        if d_val:
+            try:
+                date_display = datetime.strptime(d_val[:10], "%Y-%m-%d").strftime("%d.%m.%Y")
+            except Exception:
+                date_display = str(d_val)
+
     bt = "```"
 
     prompt = f"""
-Du bist 'JARVIS SOCCER SETTLEMENT & CLV AGENT'.
-Nutze Google Search, um für folgende Fussballwetten die finalen Ergebnisse, Torschützen, Handicaps/Spreads sowie die Schlusquoten kurz vor Spielbeginn (Closing Odds / Pinnacle / Bet365 Schlusquote) zu recherchieren:
+Du bist 'JARVIS SOCCER SETTLEMENT AGENT'.
+Recherchiere über Google Search die finalen Endergebnisse für folgende Fussball-Wetten:
 
-Offene Wetten:
+Offene Fussball-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
 
 REGELN:
-1. Prüfe, ob alle Spiele regulär beendet sind.
+1. Prüfe, ob alle Spiele offiziell beendet sind (FT - Reguläre Spielzeit 90 Min + Nachspielzeit).
 2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
-3. Recherchiere für jeden Tipp die Schlussquote (Closing Line) kurz vor Anpfiff. Falls nicht auffindbar, nimm die Anfangsquote an.
-4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Ticket/Schein).
+3. Bei Kombiwetten: Zeige jedes Bein (Leg) mit Ergebnis und Status.
+4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Wette/Schein).
 
 Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
 {bt}json
@@ -132,17 +142,20 @@ Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
   "picks_total": 6,
   "picks_won": 5,
   "total_staked": 4.0,
-  "total_returned": 5.80,
-  "net_profit": 1.80,
-  "roi": 45.0,
+  "total_returned": 5.91,
+  "net_profit": 1.91,
+  "roi": 47.75,
   "is_complete": true,
-  "picks_details": [
+  "settled_picks": [
     {{
-      "match": "Team A vs Team B",
-      "pick": "Team A Sieg",
-      "placed_odds": 1.95,
-      "closing_odds": 1.82,
-      "status": "WON"
+      "match": "Heim vs Gast",
+      "pick": "Tipp",
+      "odds": 1.85,
+      "stake": 1.0,
+      "pnl": 0.85,
+      "status": "WON",
+      "sport": "Soccer",
+      "date": "{today_iso}"
     }}
   ]
 }}
@@ -150,13 +163,16 @@ Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
 
 FORMAT-VORLAGE FÜR TELEGRAM:
 <b>⚽ JARVIS SOCCER SETTLEMENT & RECAP</b>
-<i>Abrechnung der Wetten vom {date_display}</i>
+<i>Abrechnung der Fussball-Slate vom {date_display}</i>
 
 <b>━━━━━━━━━━━━━━━━━━━━</b>
-[Hier alle Tickets und Einzel-Picks auflisten mit Resultat und Status]
+[Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen übersichtlich darstellen]
 """
 
-    url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=){GEMINI_API_KEY}"
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -164,7 +180,7 @@ FORMAT-VORLAGE FÜR TELEGRAM:
     }
 
     try:
-        res = requests.post(url, json=payload, timeout=120)
+        res = requests.post(api_url, json=payload, timeout=120)
         res.raise_for_status()
         raw_text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
 
@@ -196,27 +212,6 @@ FORMAT-VORLAGE FÜR TELEGRAM:
             roi = json_metrics.get("roi", 0.0)
             sign = "+" if profit >= 0 else ""
 
-            # CLV berechnen
-            clv_list = []
-            detailed_picks = json_metrics.get("picks_details", [])
-            for p in detailed_picks:
-                try:
-                    p_odds = float(p.get("placed_odds", 1.0))
-                    c_odds = float(p.get("closing_odds", p_odds))
-                    if c_odds > 1.0:
-                        clv = ((p_odds / c_odds) - 1.0) * 100.0
-                        p["clv"] = clv
-                        clv_list.append(clv)
-                except Exception:
-                    pass
-
-            avg_clv_str = ""
-            if clv_list:
-                avg_clv = sum(clv_list) / len(clv_list)
-                clv_icon = "🟢" if avg_clv > 0 else ("🔴" if avg_clv < 0 else "⚪")
-                clv_sign = "+" if avg_clv >= 0 else ""
-                avg_clv_str = f"• <b>Ø Slate-CLV:</b>       <b>{clv_sign}{avg_clv:.1f}% {clv_icon}</b>\n"
-
             dashboard = "\n\n━━━━━━━━━━━━━━━━━━━━\n"
             dashboard += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
             dashboard += f"• <b>Ticket Win-Rate:</b> {t_won}/{t_total} ({t_rate:.1f}%) {make_progress_bar(t_rate)}\n"
@@ -224,8 +219,6 @@ FORMAT-VORLAGE FÜR TELEGRAM:
             dashboard += f"• <b>Einsatz / Return:</b> {staked:.2f}U ➔ {returned:.2f}U\n"
             dashboard += f"• <b>Netto-Profit:</b>     <b>{sign}{profit:.2f} Units</b>\n"
             dashboard += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
-            if avg_clv_str:
-                dashboard += avg_clv_str
             dashboard += "━━━━━━━━━━━━━━━━━━━━"
 
             final_message = clean_text + dashboard
@@ -237,37 +230,26 @@ FORMAT-VORLAGE FÜR TELEGRAM:
         send_telegram_message(final_message)
 
         if is_complete:
-            # Für die History aufbereiten
-            archived = []
-            if json_metrics and "picks_details" in json_metrics:
-                for pick_d in json_metrics["picks_details"]:
-                    archived.append({
-                        "match": pick_d.get("match", "Soccer Match"),
-                        "pick": pick_d.get("pick", "Tipp"),
-                        "odds": pick_d.get("placed_odds", 1.0),
-                        "closing_odds": pick_d.get("closing_odds", 1.0),
-                        "clv": pick_d.get("clv", 0.0),
-                        "status": pick_d.get("status", "SETTLED"),
-                        "date": today_iso,
-                        "stake": 1.0
-                    })
+            items_to_archive = []
+            if json_metrics and "settled_picks" in json_metrics and json_metrics["settled_picks"]:
+                items_to_archive = json_metrics["settled_picks"]
             else:
-                archived.append({
-                    "match": "Soccer Slate",
-                    "pick": "Tages-Ticket",
-                    "odds": 1.0,
-                    "status": "WON" if json_metrics and json_metrics.get("net_profit", 0) > 0 else "LOST",
-                    "date": today_iso,
-                    "stake": 1.0
-                })
+                raw_list = data if isinstance(data, list) else data.get("picks", [data])
+                for item in raw_list:
+                    if isinstance(item, dict):
+                        archived_item = dict(item)
+                        archived_item.setdefault("date", today_iso)
+                        archived_item.setdefault("sport", "Soccer")
+                        archived_item.setdefault("status", "WON" if json_metrics and json_metrics.get("net_profit", 0) > 0 else "LOST")
+                        items_to_archive.append(archived_item)
 
-            append_to_history(archived)
+            append_to_history(items_to_archive)
 
-            if os.path.exists(PENDING_FILE):
-                os.remove(PENDING_FILE)
-            print("Alle Soccer Wetten final beendet. pending_soccer.json archiviert und gelöscht.")
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump([], f, indent=2)
+            print("Alle Soccer Wetten final beendet. pending_soccer.json geleert und archiviert.")
         else:
-            print("Noch Soccer Partien offen. pending_soccer.json bleibt erhalten.")
+            print("Noch Soccer Spiele offen. pending_soccer.json bleibt erhalten.")
 
     except Exception as e:
         print(f"Fehler bei Soccer Settlement: {e}")
