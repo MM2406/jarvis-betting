@@ -1,0 +1,62 @@
+[
+  {
+    "match": "Orlando Magic vs. Boston Celtics",
+    "pick": "Boston Celtics -6.5",
+    "odds": 1.93,
+    "stake": 1.0,
+    "pnl": 0.93,
+    "status": "WON",
+    "sport": "NBA",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "Orlando Magic vs. Boston Celtics",
+    "pick": "Under 221.5",
+    "odds": 1.91,
+    "stake": 1.0,
+    "pnl": 0.91,
+    "status": "WON",
+    "sport": "NBA",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "Indiana Pacers vs. Brooklyn Nets",
+    "pick": "Over 230.5",
+    "odds": 1.91,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "Indiana Pacers vs. Brooklyn Nets",
+    "pick": "Indiana Pacers -3.5",
+    "odds": 1.87,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "Orlando Magic vs. Boston Celtics / Golden State Warriors vs. Los Angeles Clippers / Los Angeles Lakers vs. Toronto Raptors",
+    "pick": "Boston Celtics ML + Los Angeles Clippers +2.5 + Los Angeles Lakers -2.5",
+    "odds": 4.74,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-01"
+  },
+  {
+    "match": "Los Angeles Lakers vs. Toronto Raptors",
+    "pick": "Scottie Barnes Über 7.5 Rebounds",
+    "odds": 1.85,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-01"
+  }
+]
