@@ -2,18 +2,17 @@ import os
 import sys
 import json
 import re
+import time
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# Sichere Anbindung der zentralen Telegram-Hilfsfunktion
 try:
     from telegram_sender import send_to_telegram
 except ImportError:
     send_to_telegram = None
 
 RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "").strip()
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_THREAD_ID = (
@@ -24,6 +23,67 @@ TELEGRAM_THREAD_ID = (
 
 STATE_FILE = "pending_soccer.json"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
+
+def make_progress_bar(current, total=90, length=10):
+    """Erzeugt einen visuellen Unicode-Fortschrittsbalken."""
+    pct = min(1.0, max(0.0, current / total))
+    filled = int(round(pct * length))
+    bar = "█" * filled + "░" * (length - filled)
+    return f"[{bar}] {int(pct * 100)}%"
+
+def get_match_minute(ev):
+    """Ermittelt die exakte Spielminute aus den Rohdaten von SportAPI."""
+    status = ev.get("status", {})
+    desc = status.get("description", "").lower()
+
+    if "halftime" in desc or "half time" in desc:
+        return 45, "Halbzeit"
+    if "ended" in desc or "finished" in desc or "ft" in desc:
+        return 90, "Endstand"
+
+    # 1. Direkte Minute im Event prüfen
+    minute = status.get("minute") or ev.get("time", {}).get("minute")
+    if minute and isinstance(minute, (int, float)):
+        return int(minute), f"{int(minute)}'"
+
+    # 2. Aus Anstoßzeit und Halbzeit errechnen
+    start_ts = ev.get("startTimestamp")
+    if start_ts:
+        now_ts = int(time.time())
+        elapsed = (now_ts - start_ts) // 60
+        if "2nd" in desc or "second" in desc:
+            calc_min = min(90, max(46, elapsed - 15))
+        else:
+            calc_min = min(45, max(1, elapsed))
+        return calc_min, f"{calc_min}'"
+
+    return 0, status.get("description", "Live")
+
+def evaluate_pick_progress(pick_text, h_score, a_score):
+    """Prüft den Zwischenstand einer Torwette / Sieg / BTTS."""
+    pt = pick_text.lower()
+    total_goals = h_score + a_score
+
+    # Über 2.5 Tore
+    if "über 2.5" in pt or "over 2.5" in pt:
+        if total_goals >= 3:
+            return f"✅ {total_goals}/3 Tore"
+        return f"⏳ {total_goals}/3 Tore"
+
+    # Über 1.5 Tore
+    if "über 1.5" in pt or "over 1.5" in pt:
+        if total_goals >= 2:
+            return f"✅ {total_goals}/2 Tore"
+        return f"⏳ {total_goals}/2 Tore"
+
+    # Beide Teams treffen (BTTS)
+    if "beide" in pt or "btts" in pt:
+        hit = (1 if h_score > 0 else 0) + (1 if a_score > 0 else 0)
+        if hit == 2:
+            return "✅ Beide getroffen"
+        return f"⏳ {hit}/2 Teams"
+
+    return None
 
 def load_state():
     if not os.path.exists(STATE_FILE):
@@ -67,7 +127,6 @@ def edit_telegram(message_id, text):
         return False
 
 def fetch_live_football_events():
-    """Ruft alle aktuell laufenden Fussballspiele weltweit über SportAPI ab."""
     if not RAPIDAPI_KEY:
         print("[SoccerLive] RAPIDAPI_KEY fehlt.")
         return []
@@ -103,27 +162,30 @@ def run_soccer_live():
         print("[SoccerLive] Kein original_text hinterlegt.")
         return
 
-    # Sammle alle einzigartigen Matches aus POTD und Tickets
-    matches_to_track = set()
+    # Sammle alle relevanten Partien & zugehörige Picks
+    match_picks = {}
     if "potd" in state and isinstance(state["potd"], dict):
         m = state["potd"].get("match")
+        p = state["potd"].get("pick")
         if m:
-            matches_to_track.add(m)
+            match_picks.setdefault(m, []).append(f"⭐ POTD: {p}")
 
     for ticket in state.get("tickets", []):
-        for pick in ticket.get("picks", []):
-            m = pick.get("match")
+        t_name = ticket.get("ticket_name", "Kombi")
+        for p_item in ticket.get("picks", []):
+            m = p_item.get("match")
+            p = p_item.get("pick")
             if m:
-                matches_to_track.add(m)
+                match_picks.setdefault(m, []).append(f"{t_name}: {p}")
 
-    if not matches_to_track:
+    if not match_picks:
         print("[SoccerLive] Keine Spiele im Tracking-JSON gefunden.")
         return
 
     live_events = fetch_live_football_events()
     live_status_lines = []
 
-    for match in sorted(matches_to_track):
+    for match, picks in sorted(match_picks.items()):
         parts = [p.strip().lower() for p in re.split(r"vs\.?| - ", match, flags=re.IGNORECASE) if len(p.strip()) > 3]
         matched_ev = None
 
@@ -137,21 +199,36 @@ def run_soccer_live():
         if matched_ev:
             h_score = matched_ev.get("homeScore", {}).get("current", 0)
             a_score = matched_ev.get("awayScore", {}).get("current", 0)
-            status_desc = matched_ev.get("status", {}).get("description", "Live")
-            live_status_lines.append(f"• <b>{match}:</b> <b>{h_score}:{a_score}</b> ({status_desc})")
+            curr_min, min_label = get_match_minute(matched_ev)
+            progress_bar = make_progress_bar(curr_min, total=90, length=10)
+
+            # Ticket-Fortschritt berechnen
+            pick_evals = []
+            for pick_desc in picks:
+                eval_str = evaluate_pick_progress(pick_desc, h_score, a_score)
+                if eval_str:
+                    pick_evals.append(f"   ↳ {eval_str} ({pick_desc.split(':')[0]})")
+
+            eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
+
+            live_status_lines.append(
+                f"🔴 <b>{match}</b> | <b>{h_score}:{a_score}</b> ({min_label})\n"
+                f"   Zeit: <code>{progress_bar}</code>"
+                f"{eval_block}"
+            )
 
     if not live_status_lines:
         print("[SoccerLive] Aktuell läuft keine der getrackten Soccer-Partien.")
         return
 
     live_block = (
-        "⏱️ <b>LIVE-ZWISCHENSTÄNDE</b>\n" +
-        "\n".join(live_status_lines)
+        "⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>\n" +
+        "\n\n".join(live_status_lines)
     )
 
-    pattern = r"⏱️ <b>LIVE-ZWISCHENSTÄNDE.*?(\n━━━━━━━━━━━━━━━━━━━━|\Z)"
+    pattern = r"⏱️ <b>LIVE-.*?(?=\n━━━━━━━━━━━━━━━━━━━━|\Z)"
     if re.search(pattern, raw_text, flags=re.DOTALL):
-        new_text = re.sub(pattern, f"{live_block}\\1", raw_text, count=1, flags=re.DOTALL)
+        new_text = re.sub(pattern, live_block, raw_text, count=1, flags=re.DOTALL)
     else:
         new_text = raw_text.rstrip() + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
 
@@ -159,7 +236,7 @@ def run_soccer_live():
         if edit_telegram(msg_id, new_text):
             state["original_text"] = new_text
             save_state(state)
-            print("[SoccerLive] Soccer-Ticket in Telegram erfolgreich live aktualisiert.")
+            print("[SoccerLive] Soccer-Ticket in Telegram erfolgreich mit Fortschrittsbalken aktualisiert.")
 
 if __name__ == "__main__":
     run_soccer_live()
