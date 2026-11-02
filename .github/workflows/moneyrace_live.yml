@@ -2,7 +2,7 @@ name: moneyrace-live
 
 on:
   schedule:
-    # Läuft tagsüber alle 15 Minuten zur Live-Aktualisierung
+    # Laeuft tagsueber alle 15 Minuten (11:00 bis 23:45 UTC = 12:00 bis 00:45 Uhr MEZ)
     - cron: '*/15 11-23 * * *'
   workflow_dispatch:
 
@@ -51,6 +51,8 @@ jobs:
             echo "Keine relevanten Aenderungen zu committen."
           else
             git commit -m "Update Live Board State [skip ci]"
+            git checkout -- . 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
             git pull --rebase origin main
             git push origin main
           fi
