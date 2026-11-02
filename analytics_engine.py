@@ -71,7 +71,7 @@ def normalize_sport_name(sport_raw, fallback="Sonstige"):
     return SPORT_ALIAS_MAP.get(key, str(sport_raw).strip())
 
 def is_parlay(bet):
-    """Prüft, ob es sich um eine Kombiwette / Parlay handelt."""
+    """Ermittelt, ob ein Datensatz eine Kombiwette ist."""
     b_type = str(bet.get("bet_type") or bet.get("type") or "").lower()
     if any(k in b_type for k in ["parlay", "kombi", "acca", "multi"]):
         return True
@@ -155,7 +155,6 @@ def compute_metrics(bets):
     singles_metrics = calc_group(singles)
     parlays_metrics = calc_group(parlays)
 
-    # Einzelwetten nach Sportart
     by_sport = {}
     for b in singles:
         sport = normalize_sport_name(b.get("sport"), "Sonstige")
@@ -169,7 +168,6 @@ def compute_metrics(bets):
         elif status in ["LOST", "MISS", "LOSS"]:
             by_sport[sport]["losses"] += 1
 
-    # Durchschnittsquote für Kombis berechnen (falls odds vorhanden)
     parlay_odds = []
     for p in parlays:
         odd = p.get("odds") or p.get("quote") or p.get("total_odds")
@@ -210,7 +208,7 @@ def generate_performance_chart(metrics, timeframe):
     ax.barh(y_pos, wins, color="#00ffcc", height=0.5, label="Gewonnen (Won)")
     ax.barh(y_pos, losses, left=wins, color="#ff3366", height=0.5, label="Verloren (Lost)")
 
-    # Puffer rechts, um Text-Clipping zu verhindern
+    # Genug Puffer rechts, um Text-Clipping zu verhindern
     max_t = max(totals) if totals else 1
     ax.set_xlim(0, max(max_t * 1.35, 5))
 
@@ -219,7 +217,7 @@ def generate_performance_chart(metrics, timeframe):
     ax.set_xlabel("Anzahl Einzel-Picks", color="#aaaaaa")
     ax.set_title(f"JARVIS Einzel-Picks nach Sportart ({timeframe.upper()})", fontsize=11, fontweight="bold", color="#ffffff", pad=25)
     
-    # Legende nach oben außerhalb des Plots setzen
+    # Legende nach oben außerhalb des Datenbereichs setzen
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=2, frameon=False)
     ax.grid(True, linestyle=":", alpha=0.3, axis="x")
 
@@ -244,7 +242,6 @@ def build_simple_caption(metrics, timeframe):
     s = metrics["singles"]
     p = metrics["parlays"]
 
-    # Sportarten nach Winrate
     sorted_sports = sorted(
         metrics["by_sport"].items(),
         key=lambda x: (x[1]["wins"] / x[1]["total"] if x[1]["total"] > 0 else 0),
@@ -312,7 +309,6 @@ def send_telegram_recap(caption, image_path=None):
         except Exception as e:
             print(f"[Telegram Exception] {e}")
     else:
-        # Fallback rein textuell
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         payload = {
             "chat_id": TELEGRAM_CHAT_ID,
