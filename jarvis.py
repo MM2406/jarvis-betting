@@ -82,7 +82,6 @@ def send_telegram(text):
                 print(f"[Telegram] Fehler: {res.text}")
                 continue
 
-        # message_id der ersten/Haupt-Nachricht festhalten
         if not first_message_id:
             try:
                 first_message_id = res.json().get("result", {}).get("message_id")
@@ -285,7 +284,10 @@ REPORT-HTML:
   ]
 }}
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "tools": [{"googleSearch": {}}],
@@ -294,7 +296,7 @@ REPORT-HTML:
 
     for attempt in range(1, 4):
         try:
-            res = requests.post(url, json=payload, timeout=90)
+            res = requests.post(api_url, json=payload, timeout=90)
             if res.status_code == 200:
                 full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 report = full_reply
