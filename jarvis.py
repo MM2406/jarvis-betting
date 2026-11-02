@@ -37,8 +37,9 @@ SOCCER_LEAGUES = [
 
 def send_telegram(text):
     """
-    Sendet den Report an Telegram und gibt die message_id zurueck,
-    damit der Live-Tracker spaeter Zwischenstaende hineineditieren kann.
+    Sendet den Report an Telegram. Falls die Nachricht doch geteilt werden muss,
+    wird die message_id des LETZTEN Teils zurueckgegeben, damit der Live-Tracker
+    immer am Ende der Kette editiert und keine doppelten Bloecke erzeugt.
     """
     if send_to_telegram:
         return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_SOCCER")
@@ -52,7 +53,7 @@ def send_telegram(text):
         return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    max_len = 3800
+    max_len = 3900
     chunks = []
     while len(text) > max_len:
         split_idx = text.rfind("\n\n", 0, max_len)
@@ -65,7 +66,7 @@ def send_telegram(text):
     if text:
         chunks.append(text)
 
-    first_message_id = None
+    last_message_id = None
     for chunk in chunks:
         payload = {
             "chat_id": TELEGRAM_CHAT_ID,
@@ -82,13 +83,12 @@ def send_telegram(text):
                 print(f"[Telegram] Fehler: {res.text}")
                 continue
 
-        if not first_message_id:
-            try:
-                first_message_id = res.json().get("result", {}).get("message_id")
-            except Exception:
-                pass
+        try:
+            last_message_id = res.json().get("result", {}).get("message_id")
+        except Exception:
+            pass
 
-    return first_message_id
+    return last_message_id
 
 def fetch_soccer_odds():
     all_events = []
@@ -148,33 +148,27 @@ Erstelle für heute die {edition_label}.
 VERFÜGBARE PARTIEN & REAL-QUOTEN AUS DER API:
 {odds_data}
 
-STRIKTE GROUNDING- UND VERIFIKATIONS-REGELN (VERPFLICHTEND!):
-1. VERBOT VON HISTORISCHEN/HALLUZINIERTEN MATCHES: Verwende AUSSCHLIESSLICH Spiele und Teams, die exakt in der obigen Liste stehen!
-2. HARTER ROSTER- & KADER-CHECK BEI SPIELER-PROPS:
-   - Du darfst NUR Spieler auswählen, die im aktuellen Jahr {current_year} zweifelsfrei und offiziell bei einem der oben aufgeführten Teams spielen!
-   - Führe zwingend eine Google Search durch, um den AKTUELLEN VEREIN und die VORAUSSICHTLICHE AUFSTELLUNG des Spielers zu verifizieren.
-   - Wenn ein Spieler transferiert wurde, verletzt ausfällt oder nicht im heutigen Kader steht, ist er STRIKT VERBOTEN.
-   - KEIN Raten aus historischem Wissen! Wenn du nicht zu 100% via Websuche belegen kannst, dass der Spieler heute im Kader seines aktuellen Vereins steht, lasse das Player-Prop-Ticket komplett weg.
-3. KEINE UNDER BEI SPIELERN: Bei Spielerwetten nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ Torschuss, Over 1.5 Schüsse, Anytime Goal, Scorerpunkt). Keine Under-Props!
-4. RECHERCHE: Nutze Google Search für aktuelle Startelf-Prognosen, Ausfälle, xG und Spieler-Torschussstatistiken.
+STRIKTE LÄNGEN- UND FORMATVORGABE (EXTREM WICHTIG):
+- Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.200 Zeichen umfassen, damit er ungeteilt in eine einzige Telegram-Nachricht passt!
+- Halte die 'Logik:' und 'Edge:' Abschnitte extrem präzise und knackig (maximal 2 bis 3 Sätze pro Ticket).
+- Jede Aufzählung MUSS direkt mit '• ' (Unicode Bullet) OHNE Leerzeile beginnen.
+- Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...'.
+- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'.
 
-TICKET-ARCHITEKTUR (OHNE ZWANG! Wenn kein Value vorliegt, lasse das jeweilige Ticket weg):
-- ⭐ SOCCER PICK OF THE DAY (Single Bet): Der beste Einzeltipp des Tages mit größtem mathematischem Edge.
-- 🔒 CONSERVATIVE 2-LEG BANKER: Exakt 2 Beine. Gesamtquote ~1.70 - 2.15. Fokus: Maximale Stabilität (z.B. ML Favorit, 1X, Über 1.5 Tore).
+STRIKTE GROUNDING- UND VERIFIKATIONS-REGELN:
+1. Verwende AUSSCHLIESSLICH Spiele und Teams, die exakt in der obigen Liste stehen!
+2. HARTER ROSTER-CHECK BEI SPIELER-PROPS:
+   - Wähle NUR Spieler aus, die im Jahr {current_year} offiziell beim jeweiligen Team unter Vertrag stehen und voraussichtlich spielen.
+   - Nutze Google Search zur Absicherung der Aufstellung/Verletzungen. Bei Unsicherheit das Player-Prop-Ticket weglassen!
+3. KEINE UNDER BEI SPIELERN: Nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ SoT). Keine Under-Props!
+
+TICKET-ARCHITEKTUR (OHNE ZWANG):
+- ⭐ SOCCER PICK OF THE DAY (Single Bet): Bester Einzeltipp des Tages mit größtem mathematischem Edge.
+- 🔒 CONSERVATIVE 2-LEG BANKER: Exakt 2 Beine. Gesamtquote ~1.70 - 2.15.
 - ⚖️ BALANCED VALUE ACCA: Exakt 3 Beine. Gesamtquote ~2.50 - 4.00.
-- ⚡ HYBRID QUANT MULTI: 2 bis 4 Beine mit Markt-Mix (z.B. Spiel A Sieg + Spiel B BTTS + Spiel C Über 2.5), wo es taktisch und rechnerisch korreliert.
-- ⚽ GOALS & BTTS VALUE ACCA: 2 bis 3 Beine rein aus Tor-Märkten (Über 2.5, BTTS Ja).
-- 👟 PLAYER PROPS (Single oder Multi-Acca):
-  * Wähle 1 bis 3 Spieler aus den HEUTIGEN, oben gelisteten Partien (Torschüsse aufs Tor / SoT, Tore, Tor+Vorlage).
-  * Vor jedem Spieler-Tipp muss der aktuelle Verein des Spielers via Google Search verifiziert sein!
-  * Wenn mehrere starke Spieler-Picks vorhanden sind, kombiniere sie zu einer 2er- oder 3er-Player-Prop-Kombi (z.B. Spieler A 1+ SoT & Spieler B 1+ SoT @ ~2.10) ODER stelle sie als starke Einzelpicks dar!
-- 💣 HIGH-YIELD LOTTO / RISIKO ACCA (Optional): 4 bis 5 Beine, Quote 5.00+ bis 12.00 (Einsatz 0.25 - 0.5 Units). Nur aufführen, wenn Spitzen-Value vorhanden ist!
-
-TELEGRAM-FORMATIERUNG:
-- Keine doppelten Leerzeilen.
-- Jede Aufzählung MUSS direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch beginnen!
-- Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'
+- ⚡ HYBRID QUANT MULTI: 2 bis 4 Beine mit Markt-Mix (Sieg, BTTS, Über 2.5).
+- ⚽ GOALS & BTTS VALUE ACCA: 2 bis 3 Beine rein aus Tor-Märkten.
+- 👟 PLAYER PROPS (Single oder Multi-Acca): 1 bis 2 Spieler (1+ Schuss aufs Tor).
 
 REPORT-HTML:
 ⚽ <b>JARVIS SOCCER INTEL • {edition_label}</b>
@@ -187,14 +181,14 @@ REPORT-HTML:
 🔄 <b>Buchmacher-Alternative:</b> [Alternative] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 - 2.0 Units
 📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [npxG-Differenz, Formkurve, Matchup-Analyse]
+🔍 <b>Edge:</b> [Maximal 2 prägnante Sätze zur Kante]
 
 ━━━━━━━━━━━━━━━━━━━━
 🔒 <b>CONSERVATIVE 2-LEG BANKER</b>
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 1.0 - 1.5 Units
-🔍 <b>Logik:</b> [Warum diese 2 Säulen maximale Stabilität bieten]
+🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚖️ <b>BALANCED VALUE ACCA (3-er Kombi)</b>
@@ -202,7 +196,7 @@ REPORT-HTML:
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 - 1.0 Units
-🔍 <b>Logik:</b> [Erwartungswert & Synergie]
+🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚡ <b>HYBRID QUANT MULTI (Markt-Mix)</b>
@@ -210,25 +204,21 @@ REPORT-HTML:
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
-🔍 <b>Logik:</b> [Synergie aus Sieg, Toren oder Handicaps]
+🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚽ <b>GOALS & BTTS VALUE ACCA</b>
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 Units
-🔍 <b>Logik:</b> [Total xG, Tempo, Offensiv-Drang]
+🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 👟 <b>PLAYER PROP SPOTLIGHT / MULTI-TICKET</b>
-- [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: z.B. 1+ Torschuss / Tor]</b> @ [Quote]
-📈 <b>Gesamtquote (falls Kombi):</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
-🔍 <b>Edge:</b> [Schussfrequenz pro 90 Min, Strafraumaktionen, Gegner-Zulassung]
-
-━━━━━━━━━━━━━━━━━━━━
-💣 <b>HIGH-YIELD VALUE ACCA (Risiko-Kombi)</b>
-[Nur aufführen, falls heute echter Value existiert, sonst Block ganz weglassen!]
+- [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
+- [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
+📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
+🔍 <b>Edge:</b> [Maximal 2 Sätze Begründung]
 
 ---JSON_TRACKING---
 {{
@@ -309,11 +299,11 @@ REPORT-HTML:
                     try:
                         tracking_data = json.loads(json_str)
                     except Exception as je:
-                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
+                        print(f"[Tracking] Fehler beim Parsen des JSON-Blocks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
                 
-                # Report absenden und message_id abfangen
+                # Report absenden und ID der letzten Teilnachricht holen
                 msg_id = send_telegram(report)
 
                 # Nachricht und ID im Tracking-JSON verankern
@@ -324,7 +314,7 @@ REPORT-HTML:
                     try:
                         with open(PENDING_FILE, "w", encoding="utf-8") as f:
                             json.dump(tracking_data, f, ensure_ascii=False, indent=2)
-                        print(f"Soccer-Picks inklusive message_id ({msg_id}) in {PENDING_FILE} gespeichert.")
+                        print(f"Soccer-Picks mit message_id ({msg_id}) in {PENDING_FILE} gesichert.")
                     except Exception as fe:
                         print(f"Fehler beim Speichern von {PENDING_FILE}: {fe}")
 
