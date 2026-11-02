@@ -13,6 +13,7 @@ except ImportError:
     send_to_telegram = None
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_THREAD_ID = (
@@ -101,6 +102,146 @@ def send_telegram_notification(text):
         print(f"Fehler beim Senden der Telegram-Meldung: {e}")
         return None
 
+def fetch_rapidapi_sportapi(match_name):
+    """
+    Fragt SportAPI über RapidAPI nach Live-Scores ab.
+    Gibt (status, score, time_info, home_goals, away_goals) zurück, wenn gefunden.
+    """
+    if not RAPIDAPI_KEY:
+        return None
+
+    url = "https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live"
+    headers = {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": "sportapi7.p.rapidapi.com"
+    }
+
+    try:
+        res = requests.get(url, headers=headers, timeout=12)
+        if res.status_code != 200:
+            print(f"[SportAPI] HTTP {res.status_code}: {res.text}")
+            return None
+
+        data = res.json()
+        events = data.get("events", [])
+        
+        # Match-Teile extrahieren (z.B. "Newcastle United vs. Everton")
+        parts = [p.strip().lower() for p in re.split(r"vs\.?| - ", match_name, flags=re.IGNORECASE) if p.strip()]
+        
+        for ev in events:
+            h_name = ev.get("homeTeam", {}).get("name", "").lower()
+            a_name = ev.get("awayTeam", {}).get("name", "").lower()
+
+            # Prüfen ob ein Teamname übereinstimmt
+            matched = False
+            for p in parts:
+                if len(p) > 3 and (p in h_name or p in a_name):
+                    matched = True
+                    break
+            
+            if matched:
+                h_score = ev.get("homeScore", {}).get("current", 0)
+                a_score = ev.get("awayScore", {}).get("current", 0)
+                score_str = f"{h_score}:{a_score}"
+                
+                status_raw = ev.get("status", {}).get("description", "").lower()
+                status_code = ev.get("status", {}).get("type", "").lower()
+
+                time_str = "Live"
+                if "1st" in status_raw or "first" in status_raw:
+                    time_str = "1. HZ"
+                elif "2nd" in status_raw or "second" in status_raw:
+                    time_str = "2. HZ"
+                elif "halftime" in status_raw or "ht" in status_raw:
+                    time_str = "Halbzeit"
+                elif "finished" in status_raw or status_code in ["finished", "ended"]:
+                    return {"status": "FINISHED", "score": score_str, "time_info": "FINAL", "h": h_score, "a": a_score}
+
+                return {
+                    "status": "LIVE",
+                    "score": score_str,
+                    "time_info": time_str,
+                    "h": h_score,
+                    "a": a_score
+                }
+    except Exception as e:
+        print(f"[SportAPI Error] {e}")
+
+    return None
+
+def fetch_gemini_search(match_name, match_date, pick_text):
+    """Fallback-Recherche via Gemini und Google Search."""
+    if not GEMINI_API_KEY:
+        return None
+
+    prompt = f"""
+Du bist ein automatisierter Sport-Settlement- und Live-Tracker.
+Recherchiere via Google Search den offiziellen Status für folgende Partie:
+- Begegnung: {match_name}
+- Datum: {match_date}
+- Tipp: {pick_text}
+
+REGELN:
+1. STATUS:
+   - 'FINISHED' (Spiel ist offiziell beendet)
+   - 'LIVE' (Spiel läuft aktuell)
+   - 'UPCOMING' (Spiel hat noch nicht begonnen)
+2. SCORE: Aktueller Spielstand (z.B. '2:1').
+3. QUARTER_OR_TIME: z.B. '65. Min', 'Halbzeit' oder 'FINAL'.
+4. ASSESSMENT: 'ON_TRACK' (wenn Tipp gewinnt/führt) oder 'AT_RISK'.
+5. OUTCOME: Falls STATUS == 'FINISHED', bewerte '{pick_text}':
+   - 'WON' (gewonnen)
+   - 'LOST' (verloren)
+   - 'VOID' (Push / Quote 1.0)
+   - 'PENDING' (falls noch nicht beendet)
+
+Antworte STRIKT in diesem Format:
+STATUS: FINISHED oder LIVE oder UPCOMING
+SCORE: Spielstand
+TIME_INFO: Zeitangabe oder FINAL
+ASSESSMENT: ON_TRACK oder AT_RISK
+OUTCOME: WON oder LOST oder VOID oder PENDING
+"""
+
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"googleSearch": {}}],
+        "generationConfig": {"temperature": 0.1}
+    }
+
+    try:
+        res = requests.post(api_url, json=payload, timeout=40)
+        if res.status_code != 200:
+            print(f"Gemini API Fehler: {res.status_code}")
+            return None
+
+        ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        parsed = {
+            "status": "UPCOMING",
+            "score": "-",
+            "time_info": "",
+            "track": "ON_TRACK",
+            "outcome": "PENDING"
+        }
+        for line in ans.splitlines():
+            line = line.strip()
+            if line.startswith("STATUS:"):
+                parsed["status"] = line.replace("STATUS:", "").strip().upper()
+            elif line.startswith("SCORE:"):
+                parsed["score"] = line.replace("SCORE:", "").strip()
+            elif line.startswith("TIME_INFO:"):
+                parsed["time_info"] = line.replace("TIME_INFO:", "").strip()
+            elif line.startswith("ASSESSMENT:"):
+                parsed["track"] = line.replace("ASSESSMENT:", "").strip().upper()
+            elif line.startswith("OUTCOME:"):
+                parsed["outcome"] = line.replace("OUTCOME:", "").strip().upper()
+
+        return parsed
+    except Exception as e:
+        print(f"Gemini Fallback Fehler: {e}")
+        return None
+
 def run_live_update():
     state = load_state()
     if not state or not state.get("active_pick"):
@@ -125,7 +266,7 @@ def run_live_update():
     now_berlin = datetime.now(LOCAL_TZ)
     print(f"Prüfe Live-Status für: {match_name} ({now_berlin.strftime('%H:%M Uhr')})...")
 
-    # 1. Zeitschutz: Vor offizieller Beginnzeit niemals als LIVE einstufen
+    # 1. Zeitschutz: Vor Anstoß kein Abfrage-Spam
     match_time_match = re.search(r"(\d{1,2}):(\d{2})\s*Uhr", raw_text)
     if match_time_match:
         sched_hour = int(match_time_match.group(1))
@@ -135,200 +276,166 @@ def run_live_update():
                 hour=sched_hour, minute=sched_min, tzinfo=LOCAL_TZ
             )
             if now_berlin < match_dt:
-                print(f"Spiel beginnt erst um {sched_hour:02d}:{sched_min:02d} Uhr. Live-Suche übersprungen.")
+                print(f"Spiel beginnt erst um {sched_hour:02d}:{sched_min:02d} Uhr. Abfrage übersprungen.")
                 return
         except Exception:
             pass
 
-    # 2. Status-Ermittlung über Gemini 3.8-Flash mit Google Search
-    prompt = f"""
-Du bist ein automatisierter Sport-Settlement- und Live-Tracker.
-Recherchiere via Google Search den offiziellen Status für folgende Partie:
-- Begegnung: {match_name}
-- Datum: {match_date}
-- Tipp: {pick_text}
+    # 2. Versuch 1: Live-Daten direkt über SportAPI (RapidAPI)
+    api_data = fetch_rapidapi_sportapi(match_name)
+    
+    status = "UPCOMING"
+    score = "-"
+    time_info = ""
+    track = "ON_TRACK"
+    outcome = "PENDING"
 
-REGELN:
-1. STATUS:
-   - 'FINISHED' (Spiel ist offiziell beendet, inkl. OT/Shootout)
-   - 'LIVE' (Spiel läuft aktuell)
-   - 'UPCOMING' (Spiel hat noch nicht begonnen)
-2. SCORE: Aktueller Spielstand (z.B. '108:114' oder '2:1').
-3. QUARTER_OR_TIME: Bei Basketball z.B. 'Q3' oder 'Ende Q4', bei Fussball '65. Min', bei Beendet 'FINAL'.
-4. ASSESSMENT: 'ON_TRACK' (wenn Tipp gewinnt) oder 'AT_RISK'.
-5. OUTCOME: Falls STATUS == 'FINISHED', bewerte '{pick_text}':
-   - 'WON' (gewonnen)
-   - 'LOST' (verloren)
-   - 'VOID' (Push / Quote 1.0)
-   - 'PENDING' (falls noch nicht beendet)
+    if api_data:
+        status = api_data["status"]
+        score = api_data["score"]
+        time_info = api_data["time_info"]
+        print(f"[SportAPI Treffer] Status: {status} | Stand: {score} ({time_info})")
 
-Antworte STRIKT in diesem Format:
-STATUS: FINISHED oder LIVE oder UPCOMING
-SCORE: Spielstand
-TIME_INFO: Zeitangabe oder FINAL
-ASSESSMENT: ON_TRACK oder AT_RISK
-OUTCOME: WON oder LOST oder VOID oder PENDING
-"""
+        # Einfache Trend-Ermittlung bei Live-Daten
+        total_goals = api_data["h"] + api_data["a"]
+        if "über 1.5" in pick_text.lower() or "over 1.5" in pick_text.lower():
+            track = "ON_TRACK" if total_goals >= 2 else "AT_RISK"
+        elif "über 2.5" in pick_text.lower() or "over 2.5" in pick_text.lower():
+            track = "ON_TRACK" if total_goals >= 3 else "AT_RISK"
 
-    host = "generativelanguage.googleapis.com"
-    path = "v1beta/models/gemini-3.8-flash:generateContent"
-    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
-
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "tools": [{"googleSearch": {}}],
-        "generationConfig": {"temperature": 0.1}
-    }
-
-    try:
-        res = requests.post(api_url, json=payload, timeout=45)
-        if res.status_code != 200:
-            print(f"Gemini API Fehler: {res.status_code}")
-            return
-
-        ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-        print(f"Gemini Antwort:\n{ans}")
-
-        status = "UPCOMING"
-        score = "-"
-        time_info = ""
-        track = "ON_TRACK"
-        outcome = "PENDING"
-
-        for line in ans.splitlines():
-            line = line.strip()
-            if line.startswith("STATUS:"):
-                status = line.replace("STATUS:", "").strip().upper()
-            elif line.startswith("SCORE:"):
-                score = line.replace("SCORE:", "").strip()
-            elif line.startswith("TIME_INFO:"):
-                time_info = line.replace("TIME_INFO:", "").strip()
-            elif line.startswith("ASSESSMENT:"):
-                track = line.replace("ASSESSMENT:", "").strip().upper()
-            elif line.startswith("OUTCOME:"):
-                outcome = line.replace("OUTCOME:", "").strip().upper()
-
-        if status == "UPCOMING":
-            print("Spiel hat noch nicht begonnen.")
-            return
-
-        # 3. Live-Abschnitt im Ticket editieren
-        track_icon = "🟢 Pick auf Kurs" if track == "ON_TRACK" else "🟡 Pick unter Druck"
-
+        # Falls beendet, Settlement durch Gemini gegenprüfen
         if status == "FINISHED":
-            new_live_section = (
-                f"⏱️ <b>LIVE-TRACKER • BEENDET</b>\n"
-                f"[████████████] 100%\n"
-                f"• <b>Endstand:</b> {score}\n"
-                f"• <b>Status:</b> Spiel offiziell beendet"
-            )
-        else:
-            time_display = f" ({time_info})" if time_info else ""
-            new_live_section = (
-                f"⏱️ <b>LIVE-TRACKER • SPIEL LÄUFT</b>\n"
-                f"• <b>Spielstand:</b> <b>{score}</b>{time_display}\n"
-                f"• <b>Trend:</b> {track_icon}"
-            )
+            g_data = fetch_gemini_search(match_name, match_date, pick_text)
+            outcome = g_data.get("outcome", "PENDING") if g_data else "PENDING"
+    else:
+        # Versuch 2: Fallback auf Gemini Search
+        print("[Info] Nutze Fallback auf Gemini Search...")
+        g_data = fetch_gemini_search(match_name, match_date, pick_text)
+        if g_data:
+            status = g_data["status"]
+            score = g_data["score"]
+            time_info = g_data["time_info"]
+            track = g_data["track"]
+            outcome = g_data["outcome"]
 
-        pattern = r"⏱️ <b>LIVE-TRACKER.*?(\n━━━━━━━━━━━━━━━━━━━━|\Z)"
-        if re.search(pattern, raw_text, flags=re.DOTALL):
-            new_text = re.sub(pattern, f"{new_live_section}\\1", raw_text, count=1, flags=re.DOTALL)
-        else:
-            new_text = raw_text.rstrip() + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + new_live_section
+    if status == "UPCOMING":
+        print("Spiel hat noch nicht begonnen.")
+        return
 
-        if new_text.strip() != raw_text.strip():
-            edit_telegram(msg_id, new_text)
-            active["original_text"] = new_text
+    # 3. Live-Abschnitt im Telegram-Ticket editieren
+    track_icon = "🟢 Pick auf Kurs" if track == "ON_TRACK" else "🟡 Pick unter Druck"
 
-        # 4. Automatisches Settlement bei Spielende
-        if status == "FINISHED" and outcome in ["WON", "LOST", "VOID"]:
-            step_num = int(active.get("step", 1))
+    if status == "FINISHED":
+        new_live_section = (
+            f"⏱️ <b>LIVE-TRACKER • BEENDET</b>\n"
+            f"[████████████] 100%\n"
+            f"• <b>Endstand:</b> {score}\n"
+            f"• <b>Status:</b> Spiel offiziell beendet"
+        )
+    else:
+        time_display = f" ({time_info})" if time_info else ""
+        new_live_section = (
+            f"⏱️ <b>LIVE-TRACKER • SPIEL LÄUFT</b>\n"
+            f"• <b>Spielstand:</b> <b>{score}</b>{time_display}\n"
+            f"• <b>Trend:</b> {track_icon}"
+        )
+
+    pattern = r"⏱️ <b>LIVE-TRACKER.*?(\n━━━━━━━━━━━━━━━━━━━━|\Z)"
+    if re.search(pattern, raw_text, flags=re.DOTALL):
+        new_text = re.sub(pattern, f"{new_live_section}\\1", raw_text, count=1, flags=re.DOTALL)
+    else:
+        new_text = raw_text.rstrip() + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + new_live_section
+
+    if new_text.strip() != raw_text.strip():
+        edit_telegram(msg_id, new_text)
+        active["original_text"] = new_text
+
+    # 4. Automatisches Settlement bei Spielende
+    if status == "FINISHED" and outcome in ["WON", "LOST", "VOID"]:
+        step_num = int(active.get("step", 1))
+
+        try:
+            stake = float(str(active.get("stake", 5.0)).replace(",", "."))
+        except ValueError:
+            stake = 5.0
+        try:
+            odds_val = float(str(active.get("odds", 1.5)).replace(",", "."))
+        except ValueError:
+            odds_val = 1.5
+
+        try:
+            expected_return = float(str(active.get("expected_return", round(stake * odds_val, 2))).replace(",", "."))
+        except ValueError:
+            expected_return = round(stake * odds_val, 2)
+
+        if outcome == "WON":
+            state["bankroll"] = round(expected_return, 2)
+            state["current_step"] = step_num
             
-            try:
-                stake = float(str(active.get("stake", 5.0)).replace(",", "."))
-            except ValueError:
-                stake = 5.0
-            try:
-                odds_val = float(str(active.get("odds", 1.5)).replace(",", "."))
-            except ValueError:
-                odds_val = 1.5
-
-            try:
-                expected_return = float(str(active.get("expected_return", round(stake * odds_val, 2))).replace(",", "."))
-            except ValueError:
-                expected_return = round(stake * odds_val, 2)
-
-            if outcome == "WON":
-                state["bankroll"] = round(expected_return, 2)
-                state["current_step"] = step_num
-                
-                history_entry = {
-                    "step": step_num,
-                    "match": match_name,
-                    "pick": pick_text,
-                    "odds": odds_val,
-                    "stake": stake,
-                    "return": round(expected_return, 2),
-                    "status": "WON",
-                    "date": active.get("date")
-                }
-                state.setdefault("history", []).append(history_entry)
-                state["active_pick"] = None
-                save_state(state)
-
-                win_msg = (
-                    f"✅ <b>MONEYRACE • STUFE {step_num} GEWONNEN!</b>\n\n"
-                    f"📌 <b>Match:</b> {match_name}\n"
-                    f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
-                    f"💰 <b>Gewinn:</b> <b>{expected_return:.2f} €</b>\n\n"
-                    f"🚀 <b>Stufe {step_num + 1} freigeschaltet!</b>\n"
-                    f"Neue Bankroll: <b>{expected_return:.2f} €</b> (All-In)"
-                )
-                send_telegram_notification(win_msg)
-
-            elif outcome == "LOST":
-                state["bankroll"] = float(state.get("start_amount", 5.0))
-                state["current_step"] = 0
-                
-                history_entry = {
-                    "step": step_num,
-                    "match": match_name,
-                    "pick": pick_text,
-                    "odds": odds_val,
-                    "stake": stake,
-                    "return": 0.0,
-                    "status": "LOST",
-                    "date": active.get("date")
-                }
-                state.setdefault("history", []).append(history_entry)
-                state["active_pick"] = None
-                save_state(state)
-
-                lose_msg = (
-                    f"❌ <b>MONEYRACE • STUFE {step_num} VERLOREN</b>\n\n"
-                    f"📌 <b>Match:</b> {match_name}\n"
-                    f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
-                    f"🔄 <b>Challenge-Reset:</b> Rückkehr zu Stufe 1 ({state['bankroll']:.2f} €)."
-                )
-                send_telegram_notification(lose_msg)
-
-            elif outcome == "VOID":
-                state["active_pick"] = None
-                save_state(state)
-
-                void_msg = (
-                    f"🟡 <b>MONEYRACE • STUFE {step_num} VOID / PUSH</b>\n\n"
-                    f"📌 <b>Match:</b> {match_name}\n"
-                    f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
-                    f"Einsatz von {stake:.2f} € erstattet. Stufe {step_num} wird wiederholt."
-                )
-                send_telegram_notification(void_msg)
-
-        else:
+            history_entry = {
+                "step": step_num,
+                "match": match_name,
+                "pick": pick_text,
+                "odds": odds_val,
+                "stake": stake,
+                "return": round(expected_return, 2),
+                "status": "WON",
+                "date": active.get("date")
+            }
+            state.setdefault("history", []).append(history_entry)
+            state["active_pick"] = None
             save_state(state)
 
-    except Exception as e:
-        print(f"Fehler im Live-Update / Settlement: {e}")
+            win_msg = (
+                f"✅ <b>MONEYRACE • STUFE {step_num} GEWONNEN!</b>\n\n"
+                f"📌 <b>Match:</b> {match_name}\n"
+                f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
+                f"💰 <b>Gewinn:</b> <b>{expected_return:.2f} €</b>\n\n"
+                f"🚀 <b>Stufe {step_num + 1} freigeschaltet!</b>\n"
+                f"Neue Bankroll: <b>{expected_return:.2f} €</b> (All-In)"
+            )
+            send_telegram_notification(win_msg)
+
+        elif outcome == "LOST":
+            state["bankroll"] = float(state.get("start_amount", 5.0))
+            state["current_step"] = 0
+            
+            history_entry = {
+                "step": step_num,
+                "match": match_name,
+                "pick": pick_text,
+                "odds": odds_val,
+                "stake": stake,
+                "return": 0.0,
+                "status": "LOST",
+                "date": active.get("date")
+            }
+            state.setdefault("history", []).append(history_entry)
+            state["active_pick"] = None
+            save_state(state)
+
+            lose_msg = (
+                f"❌ <b>MONEYRACE • STUFE {step_num} VERLOREN</b>\n\n"
+                f"📌 <b>Match:</b> {match_name}\n"
+                f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
+                f"🔄 <b>Challenge-Reset:</b> Rückkehr zu Stufe 1 ({state['bankroll']:.2f} €)."
+            )
+            send_telegram_notification(lose_msg)
+
+        elif outcome == "VOID":
+            state["active_pick"] = None
+            save_state(state)
+
+            void_msg = (
+                f"🟡 <b>MONEYRACE • STUFE {step_num} VOID / PUSH</b>\n\n"
+                f"📌 <b>Match:</b> {match_name}\n"
+                f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
+                f"Einsatz von {stake:.2f} € erstattet. Stufe {step_num} wird wiederholt."
+            )
+            send_telegram_notification(void_msg)
+
+    else:
+        save_state(state)
 
 if __name__ == "__main__":
     run_live_update()
