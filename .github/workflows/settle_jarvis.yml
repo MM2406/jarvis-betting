@@ -2,9 +2,13 @@ name: JARVIS Settle Soccer
 
 on:
   schedule:
-    # Jeden Morgen um 06:45 UTC (= 07:45 MEZ)
+    # Jeden Morgen um 06:45 UTC (= 07:45 Uhr MEZ)
     - cron: '45 6 * * *'
   workflow_dispatch:
+
+concurrency:
+  group: settle-soccer
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -41,5 +45,14 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --staged --quiet || (git commit -m "Update Soccer settled history [skip ci]" && git pull --rebase origin main && git push origin main)
+          git add pending_soccer.json 2>/dev/null || true
+          git add soccer_history.json 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "Keine relevanten Aenderungen an den Soccer-Dateien vorhanden."
+          else
+            git commit -m "Update Soccer settled history [skip ci]"
+            git checkout -- . 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
+            git pull --rebase origin main
+            git push origin main
+          fi
