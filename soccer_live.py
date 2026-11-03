@@ -30,7 +30,7 @@ def clean_team_name(name):
     return " ".join(clean.split()).strip()
 
 def shorten_tag(tag):
-    """Kürzt lange Ticket-Namen für saubere Mobil-Darstellung ab."""
+    """Kürzt lange Ticket-Namen für eine saubere Darstellung auf dem Smartphone ab."""
     tag_clean = tag.strip()
     mapping = {
         "CONSERVATIVE 2-LEG BANKER": "BANKER",
@@ -53,15 +53,19 @@ def get_match_minute(ev):
     desc = status.get("description", "").lower().strip()
     code = status.get("type", "").lower().strip()
 
-    # 1. Halbzeit zuerst prüfen (verhindert '1st half ended' als Endstand)
-    if "half" in desc or "ht" in desc or code in ["halftime", "half_time", "ht"]:
+    # 1. Reine Halbzeitpause (keine 2. Halbzeit!)
+    is_halftime = (
+        code in ["halftime", "half_time", "ht"]
+        or desc in ["halftime", "half time", "ht", "1st half ended", "first half ended"]
+        or ("half" in desc and "2nd" not in desc and "second" not in desc and "ended" in desc)
+    )
+    if is_halftime:
         return 45, "Halbzeit", False
 
-    # 2. Regulärer Endstand (nur wenn kein 'half' vorkommt)
+    # 2. Regulärer Endstand
     is_finished = (
         code in ["finished", "ended", "ft", "after_ot", "after_pen"]
-        or any(k == desc for k in ["ended", "finished", "ft", "aet", "pen"])
-        or any(k in desc for k in ["full-time", "full time", "match finished", "after extra time", "after penalties"])
+        or desc in ["ended", "finished", "ft", "aet", "pen", "full-time", "full time", "match finished"]
     )
     if is_finished:
         return 90, "Endstand", True
@@ -267,11 +271,11 @@ def match_teams(search_str, home_name, away_name):
     if len(parts) >= 2:
         p1, p2 = parts[0], parts[1]
 
-        # Direkter Substring
+        # 1. Substring-Abgleich
         if (p1 in h and p2 in a) or (p2 in h and p1 in a):
             return True
 
-        # Token-Abgleich für Varianten wie 'Sporting CP' vs 'Sporting Lisbon'
+        # 2. Token-Abgleich für Aliase (z. B. 'Sporting CP' vs 'Sporting Lisbon')
         p1_tokens = [w for w in p1.split() if len(w) >= 4]
         p2_tokens = [w for w in p2.split() if len(w) >= 4]
 
@@ -398,7 +402,7 @@ def run_soccer_live():
             p_joined = " • ".join(pick_summaries)
             pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
 
-    # Strukturierter Aufbau des Live-Blocks
+    # Neuer dynamischer Layout-Aufbau
     live_sections = ["⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>"]
 
     if active_cards:
@@ -422,7 +426,7 @@ def run_soccer_live():
         if edit_telegram(msg_id, new_text):
             state["original_text"] = new_text
             save_state(state)
-            print("[SoccerLive] Telegram erfolgreich im neuen dynamischen Layout aktualisiert.")
+            print("[SoccerLive] Telegram erfolgreich aktualisiert.")
     else:
         save_state(state)
 
