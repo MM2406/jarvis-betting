@@ -58,5 +58,55 @@
     "status": "LOST",
     "sport": "NBA",
     "date": "2026-11-01"
+  },
+  {
+    "match": "Orlando Magic vs Washington Wizards",
+    "pick": "Orlando Magic -2.5",
+    "odds": 1.85,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Los Angeles Lakers vs Miami Heat",
+    "pick": "Under 236.5",
+    "odds": 1.93,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Charlotte Hornets vs Detroit Pistons",
+    "pick": "Detroit Pistons ML",
+    "odds": 1.42,
+    "stake": 1.0,
+    "pnl": 0.42,
+    "status": "WON",
+    "sport": "NBA",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Memphis Grizzlies vs New Orleans Pelicans",
+    "pick": "Memphis Grizzlies ML",
+    "odds": 1.51,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Denver Nuggets vs Portland Trail Blazers",
+    "pick": "Denver Nuggets ML",
+    "odds": 1.57,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "NBA",
+    "date": "2026-11-02"
   }
 ]
