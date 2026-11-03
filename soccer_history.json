@@ -98,5 +98,65 @@
     "status": "WON",
     "sport": "Soccer",
     "date": "2026-11-02"
+  },
+  {
+    "match": "Newcastle United vs. Everton",
+    "pick": "Über 2.5 Tore (POTD)",
+    "odds": 1.77,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Atalanta BC vs. Parma / Lorient vs. Brest",
+    "pick": "CONSERVATIVE 2-LEG BANKER (Atalanta BC Sieg & Lorient 1X)",
+    "odds": 2.07,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Atalanta vs. Parma / Newcastle vs. Everton / Dep. La Coruña vs. Osasuna",
+    "pick": "BALANCED VALUE ACCA (Atalanta Sieg & Über 2.5 Tore & Dep. La Coruña DNB)",
+    "odds": 3.93,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Sassuolo vs. Fiorentina / Atalanta vs. Parma / Newcastle vs. Everton",
+    "pick": "HYBRID QUANT MULTI (BTTS Ja & Atalanta Ü1.5 Team-Tore & Über 2.5 Tore)",
+    "odds": 4.72,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Sassuolo vs. Fiorentina / Newcastle United vs. Everton",
+    "pick": "GOALS & BTTS VALUE ACCA (Über 2.5 Tore & Über 2.5 Tore)",
+    "odds": 3.49,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-02"
+  },
+  {
+    "match": "Atalanta vs. Parma / Newcastle United vs. Everton",
+    "pick": "PLAYER PROPS MULTI (Nikola Krstović 1+ SOT & Yoane Wissa 1+ SOT)",
+    "odds": 2.06,
+    "stake": 1.0,
+    "pnl": 1.06,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-02"
   }
 ]
