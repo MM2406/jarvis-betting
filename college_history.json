@@ -157,7 +157,9 @@
       "odds": 1.87,
       "stake": 1.5,
       "date": "2026-11-03",
-      "status": "PENDING"
+      "status": "PENDING",
+      "score": "Ausstehend",
+      "info": "Die Partie zwischen den Virginia Cavaliers und den Drexel Dragons ist für den 3. November 2026 um 19:30 Uhr EST (00:30 Uhr UTC am Folgetag) angesetzt und hat noch nicht begonnen. Daher liegt noch kein Endergebnis vor."
     },
     {
       "match": "Duquesne / Miami (OH) / Kansas St",
@@ -166,13 +168,53 @@
       "odds": 1.99,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING"
+      "status": "PENDING",
+      "score": "Ausstehend / Noch nicht begonnen",
+      "info": "Die Partien dieser Akkumulator-Wette für den Spieltag des 03.11.2026 (unter anderem Duquesne vs. Purdue Fort Wayne und Kansas State vs. South Dakota State) sind noch nicht gestartet bzw. beendet. Gemäß den Regeln lautet der Status daher PENDING."
     },
     {
       "match": "Alabama Crimson Tide vs. Sam Houston St Bearkats",
       "sport": "US College",
       "pick": "Over 172.0",
       "odds": 1.91,
+      "stake": 0.75,
+      "date": "2026-11-03",
+      "status": "PENDING",
+      "score": "Noch nicht begonnen",
+      "info": "Das Spiel der NCAA-Saison zwischen den Alabama Crimson Tide und den Sam Houston State Bearkats ist für den heutigen Abend um 18:30 Uhr CT (00:30 Uhr UTC) angesetzt. Da die Begegnung noch nicht begonnen hat, ist der Tipp noch offen."
+    },
+    {
+      "match": "Virginia Cavaliers vs. Drexel Dragons",
+      "sport": "US College",
+      "pick": "Under 142.0",
+      "odds": 1.87,
+      "stake": 1.5,
+      "date": "2026-11-03",
+      "status": "PENDING"
+    },
+    {
+      "match": "Georgia Tech Yellow Jackets vs. Hampton Pirates",
+      "sport": "US College",
+      "pick": "Georgia Tech Yellow Jackets -14.0",
+      "odds": 1.91,
+      "stake": 0.75,
+      "date": "2026-11-03",
+      "status": "PENDING"
+    },
+    {
+      "match": "Duquesne Dukes vs. Fort Wayne Mastodons",
+      "sport": "US College",
+      "pick": "Duquesne Dukes -10.0",
+      "odds": 1.91,
+      "stake": 0.75,
+      "date": "2026-11-03",
+      "status": "PENDING"
+    },
+    {
+      "match": "Kansas St Wildcats vs. South Dakota St Jackrabbits",
+      "sport": "US College",
+      "pick": "South Dakota St Jackrabbits +11.5",
+      "odds": 1.95,
       "stake": 0.75,
       "date": "2026-11-03",
       "status": "PENDING"
