@@ -104,7 +104,7 @@ def settle_pending_picks(history):
     settled_now = []
 
     host = "generativelanguage.googleapis.com"
-    path = "v1beta/models/gemini-2.5-flash:generateContent"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
     api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
 
     for item in pending:
@@ -359,7 +359,7 @@ REPORT-HTML:
 ]
 """
     host = "generativelanguage.googleapis.com"
-    path = "v1beta/models/gemini-2.5-flash:generateContent"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
     api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
 
     payload = {
