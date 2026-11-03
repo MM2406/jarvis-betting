@@ -1,104 +1,108 @@
-{
-  "date": "2026-11-03",
-  "potd": {
-    "match": "Shakhtar Donetsk vs. Sporting Lisbon",
-    "pick": "Sporting Lisbon Sieg",
-    "odds": 1.98
-  },
-  "tickets": [
-    {
-      "ticket_name": "CONSERVATIVE 2-LEG BANKER",
-      "odds": 1.92,
-      "picks": [
-        {
-          "match": "Barcelona vs. Aston Villa",
-          "pick": "Barcelona Sieg",
-          "odds": 1.2
-        },
-        {
-          "match": "Villarreal vs. Paris Saint Germain",
-          "pick": "Paris Saint Germain Sieg",
-          "odds": 1.6
-        }
-      ]
-    },
-    {
-      "ticket_name": "BALANCED VALUE ACCA",
-      "odds": 3.04,
-      "picks": [
-        {
-          "match": "Galatasaray vs. VfB Stuttgart",
-          "pick": "Galatasaray DNB",
-          "odds": 1.44
-        },
-        {
-          "match": "Feyenoord vs. Inter Milan",
-          "pick": "Inter Milan DNB",
-          "odds": 1.32
-        },
-        {
-          "match": "Bodø/Glimt vs. Lille",
-          "pick": "Bodø/Glimt Sieg",
-          "odds": 1.6
-        }
-      ]
-    },
-    {
-      "ticket_name": "HYBRID QUANT MULTI",
-      "odds": 3.43,
-      "picks": [
-        {
-          "match": "Atlético Madrid vs. Bayern Munich",
-          "pick": "BTTS Ja",
-          "odds": 1.6
-        },
-        {
-          "match": "Manchester United vs. AS Roma",
-          "pick": "Über 2.5 Tore",
-          "odds": 1.65
-        },
-        {
-          "match": "LASK vs. ŠK Slovan Bratislava",
-          "pick": "LASK Sieg",
-          "odds": 1.3
-        }
-      ]
-    },
-    {
-      "ticket_name": "GOALS & BTTS VALUE ACCA",
-      "odds": 2.51,
-      "picks": [
-        {
-          "match": "Galatasaray vs. VfB Stuttgart",
-          "pick": "BTTS Ja",
-          "odds": 1.55
-        },
-        {
-          "match": "Manchester United vs. AS Roma",
-          "pick": "BTTS Ja",
-          "odds": 1.62
-        }
-      ]
-    },
-    {
-      "ticket_name": "PLAYER PROPS MULTI",
-      "odds": 1.64,
-      "picks": [
-        {
-          "match": "Atlético Madrid vs. Bayern Munich",
-          "player": "Harry Kane",
-          "pick": "1+ Schuss aufs Tor",
-          "odds": 1.3
-        },
-        {
-          "match": "Barcelona vs. Aston Villa",
-          "player": "Robert Lewandowski",
-          "pick": "1+ Schuss aufs Tor",
-          "odds": 1.26
-        }
-      ]
-    }
-  ],
-  "message_id": 179,
-  "original_text": "⚽ <b>JARVIS SOCCER INTEL • MITTAGS-EDITION</b>\n<i>xG-Modelle • Poisson-Projektionen • Value-Kombis</i>\n\n━━━━━━━━━━━━━━━━━━━━\n⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>\n• <b>Match:</b> 18:45 Uhr | Shakhtar Donetsk vs. Sporting Lisbon (UEFA Champions League)\n➔ <b>Haupt-Pick:</b> <b>Sporting Lisbon Sieg</b> @ 1.98\n🔄 <b>Buchmacher-Alternative:</b> Sporting Lisbon DNB @ 1.48\n⚠️ <b>Value-Grenze:</b> Spielbar bis @ 1.84 | 💰 <b>Einsatz:</b> 1.75 Units\n📊 <b>Quant-Daten:</b> Modell-Chance: 56.2% | Fair Odds: ~1.78 (<b>+11.2% EV</b>)\n🔍 <b>Edge:</b> Sporting generiert im laufenden Wettbewerb über 2.1 xG pro Partie bei hoher Spielkontrolle. Shakhtar offenbart auf neutralem Platz erhebliche strukturelle Lücken gegen dynamisches Umschaltspiel.\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 <b>CONSERVATIVE 2-LEG BANKER</b>\n• 21:00 Uhr | Barcelona vs. Aston Villa ➔ <b>Barcelona Sieg</b> @ 1.20\n• 21:00 Uhr | Villarreal vs. Paris Saint Germain ➔ <b>Paris Saint Germain Sieg</b> @ 1.60\n📈 <b>Gesamtquote:</b> <b>@1.92</b> | 💰 <b>Einsatz:</b> 1.5 Units\n🔍 <b>Logik:</b> Barcelona kontrolliert das Mittelfeldzentrum mit über 65 % Ballbesitzprojektion extrem stabil. PSG nutzt die defensive Verwundbarkeit Villarreals bei Kontern mathematisch deutlich aus.\n\n━━━━━━━━━━━━━━━━━━━━\n⚖️ <b>BALANCED VALUE ACCA (3-er Kombi)</b>\n• 18:45 Uhr | Galatasaray vs. VfB Stuttgart ➔ <b>Galatasaray DNB</b> @ 1.44\n• 21:00 Uhr | Feyenoord vs. Inter Milan ➔ <b>Inter Milan DNB</b> @ 1.32\n• 21:00 Uhr | Bodø/Glimt vs. Lille ➔ <b>Bodø/Glimt Sieg</b> @ 1.60\n📈 <b>Gesamtquote:</b> <b>@3.04</b> | 💰 <b>Einsatz:</b> 0.75 Units\n🔍 <b>Logik:</b> Galatasarays Heimstärke sichert gegen Stuttgarts Offensive ab, während Inter defensiv wesentlich reifer organisiert ist. Bodø/Glimts extremer Heimvorteil auf arktischem Geläuf erzeugt klare Feldvorteile.\n\n━━━━━━━━━━━━━━━━━━━━\n⚡ <b>HYBRID QUANT MULTI (Markt-Mix)</b>\n• 21:00 Uhr | Atlético Madrid vs. Bayern Munich ➔ <b>BTTS Ja</b> @ 1.60\n• 21:00 Uhr | Manchester United vs. AS Roma ➔ <b>Über 2.5 Tore</b> @ 1.65\n• 21:00 Uhr | LASK vs. ŠK Slovan Bratislava ➔ <b>LASK Sieg</b> @ 1.30\n📈 <b>Gesamtquote:</b> <b>@3.43</b> | 💰 <b>Einsatz:</b> 0.5 Units\n🔍 <b>Logik:</b> Bayerns Offensivwucht trifft auf Atléticos Umschaltstärke für beidseitige Tore. Uniteds anfällige Box-Verteidigung forciert einen offenen Schlagabtausch, während der LASK qualitativ dominiert.\n\n━━━━━━━━━━━━━━━━━━━━\n⚽ <b>GOALS & BTTS VALUE ACCA</b>\n• 18:45 Uhr | Galatasaray vs. VfB Stuttgart ➔ <b>BTTS Ja</b> @ 1.55\n• 21:00 Uhr | Manchester United vs. AS Roma ➔ <b>BTTS Ja</b> @ 1.62\n📈 <b>Gesamtquote:</b> <b>@2.51</b> | 💰 <b>Einsatz:</b> 0.75 Units\n🔍 <b>Logik:</b> Stuttgarts risikoreiches Pressing öffnet Räume für Galatasarays Angreifer und garantiert Torchancen auf beiden Seiten. Uniteds und Romas xGA-Werte signalisieren unvermeidbare Gegentreffer.\n\n━━━━━━━━━━━━━━━━━━━━\n👟 <b>PLAYER PROP SPOTLIGHT / MULTI-TICKET</b>\n• 21:00 Uhr | Harry Kane (Bayern Munich) ➔ <b>1+ Schuss aufs Tor</b> @ 1.30\n• 21:00 Uhr | Robert Lewandowski (Barcelona) ➔ <b>1+ Schuss aufs Tor</b> @ 1.26\n📈 <b>Gesamtquote:</b> <b>@1.64</b> | 💰 <b>Einsatz:</b> 0.75 Units\n🔍 <b>Edge:</b> Beide Stoßstürmer sind unangefochtene Fokus- und Elfmeterschützen ihrer Teams mit einem quantitativen Schnitt von über 1.7 Schüssen aufs Tor pro 90 Minuten."
-}
+import os
+import sys
+import json
+import re
+
+STATE_FILE = "pending_soccer.json"
+
+def validate_state():
+    if not os.path.exists(STATE_FILE):
+        print(f"❌ FEHLER: Datei {STATE_FILE} wurde nicht gefunden.")
+        sys.exit(1)
+
+    try:
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"❌ FEHLER: Parsing von {STATE_FILE} fehlgeschlagen: {e}")
+        sys.exit(1)
+
+    errors = []
+
+    # 1. POTD-Prüfung
+    potd = data.get("potd")
+    if not potd or not isinstance(potd, dict):
+        errors.append("Bereich 'potd' fehlt oder ist kein gültiges Objekt.")
+    else:
+        if not potd.get("match") or not potd.get("pick"):
+            errors.append("POTD unvollständig: 'match' oder 'pick' fehlt.")
+        try:
+            p_odds = float(str(potd.get("odds", 0)).replace(",", "."))
+            if p_odds < 1.05 or p_odds > 15.0:
+                errors.append(f"POTD Quote unplausibel: {p_odds}")
+        except ValueError:
+            errors.append(f"POTD Quote ungültig: {potd.get('odds')}")
+
+    # 2. Tickets- & Pick-Prüfung
+    tickets = data.get("tickets", [])
+    if not isinstance(tickets, list) or len(tickets) == 0:
+        errors.append("Keine Tickets im Feld 'tickets' vorhanden.")
+
+    for idx, ticket in enumerate(tickets, start=1):
+        t_name = str(ticket.get("ticket_name", "")).upper()
+
+        # Ausschluss von Player-Prop-Kategorien
+        if any(bad in t_name for bad in ["PLAYER", "PROP", "SPIELER", "TORSCHUSS", "SCHUSS"]):
+            errors.append(f"Ticket #{idx} ('{ticket.get('ticket_name')}') ist ein gesperrtes Player-Prop-Ticket.")
+
+        picks = ticket.get("picks", [])
+        if not isinstance(picks, list) or len(picks) == 0:
+            errors.append(f"Ticket #{idx} ('{t_name}') enthält keine Picks.")
+            continue
+
+        for p_idx, pick in enumerate(picks, start=1):
+            # Einzelspieler-Felder sperren
+            if "player" in pick:
+                errors.append(
+                    f"Ticket #{idx}, Pick #{p_idx}: Feld 'player' vorhanden ({pick.get('player')}). "
+                    f"Spielerwetten sind deaktiviert."
+                )
+
+            p_text = str(pick.get("pick", "")).lower()
+            if any(term in p_text for term in ["schuss", "torschuss", "sot", "spieler", "scorer", "assist"]):
+                errors.append(
+                    f"Ticket #{idx}, Pick #{p_idx}: Pick-Text '{pick.get('pick')}' enthält gesperrte Spieler-Metriken."
+                )
+
+            match_name = pick.get("match", "")
+            if not match_name or "vs" not in match_name.lower():
+                errors.append(f"Ticket #{idx}, Pick #{p_idx}: Ungültiger Matchname '{match_name}'.")
+
+            # Quoten-Plausibilität
+            try:
+                odds_val = float(str(pick.get("odds", 0)).replace(",", "."))
+                if odds_val < 1.05 or odds_val > 15.0:
+                    errors.append(
+                        f"Ticket #{idx}, Pick #{p_idx} ({match_name}): Quote {odds_val} außerhalb des Rahmens (1.05 - 15.0)."
+                    )
+            except ValueError:
+                errors.append(f"Ticket #{idx}, Pick #{p_idx} ({match_name}): Quote ungültig: {pick.get('odds')}")
+
+    # 3. Text-Filter für Telegram-Post
+    raw_text = str(data.get("original_text", "")).lower()
+    if not raw_text:
+        errors.append("Feld 'original_text' ist leer.")
+
+    forbidden_keywords = [
+        "player prop",
+        "torschuss",
+        "schüsse aufs tor",
+        "shots on target",
+        "lewandowski"
+    ]
+    for keyword in forbidden_keywords:
+        if keyword in raw_text:
+            errors.append(f"Gesperrter Begriff '{keyword}' im 'original_text' gefunden.")
+
+    # 4. Auswertung
+    if errors:
+        print("🚨 VALIDIERUNG FEHLGESCHLAGEN! Der Telegram-Post wird blockiert:")
+        for err in errors:
+            print(f"  • {err}")
+        sys.exit(1)
+
+    print("✅ VALIDIERUNG ERFOLGREICH: Alle Prüfungen bestanden. Freigabe erteilt.")
+    sys.exit(0)
+
+if __name__ == "__main__":
+    validate_state()
