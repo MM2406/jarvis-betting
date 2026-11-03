@@ -155,15 +155,23 @@ STRIKTE LÄNGEN- UND FORMATVORGABE (EXTREM WICHTIG):
 - Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...'.
 - Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'.
 
-STRIKTE GROUNDING- UND VERIFIKATIONS-REGELN:
-1. Verwende AUSSCHLIESSLICH Spiele und Teams, die exakt in der obigen Liste stehen!
-2. HARTER ROSTER-CHECK BEI SPIELER-PROPS:
-   - Wähle NUR Spieler aus, die im Jahr {current_year} offiziell beim jeweiligen Team unter Vertrag stehen und voraussichtlich spielen.
-   - Nutze Google Search zur Absicherung der Aufstellung/Verletzungen. Bei Unsicherheit das Player-Prop-Ticket weglassen!
-3. KEINE UNDER BEI SPIELERN: Nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ SoT). Keine Under-Props!
+⛔ STRIKTE FORM-, QUALITÄTS- UND VETO-REGELN (EXTREM WICHTIG):
+1. KEINE KRISENTEAMS ALS FAVORIT / SIEG / DNB:
+   - Teams, die sich in einer akuten Form- oder Trainerkrise befinden, seit 3+ Pflichtspielen sieglos sind oder weniger als 2 der letzten 5 Pflichtspiele gewonnen haben (z. B. kriselnde Großklubs wie Manchester United), sind STRIKT GESPERRT für:
+     ➔ Sieg-Wetten (Home/Away Win)
+     ➔ Draw No Bet (DNB)
+     ➔ Doppelte Chance (1X / X2)
+   - Renommee oder angeblicher 'Heimvorteil/Stadion-Mythos' wiegen sportliche Verunsicherung NICHT auf. Schönholzen von schwachen Teams ist streng untersagt!
+   - Bei solchen Teams sind maximal Tore-Gegentore-Märkte (z.B. BTTS Ja / Über-Tore gegen ihre anfällige Abwehr) erlaubt – andernfalls wird die Partie komplett ignoriert.
+2. VERPFLICHTENDER FORM-CHECK VIA GOOGLE SEARCH:
+   - Nutze Google Search, um die aktuelle Form der letzten 3 bis 5 Pflichtspiele beider Teams abzugleichen. Wähle nur Teams für Sieg/DNB, die nachweislich ein stabiles Momentum und funktionierende Abläufe haben.
+3. HARTER ROSTER-CHECK BEI SPIELER-PROPS:
+   - Wähle NUR Spieler aus, die im Jahr {current_year} offiziell beim jeweiligen Team unter Vertrag stehen und voraussichtlich in der Startelf stehen.
+   - Nutze Google Search zur Absicherung von Sperren/Verletzungen. Bei Unsicherheit das Player-Prop-Ticket weglassen!
+4. KEINE UNDER BEI SPIELERN: Nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ SoT). Keine Under-Props!
 
 TICKET-ARCHITEKTUR (OHNE ZWANG):
-- ⭐ SOCCER PICK OF THE DAY (Single Bet): Bester Einzeltipp des Tages mit größtem mathematischem Edge.
+- ⭐ SOCCER PICK OF THE DAY (Single Bet): Bester Einzeltipp des Tages mit größtem mathematischem Edge und klarer Formkurve.
 - 🔒 CONSERVATIVE 2-LEG BANKER: Exakt 2 Beine. Gesamtquote ~1.70 - 2.15.
 - ⚖️ BALANCED VALUE ACCA: Exakt 3 Beine. Gesamtquote ~2.50 - 4.00.
 - ⚡ HYBRID QUANT MULTI: 2 bis 4 Beine mit Markt-Mix (Sieg, BTTS, Über 2.5).
