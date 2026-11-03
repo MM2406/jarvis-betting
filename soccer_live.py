@@ -13,6 +13,7 @@ except ImportError:
     send_to_telegram = None
 
 RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "").strip()
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_THREAD_ID = (
@@ -70,7 +71,6 @@ def get_match_minute(ev):
     return 0, status.get("description", "Live"), False
 
 def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=False):
-    """Prüft und bewertet alle Wettmärkte (Tore, Siegwetten, Doppelte Chance, DNB)."""
     pt = pick_text.lower()
     total_goals = h_score + a_score
 
@@ -91,7 +91,7 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             return "✅ Beide getroffen"
         return f"❌ {hit}/2 Teams" if is_finished else f"⏳ {hit}/2 Teams"
 
-    # Team-Tore (z.B. Atalanta BC Über 1.5 Team-Tore)
+    # Team-Tore
     if "team-tore" in pt or "team tore" in pt:
         m_parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", match_str, flags=re.IGNORECASE)]
         if len(m_parts) >= 2:
@@ -107,13 +107,11 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
         is_home_pick = h_name in pt
         is_away_pick = a_name in pt
 
-        # Doppelte Chance (1X)
         if "1x" in pt:
             if h_score >= a_score:
                 return "✅ 1X auf Kurs" if not is_finished else "✅ 1X gewonnen"
             return "❌ 1X verloren" if is_finished else "⏳ 1X im Rückstand"
 
-        # Draw No Bet (DNB)
         if "dnb" in pt:
             if (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score):
                 return "✅ DNB auf Kurs" if not is_finished else "✅ DNB gewonnen"
@@ -121,17 +119,12 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
                 return "⏳ DNB (Unentschieden)" if not is_finished else "🟡 DNB Push (Void)"
             return "❌ DNB verloren" if is_finished else "⏳ DNB im Rückstand"
 
-        # Reiner Sieg
         if "sieg" in pt:
             if (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score):
                 return "✅ Führung" if not is_finished else "✅ Sieg gewonnen"
             elif h_score == a_score:
                 return "⏳ Remis" if not is_finished else "❌ Kein Sieg"
             return "❌ Rückstand" if is_finished else "⏳ Rückstand"
-
-    # 3. Player Props (z. B. Torschüsse)
-    if "schuss" in pt or "sot" in pt:
-        return "⏳ Live (Player Prop)" if not is_finished else "🏁 Beendet"
 
     return None
 
@@ -188,8 +181,10 @@ def fetch_live_football_events():
         res = requests.get(url, headers=headers, timeout=12)
         if res.status_code == 200:
             return res.json().get("events", [])
+        else:
+            print(f"[SportAPI HTTP {res.status_code}] Kontingent erreicht oder Fehler.")
     except Exception as e:
-        print(f"[SportAPI Live Error] {e}")
+        print(f"[SportAPI Live Exception] {e}")
     return []
 
 def match_teams(search_str, home_name, away_name):
@@ -237,7 +232,7 @@ def run_soccer_live():
     live_status_lines = []
 
     for match, picks in sorted(match_picks.items()):
-        # 1. Bereits final gespeicherte Spiele (z.B. Sassuolo vs. Fiorentina)
+        # 1. Bereits final beendetes Spiel
         if match in finished_matches:
             f_data = finished_matches[match]
             h_score = f_data["h_score"]
@@ -259,7 +254,7 @@ def run_soccer_live():
             )
             continue
 
-        # 2. Suche in den aktuellen Live-Events
+        # 2. In aktiven Live-Events suchen
         matched_ev = None
         for ev in live_events:
             h = ev.get("homeTeam", {}).get("name", "")
@@ -295,6 +290,21 @@ def run_soccer_live():
             live_status_lines.append(
                 f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({min_label})\n"
                 f"   Zeit: <code>{progress_bar}</code>"
+                f"{eval_block}"
+            )
+        else:
+            # 3. Offene Partie anzeigen (statt aus dem Text zu löschen)
+            pick_evals = []
+            for pick_desc in picks:
+                eval_str = evaluate_pick_progress(match, pick_desc, 0, 0, is_finished=False)
+                if eval_str:
+                    tag = pick_desc.split(":")[0]
+                    pick_evals.append(f"   ↳ {eval_str} ({tag})")
+            eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
+
+            live_status_lines.append(
+                f"⏳ <b>{match}</b> | <b>Wartet auf Anpfiff / Live-Score</b>\n"
+                f"   Zeit: <code>[░░░░░░░░░░] 0%</code>"
                 f"{eval_block}"
             )
 
