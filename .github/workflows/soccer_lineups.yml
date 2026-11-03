@@ -1,0 +1,30 @@
+name: JARVIS Lineup Radar
+
+on:
+  schedule:
+    # Läuft um 17:55 Uhr und 20:05 Uhr UTC (entspricht den Abendspielen)
+    - cron: '55 16,19 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-lineups:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Abhängigkeiten installieren
+        run: pip install requests
+
+      - name: Lineups prüfen
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
+        run: python check_lineups.py
