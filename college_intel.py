@@ -285,8 +285,9 @@ def run_college_report():
     settle_pending_picks(history)
 
     now_hour = datetime.now(LOCAL_TZ).hour
-    if now_hour < 12:
-        print("Morgen-Run: Nur Abrechnung durchgeführt.")
+    # Report erst ab 21:00 Uhr abends erlauben (vorher nur Abrechnung)
+    if now_hour < 21:
+        print(f"Aktuelle Zeit: {now_hour}:00 Uhr. College-Report ist bis 21:00 Uhr gesperrt (nur Abrechnung).")
         return
 
     odds_data = fetch_college_odds()
