@@ -3,6 +3,7 @@ import sys
 import json
 import re
 import time
+import csv
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -23,6 +24,7 @@ TELEGRAM_THREAD_ID = (
 )
 
 STATE_FILE = "pending_soccer.json"
+HISTORY_FILE = "history_soccer.csv"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def clean_team_name(name):
@@ -85,6 +87,11 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             return f"✅ {total_goals}/2 Tore"
         return f"❌ {total_goals}/2 Tore" if is_finished else f"⏳ {total_goals}/2 Tore"
 
+    if "unter 2.5" in pt or "under 2.5" in pt:
+        if total_goals >= 3:
+            return f"❌ {total_goals} Tore (Max 2)"
+        return f"✅ {total_goals} Tore (Max 2)" if is_finished else f"⏳ {total_goals} Tore (Max 2)"
+
     if "beide" in pt or "btts" in pt:
         hit = (1 if h_score > 0 else 0) + (1 if a_score > 0 else 0)
         if hit == 2:
@@ -127,6 +134,41 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             return "❌ Rückstand" if is_finished else "⏳ Rückstand"
 
     return None
+
+def append_to_history(records):
+    file_exists = os.path.exists(HISTORY_FILE)
+    try:
+        with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["Date", "Match", "Pick", "Score", "Result", "Profit_Units"])
+            for r in records:
+                writer.writerow([
+                    r.get("date", datetime.now().strftime("%Y-%m-%d")),
+                    r.get("match", ""),
+                    r.get("pick", ""),
+                    r.get("score", ""),
+                    r.get("result", "FINISHED"),
+                    r.get("profit", 0.0)
+                ])
+    except Exception as e:
+        print(f"Fehler beim Schreiben in {HISTORY_FILE}: {e}")
+
+def send_telegram_msg(text):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    if TELEGRAM_THREAD_ID:
+        payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+    try:
+        requests.post(url, json=payload, timeout=10)
+    except Exception as e:
+        print(f"Telegram-Fehler: {e}")
 
 def load_state():
     if not os.path.exists(STATE_FILE):
@@ -230,6 +272,7 @@ def run_soccer_live():
 
     live_events = fetch_live_football_events()
     live_status_lines = []
+    all_games_finished = True
 
     for match, picks in sorted(match_picks.items()):
         # 1. Bereits final beendetes Spiel
@@ -275,6 +318,8 @@ def run_soccer_live():
                     "finished_at": datetime.now(LOCAL_TZ).isoformat()
                 }
                 state["finished_matches"] = finished_matches
+            else:
+                all_games_finished = False
 
             progress_bar = make_progress_bar(curr_min, total=90, length=10)
             pick_evals = []
@@ -293,7 +338,8 @@ def run_soccer_live():
                 f"{eval_block}"
             )
         else:
-            # 3. Offene Partie anzeigen (statt aus dem Text zu löschen)
+            # 3. Spiel noch nicht angepfiffen
+            all_games_finished = False
             pick_evals = []
             for pick_desc in picks:
                 eval_str = evaluate_pick_progress(match, pick_desc, 0, 0, is_finished=False)
@@ -329,6 +375,43 @@ def run_soccer_live():
             print("[SoccerLive] Telegram erfolgreich aktualisiert.")
     else:
         save_state(state)
+
+    # Automatische Abrechnung & Archivierung, wenn alle Spiele den Endstand erreicht haben
+    if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
+        records = []
+        wins = 0
+        losses = 0
+        for match, f_data in finished_matches.items():
+            h_s = f_data["h_score"]
+            a_s = f_data["a_score"]
+            for pick_desc in match_picks.get(match, []):
+                eval_res = evaluate_pick_progress(match, pick_desc, h_s, a_s, is_finished=True)
+                is_win = "✅" in eval_res if eval_res else False
+                if is_win:
+                    wins += 1
+                else:
+                    losses += 1
+                records.append({
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "match": match,
+                    "pick": pick_desc,
+                    "score": f"{h_s}:{a_s}",
+                    "result": "WIN" if is_win else "LOSS",
+                    "profit": 0.85 if is_win else -1.0 # Richtwert für Standard-Quoten
+                })
+        
+        append_to_history(records)
+        state["settled"] = True
+        save_state(state)
+
+        summary_msg = (
+            f"🏁 <b>JARVIS SOCCER — TAGESABSCHLUSS</b>\n\n"
+            f"Alle Spiele des Abends sind beendet!\n"
+            f"• Bilanz Picks: <b>{wins}W - {losses}L</b>\n\n"
+            f"📁 <i>Ergebnisse wurden automatisch in history_soccer.csv archiviert.</i>"
+        )
+        send_telegram_msg(summary_msg)
+        print("[SoccerLive] Tagesabschluss archiviert und Telegram-Zusammenfassung gesendet.")
 
 if __name__ == "__main__":
     run_soccer_live()
