@@ -5,6 +5,11 @@ import requests
 from datetime import datetime
 from quant_engine import calculate_match_odds
 
+try:
+    from value_scanner import format_value_badge
+except ImportError:
+    format_value_badge = None
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
@@ -89,8 +94,12 @@ Unten stehen die mathematisch exakten Daten aus unserer SQLite-Datenbank:
 
 STRIKTE QUALITÄTS- UND SYSTEMREGELN:
 1. Verwende AUSSCHLIESSLICH die oben berechneten Partien. Keine anderen Spiele erfinden!
-2. KEINE SPIELERWETTEN (Player Props wie Torschüsse, Scorer, Vorlagen, Karten). Streng verboten!
-3. Verwende ausschließlich Hauptmärkte: 1X2 (Heim/Auswärts/Remis), DNB (Draw No Bet), Über/Unter 2.5 Tore, BTTS (Beide treffen).
+2. HAUPTMÄRKTE (Erlaubt): 1X2 (Heim/Auswärts/Remis), DNB (Draw No Bet), Über/Unter 2.5 Tore, Über 1.5 Tore, BTTS (Beide treffen).
+3. SPIELERWETTEN (Player Props — Erlaubt mit klaren bet365-Restriktionen):
+   - AUSSCHLIESSLICH "OVER"-MÄRKTE: z. B. "Spieler Über 0.5 Torschüsse", "Spieler Über 1.5 Torschüsse", "Spieler erzielt ein Tor".
+   - STRENG VERBOTEN: Alle "UNDER"-Spielerwetten (werden auf bet365 nicht angeboten!).
+   - MINDESTQUOTE: Keine Quoten unter 1.40 für Spieler-Picks (keine unrentablen Miniquoten).
+   - KADER-VALIDIERUNG: Wähle nur etablierte Stammspieler mit garantierter Startelf-Wahrscheinlichkeit.
 4. Übernimm die Quoten und Wahrscheinlichkeiten exakt aus den Vorgaben.
 
 Erstelle den fertigen Telegram-Post im gewohnten JARVIS-Format (HTML) mit:
