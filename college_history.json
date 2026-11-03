@@ -149,5 +149,33 @@
       "pnl": -1.0
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "match": "Virginia Cavaliers vs. Drexel Dragons",
+      "sport": "US College",
+      "pick": "Under 142.0",
+      "odds": 1.87,
+      "stake": 1.5,
+      "date": "2026-11-03",
+      "status": "PENDING"
+    },
+    {
+      "match": "Duquesne / Miami (OH) / Kansas St",
+      "sport": "US College",
+      "pick": "Acca: Duquesne ML + Miami (OH) ML + Kansas St ML",
+      "odds": 1.99,
+      "stake": 0.75,
+      "date": "2026-11-03",
+      "status": "PENDING"
+    },
+    {
+      "match": "Alabama Crimson Tide vs. Sam Houston St Bearkats",
+      "sport": "US College",
+      "pick": "Over 172.0",
+      "odds": 1.91,
+      "stake": 0.75,
+      "date": "2026-11-03",
+      "status": "PENDING"
+    }
+  ]
 }
