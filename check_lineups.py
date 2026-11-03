@@ -34,23 +34,28 @@ def run_lineup_check():
         print("Keine pending_soccer.json gefunden.")
         return
 
-    with open(PENDING_FILE, "r", encoding="utf-8") as f:
-        state = json.load(f)
+    try:
+        with open(PENDING_FILE, "r", encoding="utf-8") as f:
+            state = json.load(f)
+    except Exception as e:
+        print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
+        return
 
-    # Alle relevanten Matches aus POTD und Tickets sammeln
-    matches_to_check = set()
+    match_picks = {}
     if "potd" in state and isinstance(state["potd"], dict):
         m = state["potd"].get("match")
-        if m:
-            matches_to_check.add(m)
+        p = state["potd"].get("pick")
+        if m and p:
+            match_picks.setdefault(m, []).append(p)
 
     for t in state.get("tickets", []):
-        for p in t.get("picks", []):
-            m = p.get("match")
-            if m:
-                matches_to_check.add(m)
+        for item in t.get("picks", []):
+            m = item.get("match")
+            p = item.get("pick")
+            if m and p:
+                match_picks.setdefault(m, []).append(p)
 
-    if not matches_to_check:
+    if not match_picks:
         print("Keine offenen Partien zu prüfen.")
         return
 
@@ -59,7 +64,6 @@ def run_lineup_check():
         "x-rapidapi-host": "sportapi7.p.rapidapi.com"
     }
 
-    # Live- & Heutige Events abrufen
     try:
         res = requests.get("https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live", headers=headers, timeout=12)
         live_events = res.json().get("events", []) if res.status_code == 200 else []
@@ -68,8 +72,7 @@ def run_lineup_check():
 
     alerts = []
 
-    for match_name in matches_to_check:
-        # Match-ID aus den Events ermitteln
+    for match_name, picks in match_picks.items():
         matched_ev = None
         for ev in live_events:
             h = ev.get("homeTeam", {}).get("name", "").lower()
@@ -86,7 +89,6 @@ def run_lineup_check():
         if not event_id:
             continue
 
-        # Lineup Endpunkt aufrufen
         try:
             lineup_res = requests.get(f"https://sportapi7.p.rapidapi.com/api/v1/event/{event_id}/lineups", headers=headers, timeout=10)
             if lineup_res.status_code != 200:
@@ -96,18 +98,32 @@ def run_lineup_check():
             home_lineup = lineup_data.get("home", {})
             away_lineup = lineup_data.get("away", {})
 
-            if not home_lineup.get("players") or not away_lineup.get("players"):
-                continue
+            h_players = [p.get("player", {}).get("name", "").lower() for p in home_lineup.get("players", [])]
+            a_players = [p.get("player", {}).get("name", "").lower() for p in away_lineup.get("players", [])]
+            all_starters = h_players + a_players
 
-            # Check auf Formation und Bestätigung
-            h_form = home_lineup.get("formation", "N/A")
-            a_form = away_lineup.get("formation", "N/A")
             h_name = matched_ev.get("homeTeam", {}).get("name")
             a_name = matched_ev.get("awayTeam", {}).get("name")
 
+            # Prüfung auf Player-Props in den Picks
+            player_alerts = []
+            for pick in picks:
+                p_lower = pick.lower()
+                if any(k in p_lower for k in ["torschuss", "torschüsse", "scorer", "trifft", "torerzieler"]):
+                    found = False
+                    for starter in all_starters:
+                        # Nachname oder Vorname enthalten
+                        name_parts = starter.split()
+                        if any(len(part) > 3 and part in p_lower for part in name_parts):
+                            found = True
+                            player_alerts.append(f"🟢 <i>Stammplatz bestätigt:</i> <b>{starter.title()}</b> startet in der Startelf.")
+                            break
+                    if not found and all_starters:
+                        player_alerts.append(f"⚠️ <b>Achtung Rotations-Gefahr:</b> Spieler aus Tipp '<i>{pick}</i>' steht evtl. nicht in der offiziellen Startelf!")
+
             alerts.append(
-                f"📋 <b>Lineup bestätigt:</b> {h_name} ({h_form}) vs {a_name} ({a_form})\n"
-                f"   ↳ <i>Start-Aufstellungen sind offiziell freigegeben.</i>"
+                f"📋 <b>{h_name} vs {a_name}</b> (Lineups bestätigt)\n" +
+                ("\n".join(player_alerts) if player_alerts else "   ↳ <i>Formationen & Kader bestätigt.</i>")
             )
         except Exception as err:
             print(f"Fehler bei Lineup {event_id}: {err}")
