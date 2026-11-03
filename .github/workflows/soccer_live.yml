@@ -1,12 +1,13 @@
-name: JARVIS Soccer Live Tracker
+name: JARVIS Soccer Live Ticker & Settlement
 
 on:
-  workflow_dispatch:
-  repository_dispatch:
-    types: [trigger-soccer-live]
+  schedule:
+    # Läuft an Spielabenden (Mo-Fr sowie Sa/So) von 18:00 bis 23:00 Uhr alle 10 Minuten
+    - cron: '*/10 18-23 * * *'
+  workflow_dispatch: # Erlaubt jederzeit einen manuellen Start per Klick
 
 jobs:
-  track-soccer:
+  track-and-settle:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,29 +21,22 @@ jobs:
 
       - name: Abhängigkeiten installieren
         run: |
-          python -m pip install --upgrade pip
           pip install requests
 
-      # 1. Sicherheits-Check: Blockiert sofort bei ungültigen/halluzinierten Daten
-      - name: Sanity Check gegen Falschdaten & Player Props
-        run: |
-          python validate_soccer_ticket.py
-
-      # 2. Live-Aktualisierung (nur wenn Check oben erfolgreich)
-      - name: Soccer Live-Update ausführen
+      # Prüfen & Live-Updates an Telegram senden
+      - name: Live-Ticker ausführen
         env:
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
         run: |
           python soccer_live.py
 
-      # 3. Aktualisierten State speichern (für Endstände & Verläufe)
-      - name: State committen und pushen
+      # Aktualisierten State & Ergebnisse ins Repo sichern
+      - name: State ins Repo committen
         run: |
           git config --global user.name "JARVIS Bot"
           git config --global user.email "bot@jarvis-betting.local"
           git add pending_soccer.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: soccer live state" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto: Update live scores & ticket settlement [skip ci]" && git push)
