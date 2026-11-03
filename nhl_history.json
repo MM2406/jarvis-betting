@@ -78,5 +78,74 @@
     "status": "LOST",
     "sport": "NHL",
     "date": "2026-11-02"
+  },
+  {
+    "match": "San Jose Sharks vs. Calgary Flames",
+    "pick": "San Jose Sharks Sieg (inkl. OT)",
+    "odds": "1.80",
+    "odds_val": 1.8,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-02",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: San Jose Sharks vs. Calgary Flames | Ergebnis: 1:2 | LOST"
+    ]
+  },
+  {
+    "match": "FLA vs DET / CHI vs COL",
+    "pick": "Panthers ML + Avalanche ML",
+    "odds": "2.20",
+    "odds_val": 2.2,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-02",
+    "is_kombi": true,
+    "legs_won": 1,
+    "legs_total": 2,
+    "details": [
+      "- Bein 1: Florida Panthers vs Detroit Red Wings | Ergebnis: 3:5 | LOST",
+      "- Bein 2: Chicago Blackhawks vs Colorado Avalanche | Ergebnis: 2:5 | WON"
+    ]
+  },
+  {
+    "match": "Florida Panthers vs. Detroit Red Wings",
+    "pick": "Over 5.5 Tore",
+    "odds": "1.80",
+    "odds_val": 1.8,
+    "stake": 1.0,
+    "pnl": 0.8,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-02",
+    "is_kombi": false,
+    "legs_won": 1,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Florida Panthers vs Detroit Red Wings | Ergebnis: 3:5 | WON"
+    ]
+  },
+  {
+    "match": "Chicago Blackhawks vs. Colorado Avalanche",
+    "pick": "Nathan MacKinnon Over 1.5 Scorerpunkte",
+    "odds": "1.85",
+    "odds_val": 1.85,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-02",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Chicago Blackhawks vs. Colorado Avalanche | Ergebnis: 2:5 (Nathan MacKinnon: 1 Scorerpunkt) | LOST"
+    ]
   }
 ]
