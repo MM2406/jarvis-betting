@@ -111,32 +111,43 @@
       "odds": "2.02",
       "date": "2026-10-31",
       "status": "LOST"
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Liberty Flames vs. High Point Panthers",
-      "sport": "basketball_ncaab",
+      "sport": "US College",
       "pick": "High Point Panthers -6.5",
-      "odds": "1.87",
+      "odds": 1.87,
       "date": "2026-11-01",
-      "status": "PENDING"
+      "status": "WON",
+      "score": "Liberty Flames 57 : 72 High Point Panthers (Halbzeit: 34:37)",
+      "info": "Nach einer ausgeglichenen ersten Hälfte setzte sich High Point im zweiten Durchgang dank überlegener Tiefe und eines entscheidenden 14:4-Laufs ab. Liberty traf nach der Pause lediglich 28,8 % aus dem Feld, wodurch die Panthers ihren 15-Punkte-Vorsprung sicher über das Handicap (-6,5) brachten.",
+      "stake": 1.0,
+      "pnl": 0.87
     },
     {
       "match": "Northern Illinois Huskies vs. Grambling St Tigers",
-      "sport": "basketball_ncaab",
+      "sport": "US College",
       "pick": "Under 145.5",
-      "odds": "1.95",
+      "odds": 1.95,
       "date": "2026-11-01",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "87:89 (Northern Illinois 87, Grambling State 89)",
+      "info": "Durch ein sehr hohes Tempo und extrem effizientes Scoring in der zweiten Halbzeit (Northern Illinois erzielte 51 Punkte, Grambling State 46) endete die Partie mit insgesamt 176 Punkten. Damit wurde die Marke von 145,5 Punkten deutlich übertroffen.",
+      "stake": 1.0,
+      "pnl": -1.0
     },
     {
       "match": "Appalachian St Mountaineers vs. Merrimack Warriors",
-      "sport": "basketball_ncaab",
+      "sport": "US College",
       "pick": "Merrimack Warriors -3.0",
-      "odds": "1.91",
+      "odds": 1.91,
       "date": "2026-11-01",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "Appalachian State Mountaineers 63 - 49 Merrimack Warriors",
+      "info": "Appalachian State setzte sich bereits in der ersten Halbzeit mit einem deutlichen 43:21 ab, da Merrimack nur 25 % aus dem Feld traf. Trotz einer verbesserten zweiten Hälfte der Warriors reichte es nicht mehr zum Comeback, womit der Spread von -3,0 klar verfehlt wurde.",
+      "stake": 1.0,
+      "pnl": -1.0
     }
-  ]
+  ],
+  "pending": []
 }
