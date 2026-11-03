@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "match": "Columbus Blue Jackets vs. Colorado Avalanche",
+    "sport": "NHL",
+    "category": "PICK OF THE DAY",
+    "pick": "Colorado Avalanche Sieg (inkl. OT)",
+    "odds": "1.80",
+    "date": "2026-11-03",
+    "is_kombi": false,
+    "status": "PENDING"
+  },
+  {
+    "match": "TBL vs DET / MIN vs PHI / CAR vs NSH",
+    "sport": "NHL",
+    "category": "QUANT VALUE ACCA",
+    "pick": "Tampa Bay Lightning ML + Minnesota Wild ML + Carolina Hurricanes ML",
+    "odds": "3.16",
+    "date": "2026-11-03",
+    "is_kombi": true,
+    "status": "PENDING"
+  },
+  {
+    "match": "Washington Capitals vs. Dallas Stars",
+    "sport": "NHL",
+    "category": "TOTALS SPOTLIGHT",
+    "pick": "Unter 5.5 Tore",
+    "odds": "2.05",
+    "date": "2026-11-03",
+    "is_kombi": false,
+    "status": "PENDING"
+  },
+  {
+    "match": "Columbus Blue Jackets vs. Colorado Avalanche",
+    "sport": "NHL",
+    "category": "PLAYER PROP",
+    "pick": "Nathan MacKinnon Über 1.5 Scorerpunkte",
+    "odds": "1.80",
+    "date": "2026-11-03",
+    "is_kombi": false,
+    "status": "PENDING"
+  }
+]
