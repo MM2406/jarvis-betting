@@ -23,7 +23,10 @@ HISTORY_FILE = "history_soccer.csv"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def clean_team_name(name):
-    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio|ca|u19|u21|u23|youth|frauen|women)\b", "", name.lower())
+    """Entfernt Club-Kürzel und redundante Stadt-/Bezeichner-Zusätze für den API-Abgleich."""
+    clean = name.lower()
+    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|lisbon|lissabon|donetsk|u19|u21|u23|youth|frauen|women)\b", " ", clean)
+    clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
 
 def make_progress_bar(current, total=90, length=10):
@@ -99,17 +102,17 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             return "✅ Beide getroffen"
         return f"❌ {hit}/2 Teams" if is_finished else f"⏳ {hit}/2 Teams"
 
-    # 3. Team-Tore
+    # 3. Team-Tore & Sieg-Märkte
     parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", match_str, flags=re.IGNORECASE)]
     if len(parts) >= 2:
+        h_name, a_name = parts[0], parts[1]
+
         if "team-tore" in pt or "team tore" in pt:
-            team_score = h_score if parts[0] in pt else (a_score if parts[1] in pt else h_score)
+            team_score = h_score if h_name in pt else (a_score if a_name in pt else h_score)
             if team_score >= 2:
                 return f"✅ {team_score}/2 Team-Tore"
             return f"❌ {team_score}/2 Team-Tore" if is_finished else f"⏳ {team_score}/2 Team-Tore"
 
-        # 4. Sieg- und 1X/DNB-Märkte
-        h_name, a_name = parts[0], parts[1]
         is_home_pick = h_name in pt
         is_away_pick = a_name in pt
 
@@ -240,12 +243,26 @@ def match_teams(search_str, home_name, away_name):
     
     parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", search_str, flags=re.IGNORECASE) if clean_team_name(p)]
     
-    # Es MÜSSEN zwingend BEIDE Teams übereinstimmen!
     if len(parts) >= 2:
         p1, p2 = parts[0], parts[1]
-        direct = (p1 in h and p2 in a)
-        reverse = (p2 in h and p1 in a)
-        return direct or reverse
+
+        # 1. Direkter Substring-Check
+        if (p1 in h and p2 in a) or (p2 in h and p1 in a):
+            return True
+
+        # 2. Token-Check für Namen wie 'Sporting CP' vs 'Sporting Lisbon'
+        p1_tokens = [w for w in p1.split() if len(w) >= 4]
+        p2_tokens = [w for w in p2.split() if len(w) >= 4]
+
+        match_p1_h = any(t in h for t in p1_tokens)
+        match_p2_a = any(t in a for t in p2_tokens)
+        if match_p1_h and match_p2_a:
+            return True
+
+        match_p2_h = any(t in h for t in p2_tokens)
+        match_p1_a = any(t in a for t in p1_tokens)
+        if match_p2_h and match_p1_a:
+            return True
 
     return False
 
