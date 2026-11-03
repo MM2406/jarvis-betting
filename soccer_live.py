@@ -29,6 +29,19 @@ def clean_team_name(name):
     clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
 
+def shorten_tag(tag):
+    """Kürzt lange Ticket-Namen für saubere Mobil-Darstellung ab."""
+    tag_clean = tag.strip()
+    mapping = {
+        "CONSERVATIVE 2-LEG BANKER": "BANKER",
+        "BALANCED VALUE ACCA": "BALANCED",
+        "HYBRID QUANT MULTI": "HYBRID",
+        "GOALS & BTTS VALUE ACCA": "GOALS",
+        "PLAYER PROP SPOTLIGHT / MULTI-TICKET": "PROPS",
+        "⭐ POTD": "POTD"
+    }
+    return mapping.get(tag_clean, tag_clean)
+
 def make_progress_bar(current, total=90, length=10):
     pct = min(1.0, max(0.0, current / total))
     filled = int(round(pct * length))
@@ -40,11 +53,11 @@ def get_match_minute(ev):
     desc = status.get("description", "").lower().strip()
     code = status.get("type", "").lower().strip()
 
-    # 1. Halbzeit zuerst abfangen (verhindert '1st half ended' oder 'half time' als Endstand)
+    # 1. Halbzeit zuerst prüfen (verhindert '1st half ended' als Endstand)
     if "half" in desc or "ht" in desc or code in ["halftime", "half_time", "ht"]:
         return 45, "Halbzeit", False
 
-    # 2. Regulärer Endstand (nur wenn kein 'half' im Text vorkommt)
+    # 2. Regulärer Endstand (nur wenn kein 'half' vorkommt)
     is_finished = (
         code in ["finished", "ended", "ft", "after_ot", "after_pen"]
         or any(k == desc for k in ["ended", "finished", "ft", "aet", "pen"])
@@ -86,7 +99,7 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
     # 1. Spieler-Props
     if any(k in pt for k in ["torschuss", "torschüsse", "shots on target", "scorer", "trifft", "torerzieler"]):
         if is_finished:
-            return "✅ Spieler-Prop beendet (Stats erfasst)"
+            return "✅ Spieler-Prop beendet"
         return "⏳ Spieler im Einsatz"
 
     # 2. Tore-Märkte
@@ -254,11 +267,11 @@ def match_teams(search_str, home_name, away_name):
     if len(parts) >= 2:
         p1, p2 = parts[0], parts[1]
 
-        # 1. Direkter Substring-Check
+        # Direkter Substring
         if (p1 in h and p2 in a) or (p2 in h and p1 in a):
             return True
 
-        # 2. Token-Check für Namen wie 'Sporting CP' vs 'Sporting Lisbon'
+        # Token-Abgleich für Varianten wie 'Sporting CP' vs 'Sporting Lisbon'
         p1_tokens = [w for w in p1.split() if len(w) >= 4]
         p2_tokens = [w for w in p2.split() if len(w) >= 4]
 
@@ -299,14 +312,18 @@ def run_soccer_live():
         for p_item in ticket.get("picks", []):
             m = p_item.get("match")
             p = p_item.get("pick")
+            pl = p_item.get("player")
+            pick_label = f"{pl}: {p}" if pl else p
             if m:
-                match_picks.setdefault(m, []).append(f"{t_name}: {p}")
+                match_picks.setdefault(m, []).append(f"{t_name}: {pick_label}")
 
     if not match_picks:
         return
 
     live_events = fetch_live_football_events()
-    live_status_lines = []
+    
+    active_cards = []
+    pending_list = []
     all_games_finished = True
 
     for match, picks in sorted(match_picks.items()):
@@ -320,11 +337,11 @@ def run_soccer_live():
             for pick_desc in picks:
                 eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=True)
                 if eval_str:
-                    tag = pick_desc.split(":")[0]
+                    tag = shorten_tag(pick_desc.split(":")[0])
                     pick_evals.append(f"   ↳ {eval_str} ({tag})")
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
 
-            live_status_lines.append(
+            active_cards.append(
                 f"🏁 <b>{match}</b> | <b>{h_score}:{a_score}</b> (Endstand)\n"
                 f"   Zeit: <code>{progress_bar}</code>"
                 f"{eval_block}"
@@ -359,40 +376,41 @@ def run_soccer_live():
             for pick_desc in picks:
                 eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_finished)
                 if eval_str:
-                    tag = pick_desc.split(":")[0]
+                    tag = shorten_tag(pick_desc.split(":")[0])
                     pick_evals.append(f"   ↳ {eval_str} ({tag})")
 
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
             icon = "🏁" if is_finished else "🔴"
 
-            live_status_lines.append(
+            active_cards.append(
                 f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({min_label})\n"
                 f"   Zeit: <code>{progress_bar}</code>"
                 f"{eval_block}"
             )
         else:
             all_games_finished = False
-            pick_evals = []
+            pick_summaries = []
             for pick_desc in picks:
-                eval_str = evaluate_pick_progress(match, pick_desc, 0, 0, is_finished=False)
-                if eval_str:
-                    tag = pick_desc.split(":")[0]
-                    pick_evals.append(f"   ↳ {eval_str} ({tag})")
-            eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
+                parts_p = pick_desc.split(":", 1)
+                tag = shorten_tag(parts_p[0])
+                p_text = parts_p[1].strip() if len(parts_p) > 1 else ""
+                pick_summaries.append(f"{p_text} ({tag})")
+            p_joined = " • ".join(pick_summaries)
+            pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
 
-            live_status_lines.append(
-                f"⏳ <b>{match}</b> | <b>Wartet auf Anpfiff / Live-Score</b>\n"
-                f"   Zeit: <code>[░░░░░░░░░░] 0%</code>"
-                f"{eval_block}"
-            )
+    # Strukturierter Aufbau des Live-Blocks
+    live_sections = ["⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>"]
 
-    if not live_status_lines:
-        return
+    if active_cards:
+        live_sections.append("\n\n".join(active_cards))
 
-    live_block = (
-        "⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>\n" +
-        "\n\n".join(live_status_lines)
-    )
+    if pending_list:
+        if active_cards:
+            live_sections.append("━━━━━━━━━━━━━━━━━━━━\n⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
+        else:
+            live_sections.append("⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
+
+    live_block = "\n\n".join(live_sections)
 
     pattern = r"⏱️ <b>LIVE-.*?(?=\n━━━━━━━━━━━━━━━━━━━━|\Z)"
     if re.search(pattern, raw_text, flags=re.DOTALL):
@@ -404,7 +422,7 @@ def run_soccer_live():
         if edit_telegram(msg_id, new_text):
             state["original_text"] = new_text
             save_state(state)
-            print("[SoccerLive] Telegram erfolgreich aktualisiert.")
+            print("[SoccerLive] Telegram erfolgreich im neuen dynamischen Layout aktualisiert.")
     else:
         save_state(state)
 
