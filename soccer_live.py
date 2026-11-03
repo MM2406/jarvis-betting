@@ -8,11 +8,6 @@ import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-try:
-    from telegram_sender import send_to_telegram
-except ImportError:
-    send_to_telegram = None
-
 RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -28,8 +23,8 @@ HISTORY_FILE = "history_soccer.csv"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def clean_team_name(name):
-    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio|ca)\b", "", name.lower())
-    return clean.strip()
+    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio|ca|u19|u21|u23|youth|frauen|women)\b", "", name.lower())
+    return " ".join(clean.split()).strip()
 
 def make_progress_bar(current, total=90, length=10):
     pct = min(1.0, max(0.0, current / total))
@@ -76,7 +71,7 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
     pt = pick_text.lower()
     total_goals = h_score + a_score
 
-    # 1. Spieler-Props (Torschüsse / Tore / Scorer)
+    # 1. Spieler-Props
     if any(k in pt for k in ["torschuss", "torschüsse", "shots on target", "scorer", "trifft", "torerzieler"]):
         if is_finished:
             return "✅ Spieler-Prop beendet (Stats erfasst)"
@@ -105,18 +100,16 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
         return f"❌ {hit}/2 Teams" if is_finished else f"⏳ {hit}/2 Teams"
 
     # 3. Team-Tore
-    if "team-tore" in pt or "team tore" in pt:
-        m_parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", match_str, flags=re.IGNORECASE)]
-        if len(m_parts) >= 2:
-            team_score = h_score if m_parts[0] in pt else (a_score if m_parts[1] in pt else h_score)
+    parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", match_str, flags=re.IGNORECASE)]
+    if len(parts) >= 2:
+        if "team-tore" in pt or "team tore" in pt:
+            team_score = h_score if parts[0] in pt else (a_score if parts[1] in pt else h_score)
             if team_score >= 2:
                 return f"✅ {team_score}/2 Team-Tore"
             return f"❌ {team_score}/2 Team-Tore" if is_finished else f"⏳ {team_score}/2 Team-Tore"
 
-    # 4. Sieg- und 1X/DNB-Märkte
-    m_parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", match_str, flags=re.IGNORECASE)]
-    if len(m_parts) >= 2:
-        h_name, a_name = m_parts[0], m_parts[1]
+        # 4. Sieg- und 1X/DNB-Märkte
+        h_name, a_name = parts[0], parts[1]
         is_home_pick = h_name in pt
         is_away_pick = a_name in pt
 
@@ -129,10 +122,14 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             if (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score):
                 return "✅ DNB auf Kurs" if not is_finished else "✅ DNB gewonnen"
             elif h_score == a_score:
-                return "⏳ DNB (Unentschieden)" if not is_finished else "🟡 DNB Push (Void)"
+                return "⏳ DNB (Remis)" if not is_finished else "🟡 DNB Push (Void)"
             return "❌ DNB verloren" if is_finished else "⏳ DNB im Rückstand"
 
-        if "sieg" in pt:
+        if "sieg" in pt or "remis" in pt:
+            if "remis" in pt:
+                if h_score == a_score:
+                    return "⏳ Remis" if not is_finished else "✅ Remis getroffen"
+                return "❌ Kein Remis" if is_finished else "⏳ Kein Remis"
             if (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score):
                 return "✅ Führung" if not is_finished else "✅ Sieg gewonnen"
             elif h_score == a_score:
@@ -195,7 +192,6 @@ def save_state(state):
 
 def edit_telegram(message_id, text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("[SoccerLive] Telegram Credentials fehlen.")
         return False
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
@@ -229,20 +225,28 @@ def fetch_live_football_events():
         res = requests.get(url, headers=headers, timeout=12)
         if res.status_code == 200:
             return res.json().get("events", [])
-        else:
-            print(f"[SportAPI HTTP {res.status_code}] Kontingent erreicht oder Fehler.")
     except Exception as e:
         print(f"[SportAPI Live Exception] {e}")
     return []
 
 def match_teams(search_str, home_name, away_name):
-    h = home_name.lower()
-    a = away_name.lower()
-    parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", search_str, flags=re.IGNORECASE) if clean_team_name(p)]
+    # Ausschluss von Jugend- und U-Mannschaften
+    full_event_str = f"{home_name} {away_name}".lower()
+    if any(k in full_event_str for k in ["u19", "u21", "u23", "youth", "women", "frauen"]):
+        return False
+
+    h = clean_team_name(home_name)
+    a = clean_team_name(away_name)
+    
+    parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", search_str, flags=re.IGNORECASE) if clean_team_name(p)]
+    
+    # Es MÜSSEN zwingend BEIDE Teams übereinstimmen!
     if len(parts) >= 2:
-        return (parts[0] in h and parts[1] in a) or (parts[1] in h and parts[0] in a)
-    elif len(parts) == 1:
-        return parts[0] in h or parts[0] in a
+        p1, p2 = parts[0], parts[1]
+        direct = (p1 in h and p2 in a)
+        reverse = (p2 in h and p1 in a)
+        return direct or reverse
+
     return False
 
 def run_soccer_live():
@@ -281,7 +285,6 @@ def run_soccer_live():
     all_games_finished = True
 
     for match, picks in sorted(match_picks.items()):
-        # 1. Bereits final beendetes Spiel
         if match in finished_matches:
             f_data = finished_matches[match]
             h_score = f_data["h_score"]
@@ -303,7 +306,6 @@ def run_soccer_live():
             )
             continue
 
-        # 2. In aktiven Live-Events suchen
         matched_ev = None
         for ev in live_events:
             h = ev.get("homeTeam", {}).get("name", "")
@@ -344,7 +346,6 @@ def run_soccer_live():
                 f"{eval_block}"
             )
         else:
-            # 3. Spiel noch nicht angepfiffen
             all_games_finished = False
             pick_evals = []
             for pick_desc in picks:
@@ -382,7 +383,6 @@ def run_soccer_live():
     else:
         save_state(state)
 
-    # Automatische Abrechnung & Archivierung, wenn alle Spiele den Endstand erreicht haben
     if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
         records = []
         wins = 0
