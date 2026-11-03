@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -103,7 +104,7 @@ def settle_pending_picks(history):
     settled_now = []
 
     host = "generativelanguage.googleapis.com"
-    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    path = "v1beta/models/gemini-2.5-flash:generateContent"
     api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
 
     for item in pending:
@@ -303,22 +304,17 @@ Erstelle für heute ({today_str}) ein quantitatives Value-Dossier.
 VERFÜGBARE PARTIEN & QUOTEN:
 {odds_data}
 
-RICHTLINIEN & MÄRKTE:
-- Wähle ausschließlich Partien aus der obigen Liste.
-- Analysiere KenPom/Torvik-Trends, Home-Court Advantage, Pace und Spreads via Google Search.
-- DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 5 Partien mit rechnerischem Vorteil (+EV). Kein starres 2-Spiele-Limit.
-- BUCHMACHER-ALTERNATIVE: Gib immer eine Standard-Alternative an (z. B. Moneyline statt Spread oder Standard-Total).
-- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
-- UNITS:
-  • Pick of the Day: 1.0 bis 2.0 Units
-  • Value Acca: 0.5 bis 1.0 Units
-  • Spotlight Pick: 0.5 bis 1.0 Units
-
-FORMATIERUNGS-REGELN FÜR TELEGRAM:
-- Keine doppelten Leerzeilen.
-- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
-- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+STRIKTE QUALITÄTS- UND SYSTEMREGELN:
+1. KEINE API-TAGS IM TEXT:
+   Entferne Präfixe wie '[basketball_ncaab]' oder '[americanfootball_ncaaf]' vor den Teamnamen restlos!
+2. KEINE SPORTARTEN-MISCHUNG:
+   Mische NIEMALS College Basketball (NCAAB) und College Football (NCAAF) auf einem Kombi-Schein! Wenn die Kombi Basketball ist, nimm nur Basketball-Partien.
+3. MINDESTQUOTE BEACHTEN:
+   - KEINE Quoten unter 1.35!
+   - Moneylines mit 1.15 oder 1.20 sind STRENG VERBOTEN. Wähle bei klaren Favoriten zwingend die Handicap/Spread-Line (z.B. -10.5 @ ~1.85-1.91).
+4. DYNAMISCHE ACCA: Kombiniere 2 bis 3 Partien mit echtem rechnerischem Value (+EV).
+5. EINHEITLICHE SYMBOLE:
+   - Verwende '•' für Spiele und '↳' für Picks.
 
 REPORT-HTML:
 🎓 <b>JARVIS US COLLEGE INTEL DOSSIER</b>
@@ -326,28 +322,26 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>COLLEGE PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Sport] [Heimteam] vs. [Auswärtsteam]
-➔ <b>Haupt-Pick:</b> <b>[Spread / Total / Moneyline]</b> @ [Quote]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+↳ <b>Haupt-Pick:</b> <b>[Spread / Total]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
 📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
 🔍 <b>Edge:</b> [Effizienz-Ratings, Tempo-Matchup, Turnover-Rates, Rebounding Edge]
 
 ━━━━━━━━━━━━━━━━━━━━
-🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 und 5 ergänzen falls Value vorhanden ...]
+🔥 <b>QUANT VALUE ACCA (Kombi)</b>
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1 mit Spread]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2 mit Spread]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
+🔍 <b>Kombi-Logik:</b> [Warum diese Kombination rechnerischen Value bietet, Begründung für Spreads statt Miniquoten]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>TEMPO & UPSET SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Pick:</b> <b>[Over/Under / Moneyline Dog]</b> @ [Quote]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+↳ <b>Pick:</b> <b>[Over/Under / Moneyline Dog]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
 🔍 <b>Rationale:</b> [Mismatches im Rebounding, Transition-Points, 3PT-Defense]
@@ -365,7 +359,7 @@ REPORT-HTML:
 ]
 """
     host = "generativelanguage.googleapis.com"
-    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    path = "v1beta/models/gemini-2.5-flash:generateContent"
     api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
 
     payload = {
@@ -396,6 +390,8 @@ REPORT-HTML:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
+                # Bereinigung übriggebliebener API-Tags
+                report = re.sub(r"\[(basketball_ncaab|americanfootball_ncaaf)\]\s*", "", report)
                 send_telegram(report)
                 return
             elif res.status_code in [500, 502, 503, 504]:
