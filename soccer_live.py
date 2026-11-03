@@ -37,15 +37,23 @@ def make_progress_bar(current, total=90, length=10):
 
 def get_match_minute(ev):
     status = ev.get("status", {})
-    desc = status.get("description", "").lower()
-    code = status.get("type", "").lower()
+    desc = status.get("description", "").lower().strip()
+    code = status.get("type", "").lower().strip()
 
-    if any(k in desc for k in ["ended", "finished", "ft", "aet", "pen"]) or code in ["finished", "ended"]:
-        return 90, "Endstand", True
-
-    if "halftime" in desc or "half time" in desc or "ht" in desc:
+    # 1. Halbzeit zuerst abfangen (verhindert '1st half ended' oder 'half time' als Endstand)
+    if "half" in desc or "ht" in desc or code in ["halftime", "half_time", "ht"]:
         return 45, "Halbzeit", False
 
+    # 2. Regulärer Endstand (nur wenn kein 'half' im Text vorkommt)
+    is_finished = (
+        code in ["finished", "ended", "ft", "after_ot", "after_pen"]
+        or any(k == desc for k in ["ended", "finished", "ft", "aet", "pen"])
+        or any(k in desc for k in ["full-time", "full time", "match finished", "after extra time", "after penalties"])
+    )
+    if is_finished:
+        return 90, "Endstand", True
+
+    # 3. Offizielle Spielminute der API
     minute = status.get("minute") or ev.get("time", {}).get("minute")
     if minute and isinstance(minute, (int, float)):
         m_int = int(minute)
@@ -54,6 +62,7 @@ def get_match_minute(ev):
             return 90, f"90+{extra}'" if extra > 0 else "90'", False
         return m_int, f"{m_int}'", False
 
+    # 4. Fallback über Zeitstempel
     start_ts = ev.get("startTimestamp")
     if start_ts:
         now_ts = int(time.time())
@@ -233,7 +242,6 @@ def fetch_live_football_events():
     return []
 
 def match_teams(search_str, home_name, away_name):
-    # Ausschluss von Jugend- und U-Mannschaften
     full_event_str = f"{home_name} {away_name}".lower()
     if any(k in full_event_str for k in ["u19", "u21", "u23", "youth", "women", "frauen"]):
         return False
