@@ -76,7 +76,13 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
     pt = pick_text.lower()
     total_goals = h_score + a_score
 
-    # 1. Tore-Märkte
+    # 1. Spieler-Props (Torschüsse / Tore / Scorer)
+    if any(k in pt for k in ["torschuss", "torschüsse", "shots on target", "scorer", "trifft", "torerzieler"]):
+        if is_finished:
+            return "✅ Spieler-Prop beendet (Stats erfasst)"
+        return "⏳ Spieler im Einsatz"
+
+    # 2. Tore-Märkte
     if "über 2.5" in pt or "over 2.5" in pt:
         if total_goals >= 3:
             return f"✅ {total_goals}/3 Tore"
@@ -98,7 +104,7 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             return "✅ Beide getroffen"
         return f"❌ {hit}/2 Teams" if is_finished else f"⏳ {hit}/2 Teams"
 
-    # Team-Tore
+    # 3. Team-Tore
     if "team-tore" in pt or "team tore" in pt:
         m_parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", match_str, flags=re.IGNORECASE)]
         if len(m_parts) >= 2:
@@ -107,7 +113,7 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
                 return f"✅ {team_score}/2 Team-Tore"
             return f"❌ {team_score}/2 Team-Tore" if is_finished else f"⏳ {team_score}/2 Team-Tore"
 
-    # 2. Sieg- und 1X/DNB-Märkte
+    # 4. Sieg- und 1X/DNB-Märkte
     m_parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", match_str, flags=re.IGNORECASE)]
     if len(m_parts) >= 2:
         h_name, a_name = m_parts[0], m_parts[1]
@@ -397,7 +403,7 @@ def run_soccer_live():
                     "pick": pick_desc,
                     "score": f"{h_s}:{a_s}",
                     "result": "WIN" if is_win else "LOSS",
-                    "profit": 0.85 if is_win else -1.0 # Richtwert für Standard-Quoten
+                    "profit": 0.85 if is_win else -1.0
                 })
         
         append_to_history(records)
