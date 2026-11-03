@@ -30,7 +30,7 @@ def clean_team_name(name):
     return " ".join(clean.split()).strip()
 
 def shorten_tag(tag):
-    """Kürzt lange Ticket-Namen für eine saubere Darstellung auf dem Smartphone ab."""
+    """Kürzt lange Ticket-Namen für eine saubere Mobil-Darstellung ab."""
     tag_clean = tag.strip()
     mapping = {
         "CONSERVATIVE 2-LEG BANKER": "BANKER",
@@ -242,21 +242,39 @@ def edit_telegram(message_id, text):
         print(f"[SoccerLive] Telegram Edit Ausnahme: {e}")
         return False
 
-def fetch_live_football_events():
+def fetch_football_events(date_str):
+    """Holt sowohl Live-Spiele als auch beendete/geplante Partien des Tages."""
     if not RAPIDAPI_KEY:
         return []
-    url = "https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live"
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
         "x-rapidapi-host": "sportapi7.p.rapidapi.com"
     }
+    all_events = []
+    
+    # 1. Live Events
     try:
-        res = requests.get(url, headers=headers, timeout=12)
+        url_live = "https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live"
+        res = requests.get(url_live, headers=headers, timeout=12)
         if res.status_code == 200:
-            return res.json().get("events", [])
+            all_events.extend(res.json().get("events", []))
     except Exception as e:
         print(f"[SportAPI Live Exception] {e}")
-    return []
+
+    # 2. Spielplan des Tages (damit auch beendete 18:45-Spiele erfasst werden)
+    try:
+        url_sched = f"https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/{date_str}"
+        res_sched = requests.get(url_sched, headers=headers, timeout=12)
+        if res_sched.status_code == 200:
+            sched_events = res_sched.json().get("events", [])
+            live_ids = {e.get("id") for e in all_events}
+            for ev in sched_events:
+                if ev.get("id") not in live_ids:
+                    all_events.append(ev)
+    except Exception as e:
+        print(f"[SportAPI Sched Exception] {e}")
+
+    return all_events
 
 def match_teams(search_str, home_name, away_name):
     full_event_str = f"{home_name} {away_name}".lower()
@@ -275,18 +293,18 @@ def match_teams(search_str, home_name, away_name):
         if (p1 in h and p2 in a) or (p2 in h and p1 in a):
             return True
 
-        # 2. Token-Abgleich für Aliase (z. B. 'Sporting CP' vs 'Sporting Lisbon')
-        p1_tokens = [w for w in p1.split() if len(w) >= 4]
-        p2_tokens = [w for w in p2.split() if len(w) >= 4]
+        # 2. Token-Abgleich für Aliase (z.B. Bayern, Lille, Inter, PSG)
+        p1_tokens = [w for w in p1.split() if len(w) >= 3]
+        p2_tokens = [w for w in p2.split() if len(w) >= 3]
 
-        match_p1_h = any(t in h for t in p1_tokens)
-        match_p2_a = any(t in a for t in p2_tokens)
-        if match_p1_h and match_p2_a:
+        m1_h = any(t in h for t in p1_tokens)
+        m2_a = any(t in a for t in p2_tokens)
+        if m1_h and m2_a:
             return True
 
-        match_p2_h = any(t in h for t in p2_tokens)
-        match_p1_a = any(t in a for t in p1_tokens)
-        if match_p2_h and match_p1_a:
+        m2_h = any(t in h for t in p2_tokens)
+        m1_a = any(t in a for t in p1_tokens)
+        if m2_h and m1_a:
             return True
 
     return False
@@ -324,7 +342,8 @@ def run_soccer_live():
     if not match_picks:
         return
 
-    live_events = fetch_live_football_events()
+    today_str = state.get("date", datetime.now().strftime("%Y-%m-%d"))
+    events = fetch_football_events(today_str)
     
     active_cards = []
     pending_list = []
@@ -353,7 +372,7 @@ def run_soccer_live():
             continue
 
         matched_ev = None
-        for ev in live_events:
+        for ev in events:
             h = ev.get("homeTeam", {}).get("name", "")
             a = ev.get("awayTeam", {}).get("name", "")
             if match_teams(match, h, a):
@@ -364,6 +383,20 @@ def run_soccer_live():
             h_score = matched_ev.get("homeScore", {}).get("current", 0)
             a_score = matched_ev.get("awayScore", {}).get("current", 0)
             curr_min, min_label, is_finished = get_match_minute(matched_ev)
+
+            # Wenn das Spiel laut Zeitstempel noch gar nicht gestartet ist
+            status_desc = matched_ev.get("status", {}).get("description", "").lower()
+            if status_desc in ["not started", "timed"] and curr_min == 0:
+                all_games_finished = False
+                pick_summaries = []
+                for pick_desc in picks:
+                    parts_p = pick_desc.split(":", 1)
+                    tag = shorten_tag(parts_p[0])
+                    p_text = parts_p[1].strip() if len(parts_p) > 1 else ""
+                    pick_summaries.append(f"{p_text} ({tag})")
+                p_joined = " • ".join(pick_summaries)
+                pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
+                continue
 
             if is_finished:
                 finished_matches[match] = {
