@@ -1,0 +1,32 @@
+name: Build Historical Database
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pakete installieren
+        run: |
+          pip install pandas requests
+
+      - name: Datenbank aufbauen
+        run: |
+          python build_history_db.py
+
+      - name: Datenbank ins Repository pushen
+        run: |
+          git config --global user.name "JARVIS Bot"
+          git config --global user.email "bot@jarvis-betting.local"
+          git add jarvis_matches.db
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Add jarvis_matches.db" && git push)
