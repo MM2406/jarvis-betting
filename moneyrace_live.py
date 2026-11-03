@@ -41,8 +41,8 @@ SPORT_ENDPOINT_MAP = {
 
 def clean_team_name(name):
     """Entfernt Club-Kürzel für zuverlässigen API-Abgleich."""
-    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio)\b", "", name.lower())
-    return clean.strip()
+    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio|u19|u21|u23|youth|frauen|women)\b", "", name.lower())
+    return " ".join(clean.split()).strip()
 
 def load_state():
     if not os.path.exists(STATE_FILE):
@@ -113,10 +113,8 @@ def send_telegram_notification(text):
 
 def detect_sport(active_pick):
     raw_sport = active_pick.get("sport", "").strip().lower()
-    if raw_sport:
-        return raw_sport
-
-    combined_text = f"{active_pick.get('match', '')} {active_pick.get('pick', '')} {active_pick.get('original_text', '')}".lower()
+    combined_text = f"{raw_sport} {active_pick.get('match', '')} {active_pick.get('pick', '')} {active_pick.get('original_text', '')}".lower()
+    
     if any(k in combined_text for k in ["nba", "basketball", "euroleague", "hoops"]):
         return "basketball"
     if any(k in combined_text for k in ["nhl", "eishockey", "ice hockey"]):
@@ -145,23 +143,34 @@ def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
             return None
 
         events = res.json().get("events", [])
-        raw_parts = [p.strip().lower() for p in re.split(r"vs\.?| - | @ ", match_name, flags=re.IGNORECASE) if p.strip()]
+        raw_parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+|\s+@\s+", match_name, flags=re.IGNORECASE) if clean_team_name(p)]
         
-        search_terms = []
-        for p in raw_parts:
-            words = [w for w in re.findall(r"[a-z0-9]+", p) if w not in ["bc", "fc", "cf", "sc", "ac", "united", "city", "calcio"]]
-            if words:
-                search_terms.append(words[0])
+        if len(raw_parts) < 2:
+            return None
+
+        p1, p2 = raw_parts[0], raw_parts[1]
 
         for ev in events:
-            h_name = ev.get("homeTeam", {}).get("name", "").lower()
-            a_name = ev.get("awayTeam", {}).get("name", "").lower()
+            h_name = clean_team_name(ev.get("homeTeam", {}).get("name", ""))
+            a_name = clean_team_name(ev.get("awayTeam", {}).get("name", ""))
 
-            matched = any(t in h_name or t in a_name for t in search_terms)
+            # Ausschluss von Jugendmannschaften
+            full_check = f"{h_name} {a_name}"
+            if any(k in full_check for k in ["u19", "u21", "youth"]):
+                continue
+
+            # STRIKT: BEIDE Teams müssen matchen (p1 vs p2)
+            matched = (p1 in h_name and p2 in a_name) or (p2 in h_name and p1 in a_name)
 
             if matched:
                 h_score = ev.get("homeScore", {}).get("current", 0)
                 a_score = ev.get("awayScore", {}).get("current", 0)
+
+                # Plausibilitätscheck: Fußball kann nicht 32:27 sein!
+                if sport_slug == "football" and (h_score + a_score > 15):
+                    print(f"⚠️ Unplausibler Fußball-Spielstand ({h_score}:{a_score}) ignoriert!")
+                    continue
+
                 score_str = f"{h_score}:{a_score}"
                 
                 status_raw = ev.get("status", {}).get("description", "").lower()
@@ -295,6 +304,7 @@ def run_live_update():
             g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
             outcome = g_data.get("outcome", "PENDING") if g_data else "PENDING"
     else:
+        # Fallback auf Google Search nur wenn API nichts findet
         g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
         if g_data:
             status = g_data["status"]
@@ -303,8 +313,16 @@ def run_live_update():
             track = g_data["track"]
             outcome = g_data["outcome"]
 
+    # Wenn Spiel noch ansteht (vor Anpfiff): Ticker auf Wartezustand setzen oder beenden
     if status == "UPCOMING":
         print(f"[Moneyrace] {match_name} ist laut API noch nicht gestartet.")
+        # Entferne eventuell fälschlich gesetzte "SPIEL LÄUFT"-Abschnitte
+        pattern = r"⏱️ <b>LIVE-TRACKER.*?(\n━━━━━━━━━━━━━━━━━━━━|\Z)"
+        if "LIVE-TRACKER • SPIEL LÄUFT" in raw_text:
+            cleaned_text = re.sub(pattern, "", raw_text, flags=re.DOTALL).rstrip()
+            if edit_telegram(msg_id, cleaned_text):
+                active["original_text"] = cleaned_text
+                save_state(state)
         return
 
     # 2. Live-Abschnitt in Telegram editieren
