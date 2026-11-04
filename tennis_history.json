@@ -1,0 +1,38 @@
+{
+  "settled": [],
+  "pending": [
+    {
+      "match": "Matteo Berrettini vs. Ugo Humbert",
+      "sport": "Tennis",
+      "category": "POTD",
+      "pick": "Ugo Humbert Sieg",
+      "odds": 1.91,
+      "stake": 1.5,
+      "date": "2026-11-04",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "Thiago Agustin Tirante vs. Jan-Lennard Struff // Nuno Borges vs. Karen Khachanov",
+      "sport": "Tennis",
+      "category": "ACCA",
+      "pick": "Jan-Lennard Struff ML + Karen Khachanov ML",
+      "odds": 2.25,
+      "stake": 0.75,
+      "date": "2026-11-04",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "Mattia Bellucci vs. Arthur Rinderknech",
+      "sport": "Tennis",
+      "category": "TOTALS",
+      "pick": "Over 23.5 Games",
+      "odds": 1.97,
+      "stake": 0.75,
+      "date": "2026-11-04",
+      "is_kombi": false,
+      "status": "PENDING"
+    }
+  ]
+}
