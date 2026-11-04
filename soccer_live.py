@@ -112,6 +112,13 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             return f"✅ {total_goals}/3 Tore"
         return f"❌ {total_goals}/3 Tore" if is_finished else f"⏳ {total_goals}/3 Tore"
 
+    if "über 2.0" in pt or "over 2.0" in pt:
+        if total_goals > 2:
+            return f"✅ {total_goals}/2 Tore"
+        elif total_goals == 2 and is_finished:
+            return "🟡 Push (2 Tore)"
+        return f"❌ {total_goals}/2 Tore" if is_finished else f"⏳ {total_goals}/2 Tore"
+
     if "über 1.5" in pt and "team" not in pt:
         if total_goals >= 2:
             return f"✅ {total_goals}/2 Tore"
@@ -261,7 +268,7 @@ def fetch_football_events(date_str):
     except Exception as e:
         print(f"[SportAPI Live Exception] {e}")
 
-    # 2. Spielplan des Tages (damit auch beendete 18:45-Spiele erfasst werden)
+    # 2. Spielplan des Tages
     try:
         url_sched = f"https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/{date_str}"
         res_sched = requests.get(url_sched, headers=headers, timeout=12)
@@ -384,7 +391,6 @@ def run_soccer_live():
             a_score = matched_ev.get("awayScore", {}).get("current", 0)
             curr_min, min_label, is_finished = get_match_minute(matched_ev)
 
-            # Wenn das Spiel laut Zeitstempel noch gar nicht gestartet ist
             status_desc = matched_ev.get("status", {}).get("description", "").lower()
             if status_desc in ["not started", "timed"] and curr_min == 0:
                 all_games_finished = False
@@ -449,11 +455,17 @@ def run_soccer_live():
 
     live_block = "\n\n".join(live_sections)
 
-    pattern = r"⏱️ <b>LIVE-.*?(?=\n━━━━━━━━━━━━━━━━━━━━|\Z)"
-    if re.search(pattern, raw_text, flags=re.DOTALL):
-        new_text = re.sub(pattern, live_block, raw_text, count=1, flags=re.DOTALL)
+    # Schneidet alte Tracker- und Anhängeblöcke ab, um Duplikate zu verhindern
+    split_targets = ["⏱️ <b>LIVE-TRACKER", "⏱️ <b>LIVE-", "⏳ <b>AUSSTEHEND"]
+    base_text = raw_text
+    for target in split_targets:
+        if target in base_text:
+            base_text = base_text.split(target)[0].rstrip()
+
+    if base_text.endswith("━━━━━━━━━━━━━━━━━━━━"):
+        new_text = base_text + "\n" + live_block
     else:
-        new_text = raw_text.rstrip() + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
+        new_text = base_text + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
 
     if new_text.strip() != raw_text.strip():
         if edit_telegram(msg_id, new_text):
