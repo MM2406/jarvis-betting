@@ -1,5 +1,20 @@
 {
-  "settled": [],
+  "settled": [
+    {
+      "match": "Mattia Bellucci vs. Arthur Rinderknech",
+      "sport": "Tennis",
+      "category": "TOTALS",
+      "pick": "Over 23.5 Games",
+      "odds": 1.97,
+      "stake": 0.75,
+      "date": "2026-11-04",
+      "is_kombi": false,
+      "status": "LOST",
+      "score": "4:6, 1:6",
+      "info": "Mit nur 17 absolvierten Spielen wurde die Grenze von 23,5 Games klar unterboten.",
+      "pnl": -0.75
+    }
+  ],
   "pending": [
     {
       "match": "Matteo Berrettini vs. Ugo Humbert",
@@ -10,7 +25,9 @@
       "stake": 1.5,
       "date": "2026-11-04",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "PENDING",
+      "score": "Noch nicht begonnen",
+      "info": "Das Match ist noch nicht gestartet und steht daher noch aus."
     },
     {
       "match": "Thiago Agustin Tirante vs. Jan-Lennard Struff // Nuno Borges vs. Karen Khachanov",
@@ -21,14 +38,38 @@
       "stake": 0.75,
       "date": "2026-11-04",
       "is_kombi": true,
+      "status": "PENDING",
+      "score": "Noch nicht beendet",
+      "info": "Mindestens ein Match ist noch live oder noch nicht gestartet und nicht final beendet."
+    },
+    {
+      "match": "Matteo Berrettini vs Ugo Humbert",
+      "sport": "Tennis",
+      "category": "POTD",
+      "pick": "Ugo Humbert Sieg",
+      "odds": 1.79,
+      "stake": 1.5,
+      "date": "2026-11-04",
+      "is_kombi": false,
       "status": "PENDING"
     },
     {
-      "match": "Mattia Bellucci vs. Arthur Rinderknech",
+      "match": "Thiago Agustin Tirante vs Jan-Lennard Struff // Arthur Fils vs Tomas Machac",
+      "sport": "Tennis",
+      "category": "ACCA",
+      "pick": "Jan-Lennard Struff ML + Arthur Fils ML",
+      "odds": 2.19,
+      "stake": 0.75,
+      "date": "2026-11-04",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "Matteo Berrettini vs Ugo Humbert",
       "sport": "Tennis",
       "category": "TOTALS",
-      "pick": "Over 23.5 Games",
-      "odds": 1.97,
+      "pick": "Over 25.5 Games",
+      "odds": 1.82,
       "stake": 0.75,
       "date": "2026-11-04",
       "is_kombi": false,
