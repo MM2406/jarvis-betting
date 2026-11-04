@@ -454,7 +454,7 @@ def run_soccer_live():
         save_state(state)
 
     # =========================================================================
-    # NEUES SETTLEMENT: Auswertung AUF TICKET-EBENE (Kombis & POTD)
+    # SETTLEMENT: Auswertung AUF TICKET-EBENE (Kombis & POTD)
     # =========================================================================
     if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
         ticket_results = []
@@ -467,7 +467,6 @@ def run_soccer_live():
 
         all_tickets_to_eval = []
 
-        # 1. POTD als Einzelticket
         if "potd" in state and isinstance(state["potd"], dict):
             potd_odds = float(state["potd"].get("odds", 1.60))
             all_tickets_to_eval.append({
@@ -477,7 +476,6 @@ def run_soccer_live():
                 "picks": [{"match": state["potd"].get("match"), "pick": state["potd"].get("pick")}]
             })
 
-        # 2. Reguläre Kombi-Tickets
         for t in state.get("tickets", []):
             t_odds = float(t.get("odds", 2.0))
             stake = 1.0
@@ -504,7 +502,6 @@ def run_soccer_live():
 
             has_loss = False
             has_manual = False
-            effective_odds = 1.0
             pick_summaries = []
 
             for p in picks:
@@ -527,7 +524,6 @@ def run_soccer_live():
                     has_loss = True
                     pick_summaries.append(f"{m_str} ❌")
                 elif "🟡" in eval_res or "push" in eval_res.lower() or "void" in eval_res.lower():
-                    # Bei Push fällt die Quote dieses Beins auf 1.0
                     pick_summaries.append(f"{m_str} 🟡")
                 elif "✅" in eval_res:
                     pick_summaries.append(f"{m_str} ✅")
@@ -535,7 +531,6 @@ def run_soccer_live():
                     has_manual = True
                     pick_summaries.append(f"{m_str} ❓")
 
-            # Ticket-Entscheidung
             if has_loss:
                 t_status = "❌ LOSS"
                 profit = -stake
@@ -545,7 +540,6 @@ def run_soccer_live():
                 profit = 0.0
                 tickets_manual += 1
             else:
-                # Prüfen, ob alle Picks Pushes waren
                 all_pushes = all("🟡" in ps for ps in pick_summaries)
                 if all_pushes:
                     t_status = "🟡 PUSH"
@@ -575,7 +569,6 @@ def run_soccer_live():
         state["settled"] = True
         save_state(state)
 
-        # Telegram-Zusammenfassung mit Ticket-Übersicht
         net_sign = "+" if total_profit > 0 else ""
         tickets_summary = "\n".join(ticket_results)
 
