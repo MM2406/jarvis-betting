@@ -147,9 +147,7 @@
       "info": "Appalachian State setzte sich bereits in der ersten Halbzeit mit einem deutlichen 43:21 ab, da Merrimack nur 25 % aus dem Feld traf. Trotz einer verbesserten zweiten Hälfte der Warriors reichte es nicht mehr zum Comeback, womit der Spread von -3,0 klar verfehlt wurde.",
       "stake": 1.0,
       "pnl": -1.0
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Virginia Cavaliers vs. Drexel Dragons",
       "sport": "US College",
@@ -157,9 +155,10 @@
       "odds": 1.87,
       "stake": 1.5,
       "date": "2026-11-03",
-      "status": "PENDING",
-      "score": "Noch nicht begonnen",
-      "info": "Das Saisonauftaktspiel zwischen den Virginia Cavaliers und den Drexel Dragons ist für den 3. November 2026 um 19:30 Uhr EST (00:30 Uhr UTC am 4. November) angesetzt. Die Partie hat somit noch nicht begonnen."
+      "status": "LOST",
+      "score": "89:60 (Virginia Cavaliers vs. Drexel Dragons)",
+      "info": "Virginia legte dank einer starken Wurfquote und eines frühen 25:4-Laufs bereits in der ersten Halbzeit 51 Punkte vor (Halbzeitstand 51:27). Mit insgesamt 149 erzielten Punkten wurde die Line von 142,0 Zählern klar übertroffen.",
+      "pnl": -1.5
     },
     {
       "match": "Duquesne / Miami (OH) / Kansas St",
@@ -168,9 +167,10 @@
       "odds": 1.99,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING",
-      "score": "Ausstehend (Noch nicht begonnen)",
-      "info": "Die Spiele dieser Kombiwette (darunter Duquesne vs. Purdue Fort Wayne um 19:00 Uhr EST sowie Kansas State vs. South Dakota State um 19:00 Uhr CT) finden am Abend des 3. November 2026 statt und sind zum aktuellen Zeitpunkt noch nicht beendet bzw. noch nicht gestartet."
+      "status": "LOST",
+      "score": "Duquesne 78:71 Purdue Fort Wayne / Kansas State 66:68 South Dakota State / Miami (OH) 31:34 Buffalo (OT)",
+      "info": "Die Kombiwette ist verloren, da Kansas State im Basketball-Auftaktspiel nach einem späten Scoring-Run der South Dakota State Jackrabbits mit 66:68 unterlag. Zudem verlor auch Miami (OH) sein am 03.11.2026 ausgetragenes College-Football-Spiel mit 31:34 nach Overtime gegen Buffalo.",
+      "pnl": -0.75
     },
     {
       "match": "Alabama Crimson Tide vs. Sam Houston St Bearkats",
@@ -179,9 +179,10 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING",
-      "score": "Noch nicht begonnen",
-      "info": "Die Partie zwischen Alabama und Sam Houston State ist für den 3. November 2026 um 18:30 Uhr Ortszeit (CT) angesetzt und hat somit noch nicht begonnen. Daher liegt noch kein Endergebnis vor."
+      "status": "LOST",
+      "score": "Alabama 96 - 74 Sam Houston State (Halbzeit: 40:29)",
+      "info": "Mit 170 Gesamtpunkten wurde die Line knapp unterboten. Ein zäher Beginn im ersten Durchgang (nur 69 Punkte) verhinderte trotz einer deutlich temporeicheren und punktereicheren zweiten Halbzeit das Erreichen des Over.",
+      "pnl": -0.75
     },
     {
       "match": "Virginia Cavaliers vs. Drexel Dragons",
@@ -190,9 +191,10 @@
       "odds": 1.87,
       "stake": 1.5,
       "date": "2026-11-03",
-      "status": "PENDING",
-      "score": "Noch nicht begonnen",
-      "info": "Die Partie ist für den 3. November 2026 um 19:30 Uhr EST (00:30 Uhr UTC am 4. November) in der John Paul Jones Arena angesetzt und hat noch nicht begonnen."
+      "status": "LOST",
+      "score": "89:60 (Virginia Cavaliers vs. Drexel Dragons)",
+      "info": "Virginia dominierte das Spiel mit einem rasanten 25:4-Auftaktlauf und einer starken Offensivleistung (51 Punkte zur Halbzeit). Mit insgesamt 149 Punkten lag das Endergebnis deutlich über der Line von 142,0.",
+      "pnl": -1.5
     },
     {
       "match": "Georgia Tech Yellow Jackets vs. Hampton Pirates",
@@ -201,9 +203,10 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING",
-      "score": "Ausstehend (Noch nicht begonnen)",
-      "info": "Die Partie zwischen den Georgia Tech Yellow Jackets und den Hampton Pirates ist für den 3. November 2026 um 19:00 Uhr EST angesetzt und hat zum aktuellen Zeitpunkt noch nicht begonnen."
+      "status": "WON",
+      "score": "75:55 (Georgia Tech Yellow Jackets vs. Hampton Pirates)",
+      "info": "Georgia Tech legte den Grundstein mit einer dominanten ersten Halbzeit (42:15) und überragender Rebound-Arbeit (59:33). Trotz offensiver Schwächephasen in der zweiten Hälfte reichte der 20-Punkte-Erfolg problemlos aus, um das Handicap von -14,0 zu covern.",
+      "pnl": 0.68
     },
     {
       "match": "Duquesne Dukes vs. Fort Wayne Mastodons",
@@ -212,9 +215,10 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING",
-      "score": "Ausstehend (Noch nicht begonnen)",
-      "info": "Die Begegnung zwischen den Duquesne Dukes und den Purdue Fort Wayne Mastodons ist für den 3. November 2026 um 19:00 Uhr EST (00:00 Uhr UTC) angesetzt und hat noch nicht begonnen."
+      "status": "LOST",
+      "score": "78:71 (Duquesne Dukes 78, Purdue Fort Wayne Mastodons 71)",
+      "info": "Duquesne konnte die Partie nach einem 36:37-Pausenrückstand dank eines späten 8:0-Laufs zwar mit 78:71 gewinnen, verpasste mit der 7-Punkte-Differenz jedoch die geforderte Handicap-Linie von -10,0 Punkten.",
+      "pnl": -0.75
     },
     {
       "match": "Kansas St Wildcats vs. South Dakota St Jackrabbits",
@@ -223,9 +227,10 @@
       "odds": 1.95,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING",
-      "score": "Noch nicht begonnen (Tip-off: 19:00 Uhr CT / 02:00 Uhr MEZ)",
-      "info": "Das Spiel zum Saisonauftakt im Bramlage Coliseum hat noch nicht begonnen. Ein offizielles Endergebnis liegt daher zum jetzigen Zeitpunkt noch nicht vor."
+      "status": "WON",
+      "score": "Kansas State Wildcats 66 : 68 South Dakota State Jackrabbits",
+      "info": "Die Jackrabbits schafften einen 68:66-Auswärtssieg, angeführt von 24 Punkten von Davis Kern und entscheidenden Dreiern in der Schlussphase. Damit gewann South Dakota State die Partie sogar outright und coverte das Handicap von +11,5 problemlos.",
+      "pnl": 0.71
     },
     {
       "match": "San Diego St Aztecs vs. CSU Fullerton Titans",
@@ -234,7 +239,10 @@
       "odds": 1.87,
       "stake": 1.5,
       "date": "2026-11-03",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "San Diego State Aztecs 102 : 78 CSU Fullerton Titans (Gesamt: 180 Punkte)",
+      "info": "San Diego State setzte sich durch eine hohe Pace und starke Freiwurfquoten früh ab (54:43 zur Halbzeit) und baute den Vorsprung im zweiten Durchgang mit einem 12:0-Lauf weiter aus. Mit insgesamt 180 erzielten Punkten wurde die Gesamtzahl von 154,5 Punkten deutlich übertroffen.",
+      "pnl": -1.5
     },
     {
       "match": "Tennessee Volunteers vs. Wofford Terriers",
@@ -243,7 +251,10 @@
       "odds": 1.97,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING"
+      "status": "WON",
+      "score": "90:59 (Tennessee Volunteers 90, Wofford Terriers 59)",
+      "info": "Nach einer knappen 34:31-Führung zur Pause startete Tennessee mit einem dominanten 20:5-Lauf in die zweite Halbzeit und überrollte die Terriers im zweiten Spielabschnitt mit 56:28. Durch den 31-Punkte-Erfolg wurde das Spread-Handicap von -25,0 Punkten souverän gecovert.",
+      "pnl": 0.73
     },
     {
       "match": "Kansas St Wildcats vs. South Dakota St Jackrabbits",
@@ -252,7 +263,10 @@
       "odds": 1.93,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "Kansas State Wildcats 66 : 68 South Dakota State Jackrabbits (FINAL)",
+      "info": "South Dakota State gelang ein überraschender 68:66-Auswärtssieg, angeführt von Davis Kern (24 Punkte) und entscheidenden Dreiern in der Schlussphase. Da die favorisierten Wildcats (-11,5) das Spiel sogar outright verloren haben, ist der Tipp verloren.",
+      "pnl": -0.75
     },
     {
       "match": "Alabama Crimson Tide vs. Sam Houston St Bearkats",
@@ -261,7 +275,11 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-03",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "96:74 (Alabama Crimson Tide vs. Sam Houston St Bearkats)",
+      "info": "Mit insgesamt 170 Punkten wurde die Line von 172,0 knapp verfehlt. Nach einer defensiv geprägten ersten Halbzeit (40:29) zog das Scoring im zweiten Durchgang durch Alabamas Turnover-Forcing (23 gegnerische Ballverluste) und Fast-Break-Pace zwar stark an, reichte für das Over am Ende jedoch nicht ganz aus.",
+      "pnl": -0.75
     }
-  ]
+  ],
+  "pending": []
 }
