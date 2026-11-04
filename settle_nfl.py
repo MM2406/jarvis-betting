@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -63,21 +64,49 @@ def send_telegram(text):
         print(f"Telegram-Fehler: {e}")
         return None
 
+def deduplicate_picks(items):
+    seen = set()
+    unique = []
+    for item in items:
+        key = (
+            str(item.get("date", "")).strip().lower(),
+            str(item.get("match", "")).strip().lower(),
+            str(item.get("pick", "")).strip().lower()
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
+def clean_score_text(raw_score):
+    if not raw_score:
+        return ""
+    cleaned = re.sub(r"\s*\([^)]*\)", "", raw_score).strip()
+    return cleaned
+
+def clean_info_sentence(info):
+    if not info:
+        return ""
+    sentences = re.split(r"(?<=[.!?])\s+", info.strip())
+    return sentences[0] if sentences else info.strip()
+
 def load_pending():
     if not os.path.exists(PENDING_FILE):
         return []
     try:
         with open(PENDING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data if isinstance(data, list) else data.get("pending", [])
+            raw = data if isinstance(data, list) else data.get("pending", [])
+            return deduplicate_picks(raw)
     except Exception as e:
         print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
         return []
 
 def save_pending(pending_list):
     try:
+        unique_list = deduplicate_picks(pending_list)
         with open(PENDING_FILE, "w", encoding="utf-8") as f:
-            json.dump(pending_list, f, ensure_ascii=False, indent=2)
+            json.dump(unique_list, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
 
@@ -110,6 +139,7 @@ def settle_nfl():
         print("Keine offenen NFL-Picks zur Auswertung.")
         return
 
+    pending = deduplicate_picks(pending)
     still_pending = []
     settled_now = []
 
@@ -129,12 +159,12 @@ REGELN:
 1. Prüfe, ob das Match regulär beendet ist (FINAL, inkl. OT). Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Push (z.B. Handicap genau getroffen) gib 'VOID' aus.
-4. Gib eine kurze, präzise Begründung an.
+4. Gib nur EINEN kurzen, prägnanten Satz Begründung an (max. 15 Wörter).
 
 Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: [Endergebnis]
-INFO: [1-2 Sätze Begründung]
+SCORE: [Nur Zahlen/Ergebnis, z.B. 24:20 oder 31:17]
+INFO: [Maximal 1 kurzer Satz Begründung]
 """
         payload = {
             "contents": [{"parts": [{"text": prompt_settle}]}],
@@ -163,7 +193,7 @@ INFO: [1-2 Sätze Begründung]
                 if result_val in ["WON", "LOST", "VOID"]:
                     item["status"] = result_val
                     item["sport"] = "NFL"
-                    
+
                     try:
                         odds_val = float(str(item.get("odds", "1.0")).replace(",", "."))
                     except ValueError:
@@ -173,10 +203,13 @@ INFO: [1-2 Sätze Begründung]
                     except ValueError:
                         stake_val = 1.0
 
+                    item["stake"] = stake_val
+                    item["odds"] = odds_val
+
                     if result_val == "WON":
-                        item["pnl"] = (odds_val - 1.0) * stake_val
+                        item["pnl"] = round((odds_val - 1.0) * stake_val, 2)
                     elif result_val == "LOST":
-                        item["pnl"] = -stake_val
+                        item["pnl"] = round(-stake_val, 2)
                     else:
                         item["pnl"] = 0.0
 
@@ -205,11 +238,7 @@ INFO: [1-2 Sätze Begründung]
         msg += f"<i>Abrechnung der Spiele vom {today_display}</i>\n"
 
         for p in settled_now:
-            try:
-                odds_val = float(str(p.get("odds", "1.0")).replace(",", "."))
-            except ValueError:
-                odds_val = 1.0
-
+            odds_val = float(p.get("odds", 1.0))
             stake = float(p.get("stake", 1.0))
             total_staked += stake
 
@@ -218,25 +247,27 @@ INFO: [1-2 Sätze Begründung]
                 icon = "✅"
                 ret = stake * odds_val
                 profit_leg = ret - stake
-                status_txt = f"✅ WON (+{profit_leg:.2f} U)"
+                outcome_str = f"<b>WON (+{profit_leg:.2f}u)</b>"
                 total_returned += ret
             elif status == "VOID":
                 icon = "🟡"
                 ret = stake
-                status_txt = "🟡 PUSH/VOID (Quote 1.00)"
+                outcome_str = "<b>PUSH (0.0u)</b>"
                 total_returned += ret
             else:
                 icon = "❌"
-                status_txt = f"❌ LOST (-{stake:.2f} U)"
+                outcome_str = f"<b>LOST (-{stake:.2f}u)</b>"
+
+            clean_score = clean_score_text(p.get("score", ""))
+            score_display = f" | <b>{clean_score}</b>" if clean_score else ""
 
             msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-            msg += f"{icon} <b>{p['match']}</b>\n"
-            msg += f"• <b>Tipp:</b> {p['pick']} (@ {odds_val:.2f})\n"
-            if p.get("score"):
-                msg += f"• <b>Ergebnis:</b> {p['score']}\n"
-            if p.get("info"):
-                msg += f"• <i>{p['info']}</i>\n"
-            msg += f"• <b>Status:</b> {status_txt}\n"
+            msg += f"{icon} <b>{p['match']}</b>{score_display}\n"
+            msg += f"   ↳ <i>{p['pick']}</i> (@{odds_val:.2f}) ➔ {icon} {outcome_str}\n"
+
+            clean_info = clean_info_sentence(p.get("info", ""))
+            if clean_info:
+                msg += f"   • {clean_info}\n"
 
         net_profit = total_returned - total_staked
         roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
@@ -245,11 +276,14 @@ INFO: [1-2 Sätze Begründung]
         sign = "+" if net_profit >= 0 else ""
 
         msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-        msg += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
-        msg += f"• <b>Ticket Win-Rate:</b> {won_tickets}/{total_tickets} ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
-        msg += f"• <b>Einsatz / Return:</b> {total_staked:.2f}U ➔ {total_returned:.2f}U\n"
-        msg += f"• <b>Netto-Profit:</b>     <b>{sign}{net_profit:.2f} Units</b>\n"
-        msg += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+        msg += "📊 <b>PERFORMANCE METRIKEN</b>\n"
+        msg += f"• <b>Bilanz:</b>       <b>{won_tickets}W - {total_tickets - won_tickets - void_tickets}L</b>"
+        if void_tickets > 0:
+            msg += f" - <b>{void_tickets}P</b>"
+        msg += f" ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
+        msg += f"• <b>Umsatz:</b>       {total_staked:.2f}u ➔ {total_returned:.2f}u\n"
+        msg += f"• <b>Netto-Profit:</b> <b>{sign}{net_profit:.2f} Units</b>\n"
+        msg += f"• <b>Tages-ROI:</b>    <b>{sign}{roi:.1f}%</b>\n"
         msg += "━━━━━━━━━━━━━━━━━━━━"
 
         send_telegram(msg)
