@@ -28,11 +28,6 @@ TELEGRAM_THREAD_ID = (
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 HISTORY_FILE = "tennis_history.json"
 
-TENNIS_SPORTS = [
-    "tennis_atp",
-    "tennis_wta"
-]
-
 def make_progress_bar(percentage, segments=10):
     clamped = max(0.0, min(100.0, float(percentage)))
     filled = int(round((clamped / 100.0) * segments))
@@ -291,9 +286,28 @@ INFO: [Maximal 1 kurzer Satz Begründung]
 def fetch_tennis_odds():
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=14)
+    cutoff = now_utc + timedelta(hours=36)
 
-    for sport in TENNIS_SPORTS:
+    # 1. Zuerst alle aktiven Tennis-Keys dynamisch von der API abfragen
+    active_tennis_sports = []
+    try:
+        sports_url = "https://api.the-odds-api.com/v4/sports/"
+        res_sports = requests.get(sports_url, params={"apiKey": ODDS_API_KEY}, timeout=10)
+        if res_sports.status_code == 200:
+            for s in res_sports.json():
+                if s.get("group") == "Tennis" and s.get("active", False):
+                    active_tennis_sports.append(s.get("key"))
+    except Exception as e:
+        print(f"Fehler beim Abrufen der aktiven Tennis-Ligen: {e}")
+
+    # Fallback-Ligen
+    if not active_tennis_sports:
+        active_tennis_sports = ["tennis_atp", "tennis_wta"]
+
+    print(f"Aktive Tennis-Keys gefunden: {active_tennis_sports}")
+
+    # 2. Quoten für alle aktiven Tennis-Ligen abrufen
+    for sport in active_tennis_sports:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
@@ -307,7 +321,7 @@ def fetch_tennis_odds():
                 for match in res.json():
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
-                        time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
+                        time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%a %H:%M Uhr")
                         bookies = match.get("bookmakers", [])
                         if not bookies:
                             continue
@@ -315,13 +329,13 @@ def fetch_tennis_odds():
                         for m in bookies[0].get("markets", []):
                             outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
                             odds_details.append(f"{m.get('key')}: {', '.join(outcomes)}")
-                        league = "ATP" if "atp" in sport else "WTA"
-                        all_events.append(f"[{league}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
+                        
+                        all_events.append(f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
         except Exception as e:
             print(f"Fehler bei {sport}: {e}")
 
     print(f"Gefundene Tennis-Partien: {len(all_events)}")
-    return "\n".join(all_events[:40])
+    return "\n".join(all_events[:45])
 
 def run_tennis_report():
     history = load_history()
@@ -368,7 +382,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>TENNIS PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [ATP/WTA] [Spieler A] vs. [Spieler B]
+- <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Spieler A] vs. [Spieler B]
 ➔ <b>Haupt-Pick:</b> <b>[Sieg / Games-Handicap / Satz-Wette]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 Units
