@@ -2,20 +2,22 @@ import os
 import sys
 import json
 import time
-import requests
 import re
-from datetime import datetime, timezone, timedelta
+import requests
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# ==========================================
-# KONFIGURATION & CREDENTIALS
-# ==========================================
-ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
+# Sichere Anbindung an telegram_sender.py
+try:
+    from telegram_sender import send_to_telegram
+except ImportError:
+    send_to_telegram = None
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Sicheres Routing ins NBA-Thema
+# Sichere Fallback-Kette für das NBA-Topic
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_NBA_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_NBA", "").strip()
@@ -24,35 +26,13 @@ TELEGRAM_THREAD_ID = (
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_nba.json"
+HISTORY_FILE = "nba_history.json"
 
-# ==========================================
-# STATE & TELEGRAM HILFSFUNKTIONEN
-# ==========================================
-def send_telegram(text):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram Credentials fehlen.")
-        return
-
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
-    if TELEGRAM_THREAD_ID:
-        try:
-            payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-        except ValueError:
-            print(f"Ungueltige Thread-ID fuer NBA: {TELEGRAM_THREAD_ID}")
-
-    try:
-        res = requests.post(url, json=payload, timeout=25)
-        if res.status_code != 200:
-            payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=25)
-    except Exception as e:
-        print(f"Telegram-Fehler: {e}")
+def make_progress_bar(percentage, segments=10):
+    clamped = max(0.0, min(100.0, float(percentage)))
+    filled = int(round((clamped / 100.0) * segments))
+    empty = segments - filled
+    return f"[{'🟩' * filled}{'⬜' * empty}]"
 
 def deduplicate_picks(items):
     seen = set()
@@ -67,6 +47,18 @@ def deduplicate_picks(items):
             seen.add(key)
             unique.append(item)
     return unique
+
+def clean_score_text(raw_score):
+    if not raw_score:
+        return ""
+    cleaned = re.sub(r"\s*\([^)]*\)", "", raw_score).strip()
+    return cleaned
+
+def clean_info_sentence(info):
+    if not info:
+        return ""
+    sentences = re.split(r"(?<=[.!?])\s+", info.strip())
+    return sentences[0] if sentences else info.strip()
 
 def load_pending():
     if not os.path.exists(PENDING_FILE):
@@ -88,200 +80,223 @@ def save_pending(pending_list):
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
 
-# ==========================================
-# THE ODDS API & PICKS GENERIERUNG
-# ==========================================
-def fetch_nba_odds():
-    url = "https://api.the-odds-api.com/v4/sports/basketball_nba/odds/"
-    params = {
-        "apiKey": ODDS_API_KEY,
-        "regions": "eu,us",
-        "markets": "h2h,spreads,totals",
-        "oddsFormat": "decimal"
-    }
-    try:
-        res = requests.get(url, params=params, timeout=15)
-        if res.status_code == 200:
-            events = []
-            now_utc = datetime.now(timezone.utc)
-            cutoff = now_utc + timedelta(hours=18)
-            for m in res.json():
-                commence = datetime.fromisoformat(m["commence_time"].replace("Z", "+00:00"))
-                if now_utc <= commence <= cutoff:
-                    time_str = commence.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
-                    bookies = m.get("bookmakers", [])
-                    if not bookies:
-                        continue
-                    m_details = []
-                    for mk in bookies[0].get("markets", []):
-                        outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in mk.get("outcomes", [])]
-                        m_details.append(f"{mk.get('key')}: {', '.join(outcomes)}")
-                    events.append(f"{m['home_team']} vs. {m['away_team']} ({time_str}) | {' // '.join(m_details)}")
-            return "\n".join(events[:40])
-    except Exception as e:
-        print(f"Fehler bei NBA Odds: {e}")
-    return ""
+def append_to_history(settled_items):
+    if not settled_items:
+        return
+    history = []
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                content = json.load(f)
+                if isinstance(content, list):
+                    history = content
+                elif isinstance(content, dict) and "settled" in content:
+                    history = content["settled"]
+        except Exception as e:
+            print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
 
-def run_nba_intel():
-    odds_data = fetch_nba_odds()
-    if not odds_data:
-        print("Keine NBA-Spiele im Zeitfenster gefunden.")
+    history.extend(settled_items)
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"[History] {len(settled_items)} NBA-Picks in {HISTORY_FILE} archiviert.")
+    except Exception as e:
+        print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
+
+def send_telegram(text):
+    if send_to_telegram:
+        return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_NBA")
+
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("[Telegram] FEHLER: Credentials fehlen.")
+        return None
+
+    if not TELEGRAM_THREAD_ID:
+        print("[Telegram] ABBRUCH: Keine NBA Thread-ID vorhanden.")
+        return None
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+        "message_thread_id": int(TELEGRAM_THREAD_ID)
+    }
+
+    try:
+        res = requests.post(url, json=payload, timeout=25)
+        if res.status_code != 200:
+            payload.pop("parse_mode", None)
+            res2 = requests.post(url, json=payload, timeout=25)
+            return res2.json().get("result", {}).get("message_id") if res2.status_code == 200 else None
+        return res.json().get("result", {}).get("message_id")
+    except Exception as e:
+        print(f"Telegram-Fehler: {e}")
+        return None
+
+def settle_nba_bets():
+    pending = load_pending()
+    if not pending:
+        print("Keine offenen NBA-Wetten zur Auswertung.")
         return
 
-    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+    pending = deduplicate_picks(pending)
+    still_pending = []
+    settled_now = []
 
-    prompt = f"""
-Du bist 'JARVIS NBA QUANT' – Spezialist für quantitative NBA-Modellierung, Possession-Analytics und Quoten-Diskrepanzen.
-Erstelle für heute ({today_str}) das NBA-Dossier.
+    host = "generativelanguage.googleapis.com"
+    path = "v1beta/models/gemini-3.8-flash:generateContent"
+    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
 
-VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
-{odds_data}
+    for item in pending:
+        match = item.get("match", "")
+        pick = item.get("pick", "")
+        date_str = item.get("date", "")
+        is_kombi = item.get("is_kombi", False) or "+" in pick
 
-RICHTLINIEN & MÄRKTE:
-- Wähle ausschließlich Partien aus der obigen Liste.
-- Analysiere Pace, Offensive/Defensive Ratings, Net-Rating Edge, Rest Advantage (Back-to-Back) und Lineup-News via Google Search.
-- DYNAMISCHE ACCA: Begrenze dich beim Kombi-Ticket NICHT auf 2 Spiele. Kombiniere 2 bis 3 Spiele mit klarem mathematischem Vorteil (+EV).
-- BUCHMACHER-ALTERNATIVE: Gib für jeden Spread/Total-Pick immer eine Standard-Linie für europäische Bookies an (z.B. bet365/Tipico).
-- VALUE-GRENZE: Weise für jeden Single-Tipp und für die Kombi eine Mindestquote aus ('Spielbar bis @ X.XX').
-- UNITS:
-  * Pick of the Day: 1.5 Units
-  * Value Acca: 0.75 Units
-  * Totals Spotlight: 0.75 Units
-  * Player Prop: 0.5 Units (WICHTIG: nur Over-Picks, keine Under-Picks!).
+        prompt_settle = f"""
+Du bist 'JARVIS NBA SETTLEMENT AGENT'.
+Recherchiere via Google Search die offiziellen Endergebnisse (inkl. Overtime) sowie Boxscores (Punkte, Rebounds, Assists, 3PM) für:
+Match: {match}
+Tipp: {pick}
+Datum: {date_str}
+Ist Kombiwette: {is_kombi}
 
-FORMATIERUNGS-REGELN FÜR TELEGRAM:
-- Keine doppelten Leerzeilen.
-- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
-- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'
-- Am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+REGELN:
+1. Prüfe, ob alle relevanten Spiele offiziell beendet sind (FINAL). Wenn noch nicht beendet -> PENDING.
+2. Bei Kombis: Wenn alle Beine gewonnen sind -> WON, sobald ein Bein verloren ist -> LOST.
+3. Bei Push (z.B. Spread oder Total genau getroffen) -> VOID.
+4. Gib nur EINEN kurzen, prägnanten Satz Begründung an (max. 15 Wörter).
 
-REPORT-HTML:
-🏀 <b>JARVIS NBA INTEL DOSSIER</b>
-<i>Quantitative Match-Modelle • Net-Rating Edge • Value-Picks</i>
-
-━━━━━━━━━━━━━━━━━━━━
-⭐ <b>NBA PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Haupt-Pick:</b> <b>[Spread / Total / Moneyline]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 Units
-📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [Pace-Projektion, Matchup-Vorteile, Rest Advantage, Schussqualität]
-
-━━━━━━━━━━━━━━━━━━━━
-🔥 <b>QUANT VALUE ACCA (Kombi)</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
-⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
-💰 <b>Einsatz:</b> 0.75 Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
-
-━━━━━━━━━━━━━━━━━━━━
-🎯 <b>PACE & TOTALS SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Pick:</b> <b>[Over/Under / Team-Total]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 0.75 Units
-🔍 <b>Rationale:</b> [Possessions-Projektion, Transition-Defense, Shooting-Splits]
-
-━━━━━━━━━━━━━━━━━━━━
-👟 <b>NBA PLAYER PROP SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Pick:</b> <b>[Spielername: Punkte / Rebounds / Assists / 3PT Made - nur Over]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie / Markt-Fallback] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 0.5 Units
-🔍 <b>Rationale:</b> [Usage-Rate, Matchup gegen gegnerische Defense-Position, Minuten-Projektion]
-
----JSON_TRACKING---
-[
-  {{
-    "match": "Team A vs Team B",
-    "sport": "NBA",
-    "category": "POTD",
-    "pick": "Team A -3.5",
-    "odds": 1.90,
-    "stake": 1.5,
-    "date": "{today_iso}",
-    "is_kombi": false
-  }},
-  {{
-    "match": "Team A vs Team B // Team C vs Team D",
-    "sport": "NBA",
-    "category": "ACCA",
-    "pick": "Team A ML + Over 224.5",
-    "odds": 2.65,
-    "stake": 0.75,
-    "date": "{today_iso}",
-    "is_kombi": true
-  }}
-]
+Antworte exakt in diesem Format:
+RESULT: WON oder LOST oder PENDING oder VOID
+SCORE: [Endergebnis(se), z.B. 118:112 oder BOS 115:102 / LAL 108:110]
+INFO: [Maximal 1 prägnanter Satz]
 """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "tools": [{"googleSearch": {}}],
-        "generationConfig": {"temperature": 0.2}
-    }
+        payload = {
+            "contents": [{"parts": [{"text": prompt_settle}]}],
+            "tools": [{"googleSearch": {}}],
+            "generationConfig": {"temperature": 0.1}
+        }
 
-    for attempt in range(1, 4):
         try:
-            res = requests.post(url, json=payload, timeout=90)
+            res = requests.post(api_url, json=payload, timeout=60)
             if res.status_code == 200:
-                full_reply = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                report = full_reply
-                if "---JSON_TRACKING---" in full_reply:
-                    parts = full_reply.split("---JSON_TRACKING---")
-                    report = parts[0].strip()
-                    json_str = parts[1].replace("```json", "").replace("```", "").strip()
+                text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                score_val = ""
+                info_val = ""
+                result_val = "PENDING"
+                for line in text.splitlines():
+                    if line.startswith("SCORE:"):
+                        score_val = line.replace("SCORE:", "").strip()
+                    elif line.startswith("INFO:"):
+                        info_val = line.replace("INFO:", "").strip()
+                    elif line.startswith("RESULT:"):
+                        result_val = line.replace("RESULT:", "").strip().upper()
+
+                item["score"] = score_val
+                item["info"] = info_val
+
+                if result_val in ["WON", "LOST", "VOID"]:
+                    item["status"] = result_val
+                    item["sport"] = "NBA"
+
                     try:
-                        new_picks = json.loads(json_str)
-                        pending = load_pending()
-                        for np in new_picks:
-                            np["status"] = "PENDING"
-                            np["sport"] = "NBA"
-                            try:
-                                np["odds"] = float(str(np.get("odds", 1.90)).replace(",", "."))
-                            except ValueError:
-                                np["odds"] = 1.90
-                            try:
-                                np["stake"] = float(str(np.get("stake", 1.0)).replace(",", "."))
-                            except ValueError:
-                                np["stake"] = 1.0
-                        pending.extend(new_picks)
-                        save_pending(pending)
-                        print(f"{len(new_picks)} NBA-Picks getrackt.")
-                    except Exception as je:
-                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
+                        odds_val = float(str(item.get("odds", "1.0")).replace(",", "."))
+                    except ValueError:
+                        odds_val = 1.0
+                    try:
+                        stake_val = float(str(item.get("stake", "1.0")).replace(",", "."))
+                    except ValueError:
+                        stake_val = 1.0
 
-                report = report.replace("```html", "").replace("```", "").strip()
-                send_telegram(report)
-                return
-            elif res.status_code in [500, 502, 503, 504]:
-                time.sleep(6)
+                    item["stake"] = stake_val
+                    item["odds"] = odds_val
+
+                    if result_val == "WON":
+                        item["pnl"] = round((odds_val - 1.0) * stake_val, 2)
+                    elif result_val == "LOST":
+                        item["pnl"] = round(-stake_val, 2)
+                    else:
+                        item["pnl"] = 0.0
+
+                    settled_now.append(item)
+                else:
+                    still_pending.append(item)
             else:
-                res.raise_for_status()
+                still_pending.append(item)
         except Exception as e:
-            print(f"Versuch {attempt}/3 fehlgeschlagen: {e}")
-            if attempt < 3:
-                time.sleep(6)
+            print(f"Fehler bei NBA-Settle {match}: {e}")
+            still_pending.append(item)
+
+    if settled_now:
+        append_to_history(settled_now)
+        save_pending(still_pending)
+
+        total_tickets = len(settled_now)
+        won_tickets = sum(1 for p in settled_now if p["status"] == "WON")
+        void_tickets = sum(1 for p in settled_now if p["status"] == "VOID")
+
+        total_staked = 0.0
+        total_returned = 0.0
+
+        today_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
+        msg = f"🏀 <b>JARVIS NBA ABRECHNUNG</b>\n"
+        msg += f"<i>Abrechnung der Spiele vom {today_display}</i>\n"
+
+        for p in settled_now:
+            odds_val = float(p.get("odds", 1.0))
+            stake = float(p.get("stake", 1.0))
+            total_staked += stake
+
+            status = p["status"]
+            if status == "WON":
+                icon = "✅"
+                ret = stake * odds_val
+                profit_leg = ret - stake
+                outcome_str = f"<b>WON (+{profit_leg:.2f}u)</b>"
+                total_returned += ret
+            elif status == "VOID":
+                icon = "🟡"
+                ret = stake
+                outcome_str = "<b>PUSH (0.0u)</b>"
+                total_returned += ret
             else:
-                sys.exit(1)
+                icon = "❌"
+                outcome_str = f"<b>LOST (-{stake:.2f}u)</b>"
 
-def main():
-    now_berlin = datetime.now(LOCAL_TZ)
-    current_hour = now_berlin.hour
+            clean_score = clean_score_text(p.get("score", ""))
+            score_display = f" | <b>{clean_score}</b>" if clean_score else ""
 
-    print(f"=== JARVIS NBA ENGINE START [{now_berlin.strftime('%Y-%m-%d %H:%M:%S %Z')}] ===")
+            msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
+            msg += f"{icon} <b>{p['match']}</b>{score_display}\n"
+            msg += f"   ↳ <i>{p['pick']}</i> (@{odds_val:.2f}) ➔ {icon} {outcome_str}\n"
 
-    # Picks ab 16:00 Uhr MEZ generieren (Injury Reports und Shootarounds abwarten)
-    if current_hour >= 16:
-        print(f"Abend-Fenster aktiv ({current_hour} Uhr MEZ): Generiere NBA-Dossier...")
-        run_nba_intel()
+            clean_info = clean_info_sentence(p.get("info", ""))
+            if clean_info:
+                msg += f"   • {clean_info}\n"
+
+        net_profit = total_returned - total_staked
+        roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
+        valid_tickets = total_tickets - void_tickets
+        hit_rate = (won_tickets / valid_tickets * 100) if valid_tickets > 0 else 0.0
+        sign = "+" if net_profit >= 0 else ""
+
+        msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
+        msg += "📊 <b>PERFORMANCE METRIKEN</b>\n"
+        msg += f"• <b>Bilanz:</b>       <b>{won_tickets}W - {total_tickets - won_tickets - void_tickets}L</b>"
+        if void_tickets > 0:
+            msg += f" - <b>{void_tickets}P</b>"
+        msg += f" ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
+        msg += f"• <b>Umsatz:</b>       {total_staked:.2f}u ➔ {total_returned:.2f}u\n"
+        msg += f"• <b>Netto-Profit:</b> <b>{sign}{net_profit:.2f} Units</b>\n"
+        msg += f"• <b>Tages-ROI:</b>    <b>{sign}{roi:.1f}%</b>\n"
+        msg += "━━━━━━━━━━━━━━━━━━━━"
+
+        send_telegram(msg)
     else:
-        print(f"Morgen-Fenster aktiv ({current_hour} Uhr MEZ): Dossier-Erstellung pausiert bis 16:00 Uhr.")
+        save_pending(still_pending)
 
 if __name__ == "__main__":
-    main()
+    settle_nba_bets()
