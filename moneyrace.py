@@ -136,14 +136,14 @@ Tipp: {active.get('pick')}
 Datum: {active.get('date')}
 
 REGELN:
-1. Prüfe sorgfältig, ob das Spiel bereits regulär beendet ist (inkl. möglicher Overtime/Penaltys). Falls noch nicht begonnen, verschoben oder live, antworte zwingend mit PENDING.
+1. Prüfe sorgfältig, ob das Spiel bereits regulär beendet ist (inkl. möglicher Overtime/Penaltys/Satzstände). Falls noch nicht begonnen, verschoben, wegen Regen unterbrochen oder live, antworte zwingend mit PENDING.
 2. Wenn der Tipp gewonnen hat, antworte mit 'RESULT: WON'.
 3. Wenn der Tipp verloren hat, antworte mit 'RESULT: LOST'.
-4. Bei Push / Void / Absage (Quote 1.0) antworte mit 'RESULT: VOID'.
+4. Bei Push / Void / Absage / Tennis-Aufgabe vor Wertungsgrenze antworte mit 'RESULT: VOID'.
 
 Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: Endergebnis (z.B. 4:2)
+SCORE: Endergebnis (z.B. 4:2 oder 6:4, 6:3)
 INFO: Kurze Begründung.
 """
     host = "generativelanguage.googleapis.com"
@@ -251,7 +251,22 @@ def fetch_moneyrace_odds():
     window_hours = 6 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
-    for sport in MONEYRACE_SPORTS:
+    # 1. Standard-Sportartenliste zusammenstellen
+    sports_to_query = list(MONEYRACE_SPORTS)
+
+    # 2. Aktive Tennis-Turniere dynamisch ergänzen
+    try:
+        sports_url = "https://api.the-odds-api.com/v4/sports/"
+        res_sports = requests.get(sports_url, params={"apiKey": ODDS_API_KEY}, timeout=10)
+        if res_sports.status_code == 200:
+            for s in res_sports.json():
+                if s.get("group") == "Tennis" and s.get("active", False):
+                    sports_to_query.append(s.get("key"))
+    except Exception as e:
+        print(f"Fehler beim dynamischen Tennis-Ligen-Scan: {e}")
+
+    # 3. Quoten aller Sportarten abfragen
+    for sport in sports_to_query:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
@@ -277,8 +292,8 @@ def fetch_moneyrace_odds():
         except Exception as e:
             print(f"Fehler bei {sport}: {e}")
 
-    print(f"Gefundene Moneyrace-Kandidaten: {len(all_events)}")
-    return "\n".join(all_events[:60])
+    print(f"Gefundene Moneyrace-Kandidaten (inkl. Tennis): {len(all_events)}")
+    return "\n".join(all_events[:65])
 
 def run_moneyrace():
     state = load_state()
@@ -325,6 +340,11 @@ ANALYSE-REGELN FÜR DAS MONEYRACE (QUALITÄT VOR ZWANG):
    - Ideale Quoten-Spanne: 1.35 bis 1.70 (maximal 1.78 bei überragendem Value).
    - Bevorzuge hochverlässliche Märkte:
      • Fussball: Heimsieg, Draw No Bet (DNB), Doppelte Chance (1X/X2), Totals mit Puffer (Über 1.5 oder Unter 3.5).
+     • Tennis (ATP/WTA):
+       - Reiner Moneyline-Sieg starker Favoriten (Hold-Dominanz auf aktuellem Belag)
+       - Satz-Handicap (+1.5 Sätze für soliden Außenseiter oder 1 Satzgewinn)
+       - Games-Handicap mit großem Puffer
+       - Over/Under Games mit Puffer (z.B. Über 19.5 Games bei Aufschlägern)
      • Basketball: Moneyline (Sieg inkl. OT) oder Spread/Handicap (+4.5 bis +8.5).
      • Darts: Match-Sieg (2-Weg).
    - ZEIT-LOGIK: Bei Läufen vor 15:00 Uhr wähle bevorzugt Partien, die vor 17:30 Uhr beendet sind (Anpfiff 13:00 - 15:30 Uhr).
@@ -354,7 +374,7 @@ Ziel:     <b>{target:.2f} €</b>
 
 ━━━━━━━━━━━━━━━━━━━━
 📌 <b>Match:</b>   [Heimteam] vs. [Auswärtsteam]
-🏆 <b>Sport:</b>   [Sportart / Liga]
+🏆 <b>Sport:</b>   [Sportart / Liga / Turnier]
 ⏰ <b>Beginn:</b>  [Uhrzeit] Uhr
 🎯 <b>Tipp:</b>    <b>[Präziser Markt &amp; Auswahl]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
@@ -380,6 +400,7 @@ Bei Win geht es mit [Return] € direkt in Stufe {next_step + 1}.
 {{
   "step": {next_step},
   "match": "Team A vs Team B",
+  "sport": "Tennis",
   "pick": "Auswahl",
   "odds": 1.50,
   "stake": {stake},
