@@ -23,14 +23,12 @@ HISTORY_FILE = "history_soccer.csv"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def clean_team_name(name):
-    """Entfernt Club-Kürzel und redundante Stadt-/Bezeichner-Zusätze für den API-Abgleich."""
     clean = name.lower()
     clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|lisbon|lissabon|donetsk|u19|u21|u23|youth|frauen|women)\b", " ", clean)
     clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
 
 def shorten_tag(tag):
-    """Kürzt lange Ticket-Namen für eine saubere Mobil-Darstellung ab."""
     tag_clean = tag.strip()
     mapping = {
         "CONSERVATIVE 2-LEG BANKER": "BANKER",
@@ -53,7 +51,6 @@ def get_match_minute(ev):
     desc = status.get("description", "").lower().strip()
     code = status.get("type", "").lower().strip()
 
-    # 1. Reine Halbzeitpause (keine 2. Halbzeit!)
     is_halftime = (
         code in ["halftime", "half_time", "ht"]
         or desc in ["halftime", "half time", "ht", "1st half ended", "first half ended"]
@@ -62,7 +59,6 @@ def get_match_minute(ev):
     if is_halftime:
         return 45, "Halbzeit", False
 
-    # 2. Regulärer Endstand
     is_finished = (
         code in ["finished", "ended", "ft", "after_ot", "after_pen"]
         or desc in ["ended", "finished", "ft", "aet", "pen", "full-time", "full time", "match finished"]
@@ -70,7 +66,6 @@ def get_match_minute(ev):
     if is_finished:
         return 90, "Endstand", True
 
-    # 3. Offizielle Spielminute der API
     minute = status.get("minute") or ev.get("time", {}).get("minute")
     if minute and isinstance(minute, (int, float)):
         m_int = int(minute)
@@ -79,7 +74,6 @@ def get_match_minute(ev):
             return 90, f"90+{extra}'" if extra > 0 else "90'", False
         return m_int, f"{m_int}'", False
 
-    # 4. Fallback über Zeitstempel
     start_ts = ev.get("startTimestamp")
     if start_ts:
         now_ts = int(time.time())
@@ -180,13 +174,13 @@ def append_to_history(records):
         with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["Date", "Match", "Pick", "Score", "Result", "Profit_Units"])
+                writer.writerow(["Date", "Ticket", "Picks", "Odds", "Result", "Profit_Units"])
             for r in records:
                 writer.writerow([
                     r.get("date", datetime.now().strftime("%Y-%m-%d")),
-                    r.get("match", ""),
-                    r.get("pick", ""),
-                    r.get("score", ""),
+                    r.get("ticket", ""),
+                    r.get("picks", ""),
+                    r.get("odds", 1.0),
                     r.get("result", "FINISHED"),
                     r.get("profit", 0.0)
                 ])
@@ -250,7 +244,6 @@ def edit_telegram(message_id, text):
         return False
 
 def fetch_football_events(date_str):
-    """Holt sowohl Live-Spiele als auch beendete/geplante Partien des Tages."""
     if not RAPIDAPI_KEY:
         return []
     headers = {
@@ -259,7 +252,6 @@ def fetch_football_events(date_str):
     }
     all_events = []
     
-    # 1. Live Events
     try:
         url_live = "https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live"
         res = requests.get(url_live, headers=headers, timeout=12)
@@ -268,7 +260,6 @@ def fetch_football_events(date_str):
     except Exception as e:
         print(f"[SportAPI Live Exception] {e}")
 
-    # 2. Spielplan des Tages
     try:
         url_sched = f"https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/{date_str}"
         res_sched = requests.get(url_sched, headers=headers, timeout=12)
@@ -290,28 +281,19 @@ def match_teams(search_str, home_name, away_name):
 
     h = clean_team_name(home_name)
     a = clean_team_name(away_name)
-    
     parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", search_str, flags=re.IGNORECASE) if clean_team_name(p)]
     
     if len(parts) >= 2:
         p1, p2 = parts[0], parts[1]
-
-        # 1. Substring-Abgleich
         if (p1 in h and p2 in a) or (p2 in h and p1 in a):
             return True
 
-        # 2. Token-Abgleich für Aliase (z.B. Bayern, Lille, Inter, PSG)
         p1_tokens = [w for w in p1.split() if len(w) >= 3]
         p2_tokens = [w for w in p2.split() if len(w) >= 3]
 
-        m1_h = any(t in h for t in p1_tokens)
-        m2_a = any(t in a for t in p2_tokens)
-        if m1_h and m2_a:
+        if any(t in h for t in p1_tokens) and any(t in a for t in p2_tokens):
             return True
-
-        m2_h = any(t in h for t in p2_tokens)
-        m1_a = any(t in a for t in p1_tokens)
-        if m2_h and m1_a:
+        if any(t in h for t in p2_tokens) and any(t in a for t in p1_tokens):
             return True
 
     return False
@@ -441,12 +423,9 @@ def run_soccer_live():
             p_joined = " • ".join(pick_summaries)
             pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
 
-    # Neuer dynamischer Layout-Aufbau
     live_sections = ["⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>"]
-
     if active_cards:
         live_sections.append("\n\n".join(active_cards))
-
     if pending_list:
         if active_cards:
             live_sections.append("━━━━━━━━━━━━━━━━━━━━\n⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
@@ -455,7 +434,6 @@ def run_soccer_live():
 
     live_block = "\n\n".join(live_sections)
 
-    # Schneidet alte Tracker- und Anhängeblöcke ab, um Duplikate zu verhindern
     split_targets = ["⏱️ <b>LIVE-TRACKER", "⏱️ <b>LIVE-", "⏳ <b>AUSSTEHEND"]
     base_text = raw_text
     for target in split_targets:
@@ -475,41 +453,144 @@ def run_soccer_live():
     else:
         save_state(state)
 
+    # =========================================================================
+    # NEUES SETTLEMENT: Auswertung AUF TICKET-EBENE (Kombis & POTD)
+    # =========================================================================
     if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
-        records = []
-        wins = 0
-        losses = 0
-        for match, f_data in finished_matches.items():
-            h_s = f_data["h_score"]
-            a_s = f_data["a_score"]
-            for pick_desc in match_picks.get(match, []):
-                eval_res = evaluate_pick_progress(match, pick_desc, h_s, a_s, is_finished=True)
-                is_win = "✅" in eval_res if eval_res else False
-                if is_win:
-                    wins += 1
+        ticket_results = []
+        history_records = []
+        tickets_won = 0
+        tickets_lost = 0
+        tickets_push = 0
+        tickets_manual = 0
+        total_profit = 0.0
+
+        all_tickets_to_eval = []
+
+        # 1. POTD als Einzelticket
+        if "potd" in state and isinstance(state["potd"], dict):
+            potd_odds = float(state["potd"].get("odds", 1.60))
+            all_tickets_to_eval.append({
+                "ticket_name": "⭐ SOCCER POTD",
+                "odds": potd_odds,
+                "stake": 1.5,
+                "picks": [{"match": state["potd"].get("match"), "pick": state["potd"].get("pick")}]
+            })
+
+        # 2. Reguläre Kombi-Tickets
+        for t in state.get("tickets", []):
+            t_odds = float(t.get("odds", 2.0))
+            stake = 1.0
+            t_name_upper = t.get("ticket_name", "").upper()
+            if "BANKER" in t_name_upper:
+                stake = 1.25
+            elif "VALUE" in t_name_upper:
+                stake = 0.75
+            elif "HYBRID" in t_name_upper or "PROPS" in t_name_upper:
+                stake = 0.5
+
+            all_tickets_to_eval.append({
+                "ticket_name": t.get("ticket_name", "Kombi"),
+                "odds": t_odds,
+                "stake": stake,
+                "picks": t.get("picks", [])
+            })
+
+        for t in all_tickets_to_eval:
+            t_name = t["ticket_name"]
+            t_odds = t["odds"]
+            stake = t["stake"]
+            picks = t["picks"]
+
+            has_loss = False
+            has_manual = False
+            effective_odds = 1.0
+            pick_summaries = []
+
+            for p in picks:
+                m_str = p.get("match", "")
+                p_str = p.get("pick", "")
+                pl_str = p.get("player")
+                p_label = f"{pl_str}: {p_str}" if pl_str else p_str
+                f_data = finished_matches.get(m_str)
+
+                if not f_data:
+                    has_manual = True
+                    pick_summaries.append(f"{m_str} (Offen)")
+                    continue
+
+                h_s = f_data["h_score"]
+                a_s = f_data["a_score"]
+                eval_res = evaluate_pick_progress(m_str, p_label, h_s, a_s, is_finished=True) or ""
+
+                if "❌" in eval_res:
+                    has_loss = True
+                    pick_summaries.append(f"{m_str} ❌")
+                elif "🟡" in eval_res or "push" in eval_res.lower() or "void" in eval_res.lower():
+                    # Bei Push fällt die Quote dieses Beins auf 1.0
+                    pick_summaries.append(f"{m_str} 🟡")
+                elif "✅" in eval_res:
+                    pick_summaries.append(f"{m_str} ✅")
                 else:
-                    losses += 1
-                records.append({
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "match": match,
-                    "pick": pick_desc,
-                    "score": f"{h_s}:{a_s}",
-                    "result": "WIN" if is_win else "LOSS",
-                    "profit": 0.85 if is_win else -1.0
-                })
-        
-        append_to_history(records)
+                    has_manual = True
+                    pick_summaries.append(f"{m_str} ❓")
+
+            # Ticket-Entscheidung
+            if has_loss:
+                t_status = "❌ LOSS"
+                profit = -stake
+                tickets_lost += 1
+            elif has_manual:
+                t_status = "❓ MANUAL"
+                profit = 0.0
+                tickets_manual += 1
+            else:
+                # Prüfen, ob alle Picks Pushes waren
+                all_pushes = all("🟡" in ps for ps in pick_summaries)
+                if all_pushes:
+                    t_status = "🟡 PUSH"
+                    profit = 0.0
+                    tickets_push += 1
+                else:
+                    t_status = "✅ WIN"
+                    profit = round(stake * (t_odds - 1.0), 2)
+                    tickets_won += 1
+
+            total_profit += profit
+
+            sign = "+" if profit > 0 else ""
+            profit_str = f"{sign}{profit:.2f}u" if profit != 0 else "0.0u"
+            ticket_results.append(f"• <b>{shorten_tag(t_name)}</b> (@{t_odds:.2f}) ➔ {t_status} (<i>{profit_str}</i>)")
+
+            history_records.append({
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "ticket": t_name,
+                "picks": " // ".join(pick_summaries),
+                "odds": t_odds,
+                "result": t_status.replace("✅ ", "").replace("❌ ", "").replace("🟡 ", "").replace("❓ ", ""),
+                "profit": profit
+            })
+
+        append_to_history(history_records)
         state["settled"] = True
         save_state(state)
 
+        # Telegram-Zusammenfassung mit Ticket-Übersicht
+        net_sign = "+" if total_profit > 0 else ""
+        tickets_summary = "\n".join(ticket_results)
+
         summary_msg = (
             f"🏁 <b>JARVIS SOCCER — TAGESABSCHLUSS</b>\n\n"
-            f"Alle Spiele des Abends sind beendet!\n"
-            f"• Bilanz Picks: <b>{wins}W - {losses}L</b>\n\n"
-            f"📁 <i>Ergebnisse wurden automatisch in history_soccer.csv archiviert.</i>"
+            f"<b>Ticket-Auswertung (Kombis & POTD):</b>\n"
+            f"{tickets_summary}\n\n"
+            f"📊 <b>Bilanz Tickets:</b> <b>{tickets_won}W - {tickets_lost}L</b>"
+            f"{f' - {tickets_push}P' if tickets_push > 0 else ''}"
+            f"{f' ({tickets_manual} offen/Props)' if tickets_manual > 0 else ''}\n"
+            f"💰 <b>Netto-Ergebnis:</b> <b>{net_sign}{total_profit:.2f} Units</b>\n\n"
+            f"📁 <i>Alle Tickets wurden in history_soccer.csv archiviert.</i>"
         )
         send_telegram_msg(summary_msg)
-        print("[SoccerLive] Tagesabschluss archiviert und Telegram-Zusammenfassung gesendet.")
+        print("[SoccerLive] Tagesabschluss mit Ticket-Abrechnung gesendet.")
 
 if __name__ == "__main__":
     run_soccer_live()
