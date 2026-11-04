@@ -35,6 +35,8 @@ SPORT_ENDPOINT_MAP = {
     "ice-hockey": "ice-hockey",
     "eishockey": "ice-hockey",
     "tennis": "tennis",
+    "atp": "tennis",
+    "wta": "tennis",
     "nfl": "american-football",
     "american-football": "american-football"
 }
@@ -115,14 +117,14 @@ def detect_sport(active_pick):
     raw_sport = active_pick.get("sport", "").strip().lower()
     combined_text = f"{raw_sport} {active_pick.get('match', '')} {active_pick.get('pick', '')} {active_pick.get('original_text', '')}".lower()
     
+    if any(k in combined_text for k in ["tennis", "atp", "wta", "grand slam", "masters"]):
+        return "tennis"
     if any(k in combined_text for k in ["nba", "basketball", "euroleague", "hoops"]):
         return "basketball"
     if any(k in combined_text for k in ["nhl", "eishockey", "ice hockey"]):
         return "ice-hockey"
     if any(k in combined_text for k in ["nfl", "american football"]):
         return "american-football"
-    if any(k in combined_text for k in ["tennis", "atp", "wta"]):
-        return "tennis"
     return "soccer"
 
 def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
@@ -159,14 +161,14 @@ def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
             if any(k in full_check for k in ["u19", "u21", "youth"]):
                 continue
 
-            # STRIKT: BEIDE Teams müssen matchen (p1 vs p2)
+            # STRIKT: BEIDE Spieler/Teams müssen matchen
             matched = (p1 in h_name and p2 in a_name) or (p2 in h_name and p1 in a_name)
 
             if matched:
                 h_score = ev.get("homeScore", {}).get("current", 0)
                 a_score = ev.get("awayScore", {}).get("current", 0)
 
-                # Plausibilitätscheck: Fußball kann nicht 32:27 sein!
+                # Plausibilitätscheck: Fußball kann nicht 32:27 sein
                 if sport_slug == "football" and (h_score + a_score > 15):
                     print(f"⚠️ Unplausibler Fußball-Spielstand ({h_score}:{a_score}) ignoriert!")
                     continue
@@ -183,11 +185,13 @@ def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
                 elif "halftime" in status_raw or "ht" in status_raw:
                     time_str = "Halbzeit"
                 elif "1st" in status_raw:
-                    time_str = "1. HZ"
+                    time_str = "1. Satz/HZ" if sport_slug == "tennis" else "1. HZ"
                 elif "2nd" in status_raw:
-                    time_str = "2. HZ"
+                    time_str = "2. Satz/HZ" if sport_slug == "tennis" else "2. HZ"
+                elif "3rd" in status_raw:
+                    time_str = "3. Satz"
 
-                if any(k in status_raw for k in ["finished", "ended", "ft"]) or status_code in ["finished", "ended"]:
+                if any(k in status_raw for k in ["finished", "ended", "ft", "retired"]) or status_code in ["finished", "ended"]:
                     return {"status": "FINISHED", "score": score_str, "time_info": "FINAL", "h": h_score, "a": a_score}
 
                 return {
@@ -216,8 +220,8 @@ Recherchiere via Google Search den offiziellen Status für folgende Partie:
 
 REGELN:
 1. STATUS: 'FINISHED', 'LIVE' oder 'UPCOMING'
-2. SCORE: Spielstand (z.B. '2:0')
-3. TIME_INFO: z.B. '72. Min', 'Halbzeit' oder 'FINAL'
+2. SCORE: Spielstand (z.B. '2:0' oder bei Tennis '6:4, 3:2')
+3. TIME_INFO: z.B. '72. Min', '2. Satz' oder 'FINAL'
 4. ASSESSMENT: 'ON_TRACK' (wenn Tipp gewinnt/führt) oder 'AT_RISK'
 5. OUTCOME: Falls FINISHED: 'WON', 'LOST', 'VOID'. Sonst 'PENDING'.
 
@@ -304,7 +308,7 @@ def run_live_update():
             g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
             outcome = g_data.get("outcome", "PENDING") if g_data else "PENDING"
     else:
-        # Fallback auf Google Search nur wenn API nichts findet
+        # Fallback auf Google Search wenn API nichts findet
         g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
         if g_data:
             status = g_data["status"]
@@ -313,10 +317,9 @@ def run_live_update():
             track = g_data["track"]
             outcome = g_data["outcome"]
 
-    # Wenn Spiel noch ansteht (vor Anpfiff): Ticker auf Wartezustand setzen oder beenden
+    # Wenn Spiel noch ansteht (vor Anpfiff):
     if status == "UPCOMING":
         print(f"[Moneyrace] {match_name} ist laut API noch nicht gestartet.")
-        # Entferne eventuell fälschlich gesetzte "SPIEL LÄUFT"-Abschnitte
         pattern = r"⏱️ <b>LIVE-TRACKER.*?(\n━━━━━━━━━━━━━━━━━━━━|\Z)"
         if "LIVE-TRACKER • SPIEL LÄUFT" in raw_text:
             cleaned_text = re.sub(pattern, "", raw_text, flags=re.DOTALL).rstrip()
