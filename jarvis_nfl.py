@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -13,7 +14,8 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
 # Sicheres Routing ins NFL-Thema
 TELEGRAM_THREAD_ID = (
-    os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
+    os.environ.get("TELEGRAM_NFL_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
@@ -46,20 +48,37 @@ def send_telegram(text):
     except Exception as e:
         print(f"Telegram-Fehler: {e}")
 
+def deduplicate_picks(items):
+    seen = set()
+    unique = []
+    for item in items:
+        key = (
+            str(item.get("date", "")).strip().lower(),
+            str(item.get("match", "")).strip().lower(),
+            str(item.get("pick", "")).strip().lower()
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
 def load_pending():
     if not os.path.exists(PENDING_FILE):
         return []
     try:
         with open(PENDING_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            raw = data if isinstance(data, list) else data.get("pending", [])
+            return deduplicate_picks(raw)
     except Exception as e:
         print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
         return []
 
 def save_pending(pending_list):
     try:
+        unique_list = deduplicate_picks(pending_list)
         with open(PENDING_FILE, "w", encoding="utf-8") as f:
-            json.dump(pending_list, f, ensure_ascii=False, indent=2)
+            json.dump(unique_list, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
 
@@ -146,14 +165,13 @@ REPORT-HTML:
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 - [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 ergänzen falls Value vorhanden ...]
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
 🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
 
 ━━━━━━━━━━━━━━━━━━━━
-🎯 <b>TOTALS &amp; PACE SPOTLIGHT</b>
+🎯 <b>TOTALS & PACE SPOTLIGHT</b>
 - <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ➔ <b>Pick:</b> <b>[Over/Under Wette / Team-Total]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
@@ -174,7 +192,8 @@ REPORT-HTML:
     "match": "Team A vs Team B",
     "sport": "NFL",
     "pick": "Team A -2.5",
-    "odds": "1.90",
+    "odds": 1.90,
+    "stake": 1.5,
     "date": "{today_iso}"
   }}
 ]
@@ -201,6 +220,15 @@ REPORT-HTML:
                         pending = load_pending()
                         for np in new_picks:
                             np["status"] = "PENDING"
+                            np["sport"] = "NFL"
+                            try:
+                                np["odds"] = float(str(np.get("odds", 1.90)).replace(",", "."))
+                            except ValueError:
+                                np["odds"] = 1.90
+                            try:
+                                np["stake"] = float(str(np.get("stake", 1.0)).replace(",", "."))
+                            except ValueError:
+                                np["stake"] = 1.0
                         pending.extend(new_picks)
                         save_pending(pending)
                         print(f"{len(new_picks)} NFL-Picks getrackt.")
