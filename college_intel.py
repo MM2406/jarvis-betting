@@ -71,6 +71,21 @@ def send_telegram(text):
         print(f"Telegram-Fehler: {e}")
         return None
 
+def deduplicate_items(items):
+    """Entfernt identische Wetten anhand von Datum, Match und Pick."""
+    seen = set()
+    unique = []
+    for item in items:
+        key = (
+            str(item.get("date", "")).strip().lower(),
+            str(item.get("match", "")).strip().lower(),
+            str(item.get("pick", "")).strip().lower()
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
 def load_history():
     if not os.path.exists(HISTORY_FILE):
         return {"settled": [], "pending": []}
@@ -80,6 +95,7 @@ def load_history():
             if isinstance(data, dict):
                 data.setdefault("settled", [])
                 data.setdefault("pending", [])
+                data["pending"] = deduplicate_items(data["pending"])
                 return data
             elif isinstance(data, list):
                 return {"settled": data, "pending": []}
@@ -99,6 +115,9 @@ def settle_pending_picks(history):
     if not pending:
         print("Keine offenen College-Picks zur Auswertung.")
         return history
+
+    # Duplikate vor der Auswertung filtern
+    pending = deduplicate_items(pending)
 
     still_pending = []
     settled_now = []
@@ -323,7 +342,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>COLLEGE PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ↳ <b>Haupt-Pick:</b> <b>[Spread / Total]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
@@ -332,8 +351,8 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>QUANT VALUE ACCA (Kombi)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1 mit Spread]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2 mit Spread]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1 mit Spread]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
+- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2 mit Spread]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
 📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
 ⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -341,7 +360,7 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>TEMPO & UPSET SPOTLIGHT</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
+- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
 ↳ <b>Pick:</b> <b>[Over/Under / Moneyline Dog]</b> @ [Quote]
 🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
 ⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
@@ -384,14 +403,15 @@ REPORT-HTML:
                         for np in new_picks:
                             np["status"] = "PENDING"
                             np["sport"] = "US College"
-                        history["pending"].extend(new_picks)
+                        # Bereits vorhandene Picks nicht noch einmal anhängen
+                        combined_pending = history.get("pending", []) + new_picks
+                        history["pending"] = deduplicate_items(combined_pending)
                         save_history(history)
-                        print(f"{len(new_picks)} College-Picks hinzugefügt.")
+                        print(f"Pending-Picks aktualisiert (jetzt {len(history['pending'])} offen).")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
-                # Bereinigung übriggebliebener API-Tags
                 report = re.sub(r"\[(basketball_ncaab|americanfootball_ncaaf)\]\s*", "", report)
                 send_telegram(report)
                 return
