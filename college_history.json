@@ -1,6 +1,5 @@
 {
-  "settled": [],
-  "pending": [
+  "settled": [
     {
       "match": "Virginia Cavaliers vs. Drexel Dragons",
       "sport": "US College",
@@ -8,7 +7,10 @@
       "odds": 1.87,
       "stake": 1.5,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "89:60 (Virginia Cavaliers vs. Drexel Dragons)",
+      "info": "Virginia sorgte mit einer dominanten Offensive und frühem hohen Tempo (51 Punkte zur Halbzeit) für klare Verhältnisse. Mit insgesamt 149 erzielten Punkten wurde die Line von 142,0 Punkten deutlich übertroffen.",
+      "pnl": -1.5
     },
     {
       "match": "Duquesne / Miami (OH) / Kansas St",
@@ -17,7 +19,10 @@
       "odds": 1.99,
       "stake": 0.75,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "Duquesne 78:71 Purdue Fort Wayne | Miami (OH) 86:77 James Madison | Kansas State 66:68 South Dakota State",
+      "info": "Die Kombiwette ist verloren, da Kansas State sein Saisonauftaktspiel trotz Aufholjagd knapp mit 66:68 gegen South Dakota State abgab. Die Siege von Duquesne (78:71 nach einem 8:0-Lauf in der Schlussphase) und Miami (OH) (86:77 dank 51 Punkten in der zweiten Hälfte) reichten somit nicht mehr aus.",
+      "pnl": -0.75
     },
     {
       "match": "Alabama Crimson Tide vs. Sam Houston St Bearkats",
@@ -26,7 +31,10 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "96:74 (Alabama Crimson Tide vs. Sam Houston State Bearkats)",
+      "info": "Mit 170 Gesamtzählern verfehlte die Partie die Linie von 172,0 Punkten um lediglich zwei Punkte. Zwar sorgte ein hohes Spieltempo im zweiten Durchgang für 101 Zähler, die punkteärmere und von 23 Ballverlusten der Bearkats geprägte erste Hälfte (40:29) verhinderte jedoch das Erreichen des Over.",
+      "pnl": -0.75
     },
     {
       "match": "Georgia Tech Yellow Jackets vs. Hampton Pirates",
@@ -35,7 +43,10 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "WON",
+      "score": "Georgia Tech Yellow Jackets 75 - 55 Hampton Pirates",
+      "info": "Georgia Tech dominierte die Partie vor allem in der ersten Halbzeit defensiv und erarbeitete sich eine 42:15-Pausenführung. Trotz offensiver Schwächephasen im zweiten Durchgang reichte der Vorsprung dank starker Rebound-Arbeit für einen souveränen 20-Punkte-Sieg.",
+      "pnl": 0.68
     },
     {
       "match": "Duquesne Dukes vs. Fort Wayne Mastodons",
@@ -44,7 +55,10 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "78:71 (36:37)",
+      "info": "Duquesne drehte die Partie in der Schlussphase durch einen 12:1-Lauf und siegte mit 78:71, verpasste mit 7 Punkten Vorsprung jedoch das Handicap von -10,0 Punkten.",
+      "pnl": -0.75
     },
     {
       "match": "Kansas St Wildcats vs. South Dakota St Jackrabbits",
@@ -53,7 +67,11 @@
       "odds": 1.95,
       "stake": 0.75,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "WON",
+      "score": "66:68 (Kansas State Wildcats vs. South Dakota State Jackrabbits)",
+      "info": "Die South Dakota State Jackrabbits gewannen das Spiel dank eines späten Laufs und 24 Punkten von Davis Kern überraschend als Außenseiter mit 68:66. Damit wurde das Handicap von +11,5 Punkten souverän abgedeckt.",
+      "pnl": 0.71
     }
-  ]
+  ],
+  "pending": []
 }
