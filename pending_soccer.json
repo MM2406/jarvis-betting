@@ -1,1 +1,104 @@
-[]
+{
+  "date": "2026-11-04",
+  "potd": {
+    "match": "Borussia Dortmund vs. Real Betis",
+    "pick": "Borussia Dortmund Sieg",
+    "odds": 1.75
+  },
+  "tickets": [
+    {
+      "ticket_name": "CONSERVATIVE 2-LEG BANKER",
+      "odds": 1.93,
+      "picks": [
+        {
+          "match": "Fenerbahce vs. Liverpool",
+          "pick": "Liverpool Sieg",
+          "odds": 1.33
+        },
+        {
+          "match": "RB Leipzig vs. Manchester City",
+          "pick": "Manchester City Sieg",
+          "odds": 1.45
+        }
+      ]
+    },
+    {
+      "ticket_name": "BALANCED VALUE ACCA",
+      "odds": 2.84,
+      "picks": [
+        {
+          "match": "AEK Athens vs. Real Madrid",
+          "pick": "Real Madrid Sieg",
+          "odds": 1.15
+        },
+        {
+          "match": "Viking FK vs. Sabah FK",
+          "pick": "Viking FK Sieg",
+          "odds": 1.34
+        },
+        {
+          "match": "PSV Eindhoven vs. Club Brugge",
+          "pick": "PSV Eindhoven Sieg",
+          "odds": 1.84
+        }
+      ]
+    },
+    {
+      "ticket_name": "HYBRID QUANT MULTI",
+      "odds": 3.79,
+      "picks": [
+        {
+          "match": "Porto vs. Napoli",
+          "pick": "Porto Sieg",
+          "odds": 1.7
+        },
+        {
+          "match": "RC Lens vs. Como",
+          "pick": "Como DNB",
+          "odds": 1.3
+        },
+        {
+          "match": "Rennes vs. Olympiakos Piraeus",
+          "pick": "BTTS Ja",
+          "odds": 1.72
+        }
+      ]
+    },
+    {
+      "ticket_name": "GOALS & BTTS VALUE ACCA",
+      "odds": 3.08,
+      "picks": [
+        {
+          "match": "Rennes vs. Olympiakos Piraeus",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.99
+        },
+        {
+          "match": "PSV Eindhoven vs. Club Brugge",
+          "pick": "BTTS Ja",
+          "odds": 1.55
+        }
+      ]
+    },
+    {
+      "ticket_name": "PLAYER PROPS MULTI",
+      "odds": 1.63,
+      "picks": [
+        {
+          "match": "AEK Athens vs. Real Madrid",
+          "player": "Kylian Mbappé",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.25
+        },
+        {
+          "match": "RB Leipzig vs. Manchester City",
+          "player": "Erling Haaland",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.3
+        }
+      ]
+    }
+  ],
+  "message_id": 200,
+  "original_text": "⚽ <b>JARVIS SOCCER INTEL • MITTAGS-EDITION</b>\n<i>xG-Modelle • Poisson-Projektionen • Value-Kombis</i>\n\n━━━━━━━━━━━━━━━━━━━━\n⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>\n• <b>Match:</b> 21:00 Uhr | Borussia Dortmund vs. Real Betis (UEFA Champions League)\n➔ <b>Haupt-Pick:</b> <b>Borussia Dortmund Sieg</b> @ 1.75\n🔄 <b>Buchmacher-Alternative:</b> Borussia Dortmund DNB @ 1.33\n⚠️ <b>Value-Grenze:</b> Spielbar bis @ 1.66 | 💰 <b>Einsatz:</b> 1.5 - 2.0 Units\n📊 <b>Quant-Daten:</b> Modell-Chance: 62.5% | Fair Odds: ~1.60 (<b>+9.4% EV</b>)\n🔍 <b>Edge:</b> Dortmund zeigt im heimischen Signal Iduna Park eine dominante xG-Bilanz und hohes Umschaltpressung. Betis offenbart auf internationalem Auswärtsparkett defensive Tempodefizite.\n\n━━━━━━━━━━━━━━━━━━━━\n🔒 <b>CONSERVATIVE 2-LEG BANKER</b>\n• 18:45 Uhr | Fenerbahce vs. Liverpool ➔ <b>Liverpool Sieg</b> @ 1.33\n• 21:00 Uhr | RB Leipzig vs. Manchester City ➔ <b>Manchester City Sieg</b> @ 1.45\n📈 <b>Gesamtquote:</b> <b>@1.93</b> | 💰 <b>Einsatz:</b> 1.0 - 1.5 Units\n🔍 <b>Logik:</b> Liverpool und Man City dominieren die Spielkontrolle sowie Ballbesitzphasen gegen anfällige Transition-Strukturen der Gastgeber. Zwei klare Qualitätsvorteile formstarker Titelfavoriten.\n\n━━━━━━━━━━━━━━━━━━━━\n⚖️ <b>BALANCED VALUE ACCA (3-er Kombi)</b>\n• 18:45 Uhr | AEK Athens vs. Real Madrid ➔ <b>Real Madrid Sieg</b> @ 1.15\n• 21:00 Uhr | Viking FK vs. Sabah FK ➔ <b>Viking FK Sieg</b> @ 1.34\n• 21:00 Uhr | PSV Eindhoven vs. Club Brugge ➔ <b>PSV Eindhoven Sieg</b> @ 1.84\n📈 <b>Gesamtquote:</b> <b>@2.84</b> | 💰 <b>Einsatz:</b> 0.75 - 1.0 Units\n🔍 <b>Logik:</b> Real Madrid und Viking agieren als erdrückende Heim-/Auswärtsfavoriten. PSV kombiniert im Philips Stadion enorme Offensivpower mit stabiler Chancenverwertung gegen Brugge.\n\n━━━━━━━━━━━━━━━━━━━━\n⚡ <b>HYBRID QUANT MULTI (Markt-Mix)</b>\n• 21:00 Uhr | Porto vs. Napoli ➔ <b>Sieg: Porto Sieg</b> @ 1.70\n• 21:00 Uhr | RC Lens vs. Como ➔ <b>Draw No Bet: Como DNB</b> @ 1.30\n• 16:30 Uhr | Rennes vs. Olympiakos Piraeus ➔ <b>BTTS: Beide Teams treffen Ja</b> @ 1.72\n📈 <b>Gesamtquote:</b> <b>@3.79</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units\n🔍 <b>Logik:</b> Porto nutzt den Heimvorteil im Do Dragão konsequent. Como agiert taktisch reif für eine Absicherung, während Rennes und Olympiakos in offenen Schlagabtauschen regelmäßig treffen.\n\n━━━━━━━━━━━━━━━━━━━━\n⚽ <b>GOALS & BTTS VALUE ACCA</b>\n• 16:30 Uhr | Rennes vs. Olympiakos Piraeus ➔ <b>Über 2.5 Tore</b> @ 1.99\n• 21:00 Uhr | PSV Eindhoven vs. Club Brugge ➔ <b>Beide Teams treffen Ja</b> @ 1.55\n📈 <b>Gesamtquote:</b> <b>@3.08</b> | 💰 <b>Einsatz:</b> 0.75 Units\n🔍 <b>Logik:</b> Rennes generiert hohe Gesamttore-xG bei defensiven Wacklern. Brügge und PSV besitzen jeweils genug Abschlussqualität für beidseitige Torerfolge.\n\n━━━━━━━━━━━━━━━━━━━━\n👟 <b>PLAYER PROP SPOTLIGHT / MULTI-TICKET</b>\n• 18:45 Uhr | Kylian Mbappé (Real Madrid) ➔ <b>1+ Schuss aufs Tor</b> @ 1.25\n• 21:00 Uhr | Erling Haaland (Manchester City) ➔ <b>1+ Schuss aufs Tor</b> @ 1.30\n📈 <b>Gesamtquote:</b> <b>@1.63</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units\n🔍 <b>Edge:</b> Beide Weltklasse-Angreifer weisen Quoten von über 2.2 Torschüssen pro 90 Minuten auf. Bei dominanten Matchups gegen Leipzig und AEK sind Treffer auf den Kasten vorprogrammiert."
+}
