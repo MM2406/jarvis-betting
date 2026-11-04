@@ -187,5 +187,75 @@
     "status": "WON",
     "sport": "NHL",
     "date": "2026-11-03"
+  },
+  {
+    "match": "Columbus Blue Jackets vs. Colorado Avalanche",
+    "pick": "Colorado Avalanche Sieg (inkl. OT)",
+    "odds": "1.80",
+    "odds_val": 1.8,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-03",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Columbus Blue Jackets vs. Colorado Avalanche | Ergebnis: 7:2 | LOST"
+    ]
+  },
+  {
+    "match": "TBL vs DET / MIN vs PHI / CAR vs NSH",
+    "pick": "Tampa Bay Lightning ML + Minnesota Wild ML + Carolina Hurricanes ML",
+    "odds": "3.16",
+    "odds_val": 3.16,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-03",
+    "is_kombi": true,
+    "legs_won": 2,
+    "legs_total": 3,
+    "details": [
+      "- Bein 1: Detroit Red Wings vs. Tampa Bay Lightning | Ergebnis: 2:4 | WON",
+      "- Bein 2: Minnesota Wild vs. Philadelphia Flyers | Ergebnis: 4:2 | WON",
+      "- Bein 3: Carolina Hurricanes vs. Nashville Predators | Ergebnis: 1:4 | LOST"
+    ]
+  },
+  {
+    "match": "Washington Capitals vs. Dallas Stars",
+    "pick": "Unter 5.5 Tore",
+    "odds": "2.05",
+    "odds_val": 2.05,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-03",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Washington Capitals vs. Dallas Stars | Ergebnis: 5:6 | LOST"
+    ]
+  },
+  {
+    "match": "Columbus Blue Jackets vs. Colorado Avalanche",
+    "pick": "Nathan MacKinnon Über 1.5 Scorerpunkte",
+    "odds": "1.80",
+    "odds_val": 1.8,
+    "stake": 1.0,
+    "pnl": 0.8,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-03",
+    "is_kombi": false,
+    "legs_won": 1,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Columbus Blue Jackets vs. Colorado Avalanche | Ergebnis: 7:2 (Nathan MacKinnon: 2 Scorerpunkte / 0 Tore, 2 Assists) | WON"
+    ]
   }
 ]
