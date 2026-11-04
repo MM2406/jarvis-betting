@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "sport": "NHL",
+    "category": "PICK OF THE DAY",
+    "pick": "Buffalo Sabres Sieg (inkl. OT)",
+    "odds": "1.80",
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "status": "PENDING"
+  },
+  {
+    "match": "Florida Panthers vs Chicago Blackhawks / Los Angeles Kings vs San Jose Sharks",
+    "sport": "NHL",
+    "category": "QUANT VALUE ACCA",
+    "pick": "Panthers ML + Kings ML",
+    "odds": "2.22",
+    "date": "2026-11-04",
+    "is_kombi": true,
+    "status": "PENDING"
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "sport": "NHL",
+    "category": "TOTALS SPOTLIGHT",
+    "pick": "Over 6.5 Tore",
+    "odds": "1.82",
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "status": "PENDING"
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "sport": "NHL",
+    "category": "PLAYER PROP",
+    "pick": "Tage Thompson Over 0.5 Scorerpunkte",
+    "odds": "1.55",
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "status": "PENDING"
+  }
+]
