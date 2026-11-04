@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import re
+import time
 import requests
 from datetime import datetime
 from quant_engine import calculate_match_odds
@@ -162,7 +163,7 @@ def build_prompt_with_data(quant_data):
     data_str = json.dumps(quant_data, ensure_ascii=False, indent=2)
     
     prompt = f"""Du bist JARVIS, ein quantitatives Analyse-System für Fußballwetten.
-Unten stehen die mathematischen Berechnungen und die REALLEN BUCHMACHER-QUOTEN ('real_market_odds'):
+Unten stehen die mathematischen Berechnungen und die REALEN BUCHMACHER-QUOTEN ('real_market_odds'):
 
 {data_str}
 
@@ -203,35 +204,43 @@ def generate_intel():
         print("❌ GEMINI_API_KEY fehlt.")
         sys.exit(1)
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": build_prompt_with_data(quant_data)}]}],
         "generationConfig": {"response_mime_type": "application/json"}
     }
 
     print("🤖 Sende quantitatives Briefing mit Live-Quoten an Gemini...")
-    res = requests.post(url, json=payload, timeout=30)
-    if res.status_code != 200:
-        print(f"❌ Gemini API Fehler: {res.text}")
-        sys.exit(1)
 
-    try:
-        content = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-        result_json = json.loads(content)
-        
-        state_data = result_json.get("pending_state", {})
-        state_data["original_text"] = result_json.get("telegram_html", "")
-        state_data["finished_matches"] = {}
-        state_data["message_id"] = 0
+    for attempt in range(1, 4):
+        try:
+            res = requests.post(url, json=payload, timeout=60)
+            if res.status_code == 200:
+                content = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+                result_json = json.loads(content)
+                
+                state_data = result_json.get("pending_state", {})
+                state_data["original_text"] = result_json.get("telegram_html", "")
+                state_data["finished_matches"] = {}
+                state_data["message_id"] = 0
 
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(state_data, f, ensure_ascii=False, indent=2)
+                with open(STATE_FILE, "w", encoding="utf-8") as f:
+                    json.dump(state_data, f, ensure_ascii=False, indent=2)
 
-        print(f"🎉 {STATE_FILE} erfolgreich mit realen Buchmacher-Quoten generiert.")
-
-    except Exception as e:
-        print(f"❌ Fehler beim Parsen der Gemini-Ausgabe: {e}")
-        sys.exit(1)
+                print(f"🎉 {STATE_FILE} erfolgreich mit realen Buchmacher-Quoten generiert.")
+                return
+            elif res.status_code in [500, 502, 503, 504]:
+                print(f"⚠️ Temporärer Server-Fehler ({res.status_code}). Warte vor Versuch {attempt + 1}/3...")
+                time.sleep(5)
+            else:
+                print(f"❌ Gemini API Fehler: {res.text}")
+                sys.exit(1)
+        except Exception as e:
+            print(f"❌ Versuch {attempt}/3 fehlgeschlagen: {e}")
+            if attempt < 3:
+                time.sleep(5)
+            else:
+                sys.exit(1)
 
 if __name__ == "__main__":
     generate_intel()
