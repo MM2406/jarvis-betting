@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -72,6 +73,33 @@ def send_telegram(text):
         print(f"Telegram-Fehler: {e}")
         return None
 
+def deduplicate_picks(items):
+    """Entfernt identische Wetten anhand von Datum, Match und Pick."""
+    seen = set()
+    unique = []
+    for item in items:
+        key = (
+            str(item.get("date", "")).strip().lower(),
+            str(item.get("match", "")).strip().lower(),
+            str(item.get("pick", "")).strip().lower()
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
+def clean_score_text(raw_score):
+    if not raw_score:
+        return ""
+    cleaned = re.sub(r"\s*\([^)]*\)", "", raw_score).strip()
+    return cleaned
+
+def clean_info_sentence(info):
+    if not info:
+        return ""
+    sentences = re.split(r"(?<=[.!?])\s+", info.strip())
+    return sentences[0] if sentences else info.strip()
+
 def load_history():
     if not os.path.exists(HISTORY_FILE):
         return {"settled": [], "pending": []}
@@ -81,6 +109,7 @@ def load_history():
             if isinstance(data, dict):
                 data.setdefault("settled", [])
                 data.setdefault("pending", [])
+                data["pending"] = deduplicate_picks(data["pending"])
                 return data
             elif isinstance(data, list):
                 return {"settled": data, "pending": []}
@@ -90,6 +119,8 @@ def load_history():
 
 def save_history(history):
     try:
+        if isinstance(history, dict) and "pending" in history:
+            history["pending"] = deduplicate_picks(history["pending"])
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
     except Exception as e:
@@ -101,6 +132,7 @@ def settle_pending_picks(history):
         print("Keine offenen Euro-Picks zur Auswertung.")
         return history
 
+    pending = deduplicate_picks(pending)
     still_pending = []
     settled_now = []
 
@@ -117,15 +149,15 @@ Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Pruefe, ob das Match bereits regulaer beendet ist (FINAL, inkl. OT). Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Pruefe, ob das Match bereits regulaer beendet ist (FINAL, inkl. OT falls relevant). Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
-3. Bei Push (z.B. Handicap Unentschieden) gib 'VOID' aus.
-4. Gib eine kurze, praezise Erklaerung an (Spielstand, Schwaechephasen, OT).
+3. Bei Push (z.B. Handicap Unentschieden oder exakte Line) gib 'VOID' aus.
+4. Gib nur EINEN kurzen, praezisen Satz Begruendung an (max. 15 Woerter).
 
 Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: [Endergebnis]
-INFO: [1-2 Saetze Erklaerung/Begruendung]
+SCORE: [Nur Zahlen/Ergebnis, z.B. 84:78 oder 3:2 OT]
+INFO: [Maximal 1 praegnanter Satz]
 """
         payload = {
             "contents": [{"parts": [{"text": prompt_settle}]}],
@@ -154,7 +186,7 @@ INFO: [1-2 Saetze Erklaerung/Begruendung]
                 if result_val in ["WON", "LOST", "VOID"]:
                     item["status"] = result_val
                     item["sport"] = "Euro-Hoops & Ice"
-                    
+
                     try:
                         odds_val = float(str(item.get("odds", "1.0")).replace(",", "."))
                     except ValueError:
@@ -209,25 +241,27 @@ INFO: [1-2 Saetze Erklaerung/Begruendung]
                 icon = "✅"
                 ret = stake * odds_val
                 profit_leg = ret - stake
-                status_txt = f"✅ WON (+{profit_leg:.2f} U)"
+                outcome_str = f"<b>WON (+{profit_leg:.2f}u)</b>"
                 total_returned += ret
             elif status == "VOID":
                 icon = "🟡"
                 ret = stake
-                status_txt = "🟡 PUSH/VOID (Quote 1.00)"
+                outcome_str = "<b>PUSH (0.0u)</b>"
                 total_returned += ret
             else:
                 icon = "❌"
-                status_txt = f"❌ LOST (-{stake:.2f} U)"
+                outcome_str = f"<b>LOST (-{stake:.2f}u)</b>"
+
+            clean_score = clean_score_text(p.get("score", ""))
+            score_display = f" | <b>{clean_score}</b>" if clean_score else ""
 
             msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-            msg += f"{icon} <b>{p['match']}</b>\n"
-            msg += f"• <b>Tipp:</b> {p['pick']} (@ {odds_val:.2f})\n"
-            if p.get("score"):
-                msg += f"• <b>Ergebnis:</b> {p['score']}\n"
-            if p.get("info"):
-                msg += f"• <i>{p['info']}</i>\n"
-            msg += f"• <b>Status:</b> {status_txt}\n"
+            msg += f"{icon} <b>{p['match']}</b>{score_display}\n"
+            msg += f"   ↳ <i>{p['pick']}</i> (@{odds_val:.2f}) ➔ {icon} {outcome_str}\n"
+
+            clean_info = clean_info_sentence(p.get("info", ""))
+            if clean_info:
+                msg += f"   • {clean_info}\n"
 
         net_profit = total_returned - total_staked
         roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
@@ -236,11 +270,14 @@ INFO: [1-2 Saetze Erklaerung/Begruendung]
         sign = "+" if net_profit >= 0 else ""
 
         msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-        msg += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
-        msg += f"• <b>Ticket Win-Rate:</b> {won_tickets}/{total_tickets} ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
-        msg += f"• <b>Einsatz / Return:</b> {total_staked:.2f}U ➔ {total_returned:.2f}U\n"
-        msg += f"• <b>Netto-Profit:</b>     <b>{sign}{net_profit:.2f} Units</b>\n"
-        msg += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+        msg += "📊 <b>PERFORMANCE METRIKEN</b>\n"
+        msg += f"• <b>Bilanz:</b>       <b>{won_tickets}W - {total_tickets - won_tickets - void_tickets}L</b>"
+        if void_tickets > 0:
+            msg += f" - <b>{void_tickets}P</b>"
+        msg += f" ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
+        msg += f"• <b>Umsatz:</b>       {total_staked:.2f}u ➔ {total_returned:.2f}u\n"
+        msg += f"• <b>Netto-Profit:</b> <b>{sign}{net_profit:.2f} Units</b>\n"
+        msg += f"• <b>Tages-ROI:</b>    <b>{sign}{roi:.1f}%</b>\n"
         msg += "━━━━━━━━━━━━━━━━━━━━"
 
         send_telegram(msg)
@@ -320,6 +357,7 @@ FORMATIERUNGS-REGELN FUER TELEGRAM:
 - Keine doppelten Leerzeilen.
 - Beginne jede Aufzaehlung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
 - Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
+- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'
 - Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
 
 REPORT-HTML:
@@ -391,9 +429,18 @@ REPORT-HTML:
                         for np in new_picks:
                             np["status"] = "PENDING"
                             np["sport"] = "Euro-Hoops & Ice"
-                        history["pending"].extend(new_picks)
+                            try:
+                                np["odds"] = float(str(np.get("odds", 1.75)).replace(",", "."))
+                            except ValueError:
+                                np["odds"] = 1.75
+                            try:
+                                np["stake"] = float(str(np.get("stake", 1.0)).replace(",", "."))
+                            except ValueError:
+                                np["stake"] = 1.0
+                        combined_pending = history.get("pending", []) + new_picks
+                        history["pending"] = deduplicate_picks(combined_pending)
                         save_history(history)
-                        print(f"{len(new_picks)} Euro-Picks hinzugefuegt.")
+                        print(f"Euro-Picks aktualisiert (jetzt {len(history['pending'])} offen).")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
