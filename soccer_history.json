@@ -158,5 +158,65 @@
     "status": "WON",
     "sport": "Soccer",
     "date": "2026-11-02"
+  },
+  {
+    "match": "Villarreal vs. Paris Saint Germain",
+    "pick": "Paris Saint Germain Sieg",
+    "odds": 1.6,
+    "stake": 1.0,
+    "pnl": 0.6,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-03"
+  },
+  {
+    "match": "Bodø/Glimt vs. Lille / LASK vs. ŠK Slovan Bratislava",
+    "pick": "CONSERVATIVE 2-LEG BANKER (Bodø/Glimt Sieg & LASK Sieg)",
+    "odds": 2.01,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-03"
+  },
+  {
+    "match": "Shakhtar vs Sporting / Feyenoord vs Inter / Barcelona vs Aston Villa",
+    "pick": "BALANCED VALUE ACCA (Sporting DNB & Inter Sieg & Barca Über 1.5)",
+    "odds": 3.41,
+    "stake": 1.0,
+    "pnl": 2.41,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-03"
+  },
+  {
+    "match": "Galatasaray vs Stuttgart / Atl. Madrid vs Bayern / Man United vs Roma",
+    "pick": "HYBRID QUANT MULTI (BTTS Ja & Über 2.0 Asiatisch & Man United DNB)",
+    "odds": 3.15,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-03"
+  },
+  {
+    "match": "Galatasaray vs Stuttgart / Atl. Madrid vs Bayern",
+    "pick": "GOALS & BTTS VALUE ACCA (Über 2.5 Tore & BTTS Ja)",
+    "odds": 2.56,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-03"
+  },
+  {
+    "match": "Barcelona vs Aston Villa / Atl. Madrid vs Bayern",
+    "pick": "PLAYER PROP SPOTLIGHT (Yamal 1+ SOT & Kane 1+ SOT)",
+    "odds": 1.82,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-03"
   }
 ]
