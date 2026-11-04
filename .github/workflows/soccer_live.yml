@@ -38,5 +38,11 @@ jobs:
         run: |
           git config --global user.name "JARVIS Bot"
           git config --global user.email "bot@jarvis-betting.local"
-          git add pending_soccer.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto: Update live scores & ticket settlement [skip ci]" && git push)
+          git add pending_soccer.json history_soccer.csv || true
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "Keine Änderungen zum Committen."
+          else
+            git commit -m "Auto: Update live scores & ticket settlement [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi
