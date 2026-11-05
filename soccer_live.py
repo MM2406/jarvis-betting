@@ -213,38 +213,29 @@ def append_to_history(records):
     except Exception as e:
         print(f"[SoccerLive] Fehler beim Schreiben in {HISTORY_FILE}: {e}")
 
-def send_telegram_msg(text):
+def send_telegram_msg(text, reply_to=None):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        return
+        return None
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": text,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
     }
     if TELEGRAM_THREAD_ID:
         payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-    try:
-        requests.post(url, json=payload, timeout=10)
-    except Exception as e:
-        print(f"[SoccerLive] Telegram Send Fehler: {e}")
+    if reply_to:
+        payload["reply_to_message_id"] = int(reply_to)
 
-def load_state():
-    if not os.path.exists(STATE_FILE):
-        return None
     try:
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        res = requests.post(url, json=payload, timeout=15)
+        if res.status_code == 200:
+            return res.json().get("result", {}).get("message_id")
+        print(f"[SoccerLive] Send Fehler: {res.text}")
     except Exception as e:
-        print(f"[SoccerLive] Fehler beim Laden von {STATE_FILE}: {e}")
-        return None
-
-def save_state(state):
-    try:
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(state, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[SoccerLive] Fehler beim Speichern von {STATE_FILE}: {e}")
+        print(f"[SoccerLive] Telegram Send Exception: {e}")
+    return None
 
 def edit_telegram(message_id, text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not message_id:
@@ -266,13 +257,27 @@ def edit_telegram(message_id, text):
         print(f"[SoccerLive] Edit mit HTML fehlgeschlagen ({res.text}), versuche ohne parse_mode...")
         payload.pop("parse_mode", None)
         res2 = requests.post(url, json=payload, timeout=20)
-        if res2.status_code == 200 or "message is not modified" in res2.text:
-            return True
-        print(f"[SoccerLive] Zweiter Edit-Versuch fehlgeschlagen: {res2.text}")
-        return False
+        return res2.status_code == 200 or "message is not modified" in res2.text
     except Exception as e:
         print(f"[SoccerLive] Telegram Edit Ausnahme: {e}")
         return False
+
+def load_state():
+    if not os.path.exists(STATE_FILE):
+        return None
+    try:
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[SoccerLive] Fehler beim Laden von {STATE_FILE}: {e}")
+        return None
+
+def save_state(state):
+    try:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[SoccerLive] Fehler beim Speichern von {STATE_FILE}: {e}")
 
 def fetch_football_events(date_str):
     if not RAPIDAPI_KEY:
@@ -351,11 +356,8 @@ def run_soccer_live():
         print("[SoccerLive] Keine pending_soccer.json vorhanden. Beende.")
         return
 
-    msg_id = state.get("message_id")
-    raw_text = state.get("original_text", "")
-    if not msg_id or not raw_text:
-        print(f"[SoccerLive] Message-ID ({msg_id}) oder original_text fehlt. Beende.")
-        return
+    main_msg_id = state.get("message_id")
+    ticker_msg_id = state.get("ticker_message_id")
 
     finished_matches = state.setdefault("finished_matches", {})
     match_picks = {}
@@ -392,7 +394,7 @@ def run_soccer_live():
             if m:
                 match_picks.setdefault(m, []).append(f"{t_name}: {pick_label}")
 
-    print(f"[SoccerLive] Überwache insgesamt {len(match_picks)} Spiele mit Message-ID {msg_id}.")
+    print(f"[SoccerLive] Überwache {len(match_picks)} Spiele (Haupt-Post: {main_msg_id}, Ticker-Post: {ticker_msg_id}).")
 
     today_str = state.get("date", datetime.now().strftime("%Y-%m-%d"))
     events = fetch_football_events(today_str)
@@ -414,7 +416,7 @@ def run_soccer_live():
                 eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=True)
                 if eval_str:
                     tag = shorten_tag(pick_desc.split(":")[0])
-                    pick_evals.append(f" ↳ {eval_str} ({tag})")
+                    pick_evals.append(f"  ↳ {eval_str} ({tag})")
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
 
             active_cards.append(
@@ -471,7 +473,7 @@ def run_soccer_live():
                 eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_finished)
                 if eval_str:
                     tag = shorten_tag(pick_desc.split(":")[0])
-                    pick_evals.append(f" ↳ {eval_str} ({tag})")
+                    pick_evals.append(f"  ↳ {eval_str} ({tag})")
 
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
             icon = "🏁" if is_finished else "🟢"
@@ -500,7 +502,7 @@ def run_soccer_live():
                     eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_fin)
                     if eval_str:
                         tag = shorten_tag(pick_desc.split(":")[0])
-                        pick_evals.append(f" ↳ {eval_str} ({tag})")
+                        pick_evals.append(f"  ↳ {eval_str} ({tag})")
                 eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
                 icon = "🏁" if is_fin else "🟢"
                 active_cards.append(
@@ -517,50 +519,40 @@ def run_soccer_live():
                 p_joined = " • ".join(pick_summaries)
                 pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
 
-    live_sections = ["⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>"]
+    # Zusammenbau des reinen Ticker-Posts
+    ticker_lines = ["⏱️ <b>JARVIS SOCCER • LIVE-TRACKER & FORTSCHRITT</b>\n"]
     if active_cards:
-        live_sections.append("\n".join(active_cards))
+        ticker_lines.append("\n".join(active_cards))
     if pending_list:
         if active_cards:
-            live_sections.append("━━━━━━━━━━━━━━━━━━━━\n⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
+            ticker_lines.append("\n━━━━━━━━━━━━━━━━━━━━\n⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
         else:
-            live_sections.append("⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
+            ticker_lines.append("⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
 
-    live_block = "\n\n".join(live_sections)
+    ticker_text = "\n".join(ticker_lines).strip()
+    last_ticker_text = state.get("last_ticker_text", "")
 
-    # Trennung des Originaltexts: exakt am Tracker-Header abschneiden
-    split_targets = ["⏱️ <b>LIVE-TRACKER", "⏱️ LIVE-TRACKER", "⏳ <b>AUSSTEHEND", "⏳ AUSSTEHEND"]
-    base_text = raw_text
-    for target in split_targets:
-        if target in base_text:
-            base_text = base_text.split(target)[0].rstrip()
-
-    # Platz schaffen für alle Live-Karten:
-    # Entfernt Fließtext-Begründungen (Edge, Logik) aus den oberen Picks, falls das Telegram-Limit droht
-    if len(base_text) + len(live_block) > 3950:
-        print("[SoccerLive] Text nähert sich 4096 Zeichen. Kürze Fließtext-Begründungen für Live-Betrieb...")
-        base_text = re.sub(r"(• <b>Edge:</b>|• <b>Logik:</b>).*?(?=\n\n━━━━━━━━━━━━━━━━━━━━|\Z)", "", base_text, flags=re.DOTALL)
-
-    if base_text.endswith("━━━━━━━━━━━━━━━━━━━━"):
-        new_text = base_text + "\n" + live_block
-    else:
-        new_text = base_text + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
-
-    # Letzter Sicherheits-Puffer gegen Telegram-Limit (4096 Zeichen)
-    if len(new_text) > 4050:
-        new_text = new_text[:4020].rsplit("\n", 1)[0] + "\n\n<i>[...weitere Spiele in Auswertung...]</i>"
-
-    if active_cards or new_text.strip() != raw_text.strip():
-        print(f"[SoccerLive] Aktualisiere Telegram (ID: {msg_id}, Länge: {len(new_text)} Zeichen)...")
-        if edit_telegram(msg_id, new_text):
-            state["original_text"] = new_text
+    # Neuer separater Post oder Editieren des bestehenden Tickers
+    if not ticker_msg_id:
+        print("[SoccerLive] Erstelle ersten eigenständigen Ticker-Post in Telegram...")
+        new_id = send_telegram_msg(ticker_text, reply_to=main_msg_id)
+        if new_id:
+            state["ticker_message_id"] = new_id
+            state["last_ticker_text"] = ticker_text
             save_state(state)
-            print("[SoccerLive] ✅ Telegram Nachricht erfolgreich editiert.")
-        else:
-            print("[SoccerLive] ❌ Telegram Edit fehlgeschlagen.")
+            print(f"[SoccerLive] ✅ Ticker-Post erfolgreich erstellt (ID: {new_id}).")
     else:
-        print("[SoccerLive] Noch keine aktiven Live-Karten vorhanden.")
-        save_state(state)
+        if ticker_text != last_ticker_text:
+            print(f"[SoccerLive] Editiere Ticker-Post (ID: {ticker_msg_id})...")
+            if edit_telegram(ticker_msg_id, ticker_text):
+                state["last_ticker_text"] = ticker_text
+                save_state(state)
+                print("[SoccerLive] ✅ Ticker-Post erfolgreich editiert.")
+            else:
+                print("[SoccerLive] ❌ Ticker-Edit fehlgeschlagen.")
+        else:
+            print("[SoccerLive] Ticker-Inhalt unverändert. Kein Edit nötig.")
+            save_state(state)
 
     # Settlement
     if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
@@ -690,7 +682,7 @@ def run_soccer_live():
             f"💰 <b>Netto-Ergebnis:</b> <b>{net_sign}{total_profit:.2f} Units</b>\n\n"
             f"📁 <i>Alle Tickets wurden in history_soccer.csv archiviert.</i>"
         )
-        send_telegram_msg(summary_msg)
+        send_telegram_msg(summary_msg, reply_to=ticker_msg_id or main_msg_id)
         print("[SoccerLive] ✅ Tagesabschluss mit Ticket-Abrechnung gesendet.")
 
 if __name__ == "__main__":
