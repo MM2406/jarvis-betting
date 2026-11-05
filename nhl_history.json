@@ -257,5 +257,61 @@
     "details": [
       "- Bein 1: Columbus Blue Jackets vs. Colorado Avalanche | Ergebnis: 7:2 (Nathan MacKinnon: 2 Scorerpunkte / 0 Tore, 2 Assists) | WON"
     ]
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "sport": "NHL",
+    "category": "PICK OF THE DAY",
+    "pick": "Buffalo Sabres Sieg (inkl. OT)",
+    "odds": 1.8,
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "status": "LOST",
+    "score": "BUF 1:2 OTT",
+    "info": "Die Ottawa Senators drehten die Partie im Schlussdrittel und gewannen mit 2:1.",
+    "stake": 1.0,
+    "pnl": -1.0
+  },
+  {
+    "match": "Florida Panthers vs Chicago Blackhawks / Los Angeles Kings vs San Jose Sharks",
+    "sport": "NHL",
+    "category": "QUANT VALUE ACCA",
+    "pick": "Panthers ML + Kings ML",
+    "odds": 2.22,
+    "date": "2026-11-04",
+    "is_kombi": true,
+    "status": "WON",
+    "score": "FLA 5:3 / LAK 7:2",
+    "info": "Sowohl die Panthers als auch die Kings gewannen ihre Spiele in der regulären Spielzeit.",
+    "stake": 1.0,
+    "pnl": 1.22
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "sport": "NHL",
+    "category": "TOTALS SPOTLIGHT",
+    "pick": "Over 6.5 Tore",
+    "odds": 1.82,
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "status": "LOST",
+    "score": "BUF 1:2 OTT",
+    "info": "Mit nur 3 Gesamttoren wurde die Over-Linie von 6,5 Toren deutlich verfehlt.",
+    "stake": 1.0,
+    "pnl": -1.0
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "sport": "NHL",
+    "category": "PLAYER PROP",
+    "pick": "Tage Thompson Over 0.5 Scorerpunkte",
+    "odds": 1.55,
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "status": "WON",
+    "score": "BUF 1:2 OTT",
+    "info": "Tage Thompson lieferte einen Assist und erzielte damit den benötigten Scorerpunkt.",
+    "stake": 1.0,
+    "pnl": 0.55
   }
 ]
