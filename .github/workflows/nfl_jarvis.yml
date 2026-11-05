@@ -2,15 +2,20 @@ name: JARVIS NFL Intel
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE (Täglich): 06:45 UTC (= 07:45 MEZ) - Abrechnung nach TNF (Fr), Sunday Slate (Mo) und MNF (Di)
+    # 1. MORGEN-SETTLE (Täglich): 06:45 UTC (= 07:45 MEZ) - Reine Abrechnung!
     - cron: '45 6 * * *'
     # 2. DONNERSTAG (Thursday Night Football): 16:00 UTC (= 17:00 MEZ)
     - cron: '0 16 * * 4'
-    # 3. SONNTAG (Haupt-Spieltag Slate): 15:30 UTC (= 16:30 MEZ) - Vorlauf für 19:00-Uhr-Kickoffs
+    # 3. SONNTAG (Haupt-Spieltag Slate): 15:30 UTC (= 16:30 MEZ)
     - cron: '30 15 * * 0'
     # 4. MONTAG (Monday Night Football): 17:00 UTC (= 18:00 MEZ)
     - cron: '0 17 * * 1'
   workflow_dispatch:
+    inputs:
+      settle_only:
+        description: 'Nur Abrechnung durchfuehren (True/False)'
+        required: false
+        default: 'false'
 
 concurrency:
   group: nfl-intel
@@ -46,7 +51,15 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
-        run: python jarvis_nfl.py
+        run: |
+          # Wenn der Workflow um 06:45 UTC getriggert wird, nur Abrechnung laufen lassen
+          if [ "${{ github.event.schedule }}" = "45 6 * * *" ] || [ "${{ github.event.inputs.settle_only }}" = "true" ]; then
+            echo "Führe reinen Morgen-Settlement-Lauf aus..."
+            python jarvis_nfl.py --settle-only
+          else
+            echo "Führe regulären NFL-Lauf (Settlement + Dossier) aus..."
+            python jarvis_nfl.py
+          fi
 
       - name: History committen und pushen
         run: |
