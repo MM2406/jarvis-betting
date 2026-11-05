@@ -6,7 +6,9 @@
     "odds": 1.95,
     "stake": 1.5,
     "date": "2026-11-05",
-    "status": "PENDING"
+    "status": "PENDING",
+    "score": "Noch nicht begonnen",
+    "info": "Das Spiel ist für heute um 20:15 Uhr ET angesetzt und hat noch nicht begonnen."
   },
   {
     "match": "Baltimore Ravens vs. Jacksonville Jaguars",
@@ -15,7 +17,9 @@
     "odds": 1.93,
     "stake": 1.0,
     "date": "2026-11-05",
-    "status": "PENDING"
+    "status": "PENDING",
+    "score": "Noch nicht begonnen",
+    "info": "Das Spiel hat noch nicht begonnen und startet heute Nacht um 01:15 Uhr MEZ."
   },
   {
     "match": "Baltimore Ravens vs. Jacksonville Jaguars",
@@ -24,6 +28,41 @@
     "odds": 1.78,
     "stake": 0.75,
     "date": "2026-11-05",
+    "status": "PENDING",
+    "score": "Noch nicht begonnen",
+    "info": "Die Partie hat noch nicht begonnen (Kickoff heute Nacht um 20:15 Uhr ET)."
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "category": "POTD",
+    "pick": "Baltimore Ravens +10.0",
+    "odds": 1.89,
+    "stake": 1.5,
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "status": "PENDING"
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "category": "ACCA",
+    "pick": "Baltimore Ravens +10.0 & Under 39.5",
+    "odds": 3.61,
+    "stake": 0.75,
+    "date": "2026-11-05",
+    "is_kombi": true,
+    "status": "PENDING"
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "category": "PROP",
+    "pick": "Travis Etienne Jr. Over 62.5 Rushing Yards",
+    "odds": 1.85,
+    "stake": 0.75,
+    "date": "2026-11-05",
+    "is_kombi": false,
     "status": "PENDING"
   }
 ]
