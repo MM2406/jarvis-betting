@@ -1,53 +1,29 @@
-{
-  "date": "2026-10-29",
-  "potd": {
-    "match": "Tampa Bay Buccaneers vs. Atlanta Falcons",
-    "pick": "Tampa Bay Buccaneers -2.5",
-    "odds": 1.91
+[
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "pick": "Jacksonville Jaguars -10.0",
+    "odds": 1.95,
+    "stake": 1.5,
+    "date": "2026-11-05",
+    "status": "PENDING"
   },
-  "banker": {
-    "odds": 2.08,
-    "picks": [
-      {
-        "match": "Green Bay Packers vs. Carolina Panthers",
-        "pick": "Green Bay Packers ML",
-        "odds": 1.52
-      },
-      {
-        "match": "Los Angeles Rams vs. Los Angeles Chargers",
-        "pick": "Los Angeles Rams ML",
-        "odds": 1.37
-      }
-    ]
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "pick": "Under 39.5",
+    "odds": 1.93,
+    "stake": 1.0,
+    "date": "2026-11-05",
+    "status": "PENDING"
   },
-  "totals": {
-    "odds": 3.61,
-    "picks": [
-      {
-        "match": "Pittsburgh Steelers vs. Cleveland Browns",
-        "pick": "Under 39.5",
-        "odds": 1.87
-      },
-      {
-        "match": "Denver Broncos vs. Kansas City Chiefs",
-        "pick": "Under 40.5",
-        "odds": 1.93
-      }
-    ]
-  },
-  "player_props": {
-    "odds": 3.33,
-    "picks": [
-      {
-        "player": "Kyren Williams",
-        "pick": "Anytime Touchdown",
-        "odds": 1.8
-      },
-      {
-        "player": "Derrick Henry",
-        "pick": "Over 76.5 Rushing Yards",
-        "odds": 1.85
-      }
-    ]
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "pick": "Trevor Lawrence Over 1.5 Passing TDs",
+    "odds": 1.78,
+    "stake": 0.75,
+    "date": "2026-11-05",
+    "status": "PENDING"
   }
-}
+]
