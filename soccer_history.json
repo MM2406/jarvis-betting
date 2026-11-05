@@ -218,5 +218,65 @@
     "status": "LOST",
     "sport": "Soccer",
     "date": "2026-11-03"
+  },
+  {
+    "match": "Borussia Dortmund vs. Real Betis",
+    "pick": "Borussia Dortmund Sieg",
+    "odds": 1.75,
+    "stake": 1.0,
+    "pnl": 0.75,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-04"
+  },
+  {
+    "match": "Fenerbahce vs. Liverpool & RB Leipzig vs. Manchester City",
+    "pick": "CONSERVATIVE 2-LEG BANKER",
+    "odds": 2.02,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-04"
+  },
+  {
+    "match": "Slavia Praha vs. Arsenal / Viking FK vs. Sabah FK / PSV vs. Club Brugge",
+    "pick": "BALANCED VALUE ACCA",
+    "odds": 3.0,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-04"
+  },
+  {
+    "match": "AEK Athens vs. Real Madrid / Porto vs. Napoli / RC Lens vs. Como",
+    "pick": "HYBRID QUANT MULTI",
+    "odds": 2.46,
+    "stake": 1.0,
+    "pnl": 1.46,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-04"
+  },
+  {
+    "match": "RB Leipzig vs. Manchester City & PSV Eindhoven vs. Club Brugge",
+    "pick": "GOALS & BTTS VALUE ACCA",
+    "odds": 2.59,
+    "stake": 1.0,
+    "pnl": 1.59,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-04"
+  },
+  {
+    "match": "Fenerbahce vs. Liverpool & RB Leipzig vs. Manchester City",
+    "pick": "PLAYER PROPS MULTI (Haaland 1+ SoT @ 1.28, Salah VOID)",
+    "odds": 1.28,
+    "stake": 1.0,
+    "pnl": 0.28,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-04"
   }
 ]
