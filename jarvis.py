@@ -32,15 +32,11 @@ SOCCER_LEAGUES = [
     "soccer_france_ligue_one",
     "soccer_uefa_champs_league",
     "soccer_uefa_europa_league",
+    "soccer_uefa_europa_conference_league",
     "soccer_usa_mls"
 ]
 
 def send_telegram(text):
-    """
-    Sendet den Report an Telegram. Falls die Nachricht doch geteilt werden muss,
-    wird die message_id des LETZTEN Teils zurueckgegeben, damit der Live-Tracker
-    immer am Ende der Kette editiert und keine doppelten Bloecke erzeugt.
-    """
     if send_to_telegram:
         return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_SOCCER")
 
@@ -129,54 +125,60 @@ def fetch_soccer_odds():
     return "\n".join(all_events[:65])
 
 def run_jarvis_soccer():
+    now_dt = datetime.now(LOCAL_TZ)
+    weekday = now_dt.weekday()  # 0=Mo, 4=Fr, 5=Sa, 6=So
+    now_hour = now_dt.hour
+
+    # Unter der Woche (Mo - Fr) keine Posts vor 16:00 Uhr MEZ
+    if weekday < 5 and now_hour < 16:
+        print(f"Wochentag-Check ({now_hour}:00 Uhr MEZ): Unter der Woche werden Dossiers erst ab 16:00 Uhr fuer die Abendslots generiert. Abbruch.")
+        return
+
     odds_data = fetch_soccer_odds()
     if not odds_data:
         print("Keine relevanten Soccer-Partien im aktuellen Zeitfenster gefunden.")
         return
 
-    now_dt = datetime.now(LOCAL_TZ)
     today_str = now_dt.strftime("%d.%m.%Y")
     today_iso = now_dt.strftime("%Y-%m-%d")
     current_year = now_dt.strftime("%Y")
-    edition_label = "MITTAGS-EDITION" if now_dt.hour < 15 else "ABEND-EDITION"
+    edition_label = "TAGES-SLATE" if now_hour < 15 else "HAUPT- & ABEND-SLATE"
 
     prompt = f"""
 Du bist 'JARVIS SOCCER QUANT ARCHITECT'.
 HEUTIGES DATUM: {today_str} (Aktuelles Jahr: {current_year}).
-Erstelle für heute die {edition_label}.
+Erstelle für heute das Value-Dossier für die Slate ({edition_label}).
 
 VERFÜGBARE PARTIEN & REAL-QUOTEN AUS DER API:
 {odds_data}
 
-STRIKTE LÄNGEN- UND FORMATVORGABE (EXTREM WICHTIG):
-- Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.200 Zeichen umfassen, damit er ungeteilt in eine einzige Telegram-Nachricht passt!
-- Halte die 'Logik:' und 'Edge:' Abschnitte extrem präzise und knackig (maximal 2 bis 3 Sätze pro Ticket).
-- Jede Aufzählung MUSS direkt mit '• ' (Unicode Bullet) OHNE Leerzeile beginnen.
-- Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...'.
-- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'.
+================================================================================
+STRIKTE FORMATVORGABE (TELEGRAM COMPACT DESIGN):
+================================================================================
+- Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.200 Zeichen umfassen!
+- Keine doppelten Leerzeilen zwischen Absätzen.
+- Jede Aufzählung beginnt strikt mit '• ' (Unicode Bullet).
+- Sub-Punkte und Auswahlen rücken mit '   ↳ ' ein (z. B. '   ↳ <b>Haupt-Pick:</b> ...').
+- Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
+- Begründungen extrem präzise und fundiert in 2 Sätzen halten.
 
-⛔ STRIKTE FORM-, QUALITÄTS- UND VETO-REGELN (EXTREM WICHTIG):
-1. KEINE KRISENTEAMS ALS FAVORIT / SIEG / DNB:
-   - Teams, die sich in einer akuten Form- oder Trainerkrise befinden, seit 3+ Pflichtspielen sieglos sind oder weniger als 2 der letzten 5 Pflichtspiele gewonnen haben (z. B. kriselnde Großklubs wie Manchester United), sind STRIKT GESPERRT für:
-     ➔ Sieg-Wetten (Home/Away Win)
-     ➔ Draw No Bet (DNB)
-     ➔ Doppelte Chance (1X / X2)
-   - Renommee oder angeblicher 'Heimvorteil/Stadion-Mythos' wiegen sportliche Verunsicherung NICHT auf. Schönholzen von schwachen Teams ist streng untersagt!
-   - Bei solchen Teams sind maximal Tore-Gegentore-Märkte (z.B. BTTS Ja / Über-Tore gegen ihre anfällige Abwehr) erlaubt – andernfalls wird die Partie komplett ignoriert.
-2. VERPFLICHTENDER FORM-CHECK VIA GOOGLE SEARCH:
-   - Nutze Google Search, um die aktuelle Form der letzten 3 bis 5 Pflichtspiele beider Teams abzugleichen. Wähle nur Teams für Sieg/DNB, die nachweislich ein stabiles Momentum und funktionierende Abläufe haben.
-3. HARTER ROSTER-CHECK BEI SPIELER-PROPS:
-   - Wähle NUR Spieler aus, die im Jahr {current_year} offiziell beim jeweiligen Team unter Vertrag stehen und voraussichtlich in der Startelf stehen.
-   - Nutze Google Search zur Absicherung von Sperren/Verletzungen. Bei Unsicherheit das Player-Prop-Ticket weglassen!
-4. KEINE UNDER BEI SPIELERN: Nur Over-Linien (z.B. Over 0.5 Torschüsse / 1+ SoT). Keine Under-Props!
+⛔ STRIKTE QUANT- & VETO-REGELN:
+1. MINDESTQUOTE BEACHTEN:
+   - KEINE Einzelquoten unter 1.35! Quoten wie 1.20 oder 1.30 sind STRIKT VERBOTEN.
+   - Falls ein klarer Favorit unter 1.35 notiert, weiche auf Handicap (-1.0 / -1.5) oder Tor-Märkte aus oder ignoriere das Match.
+2. KEINE KRISENTEAMS ALS FAVORIT / SIEG / DNB:
+   - Teams, die sich in einer akuten Form- oder Trainerkrise befinden, seit 3+ Spielen sieglos sind oder weniger als 2 der letzten 5 Spiele gewonnen haben, sind für Sieg-Wetten STRIKT GESPERRT.
+3. FORM- & ROSTER-CHECK VIA GOOGLE SEARCH:
+   - Überprüfe via Google Search aktuelle Ausfälle, Rotationen und Trainerstimmen.
+   - Bei Player Props: Nur Spieler wählen, die im Jahr {current_year} fix im Kader stehen und sicher starten. Nur OVER-Torschüsse (1+ Schuss aufs Tor), KEINE Under-Props!
 
-TICKET-ARCHITEKTUR (OHNE ZWANG):
-- ⭐ SOCCER PICK OF THE DAY (Single Bet): Bester Einzeltipp des Tages mit größtem mathematischem Edge und klarer Formkurve.
-- 🔒 CONSERVATIVE 2-LEG BANKER: Exakt 2 Beine. Gesamtquote ~1.70 - 2.15.
-- ⚖️ BALANCED VALUE ACCA: Exakt 3 Beine. Gesamtquote ~2.50 - 4.00.
-- ⚡ HYBRID QUANT MULTI: 2 bis 4 Beine mit Markt-Mix (Sieg, BTTS, Über 2.5).
-- ⚽ GOALS & BTTS VALUE ACCA: 2 bis 3 Beine rein aus Tor-Märkten.
-- 👟 PLAYER PROPS (Single oder Multi-Acca): 1 bis 2 Spieler (1+ Schuss aufs Tor).
+TICKET-ARCHITEKTUR:
+- ⭐ SOCCER PICK OF THE DAY: Bester Einzeltipp des Tages mit größtem mathematischem Edge (1.5 - 2.0u).
+- 🔒 CONSERVATIVE 2-LEG BANKER: Exakt 2 Beine. Mindest-Gesamtquote ~1.75 - 2.15 (1.0 - 1.5u).
+- ⚖️ BALANCED VALUE ACCA: Exakt 3 Beine. Gesamtquote ~2.50 - 4.00 (0.75 - 1.0u).
+- ⚡ HYBRID QUANT MULTI: 2 bis 3 Beine Markt-Mix (0.5 - 0.75u).
+- ⚽ GOALS & BTTS VALUE ACCA: 2 bis 3 Beine Tor-Märkte (0.75u).
+- 👟 PLAYER PROP SPOTLIGHT: 1 bis 2 Spieler (1+ Schuss aufs Tor, 0.5 - 0.75u).
 
 REPORT-HTML:
 ⚽ <b>JARVIS SOCCER INTEL • {edition_label}</b>
@@ -184,49 +186,49 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heim] vs. [Gast] ([Liga])
-➔ <b>Haupt-Pick:</b> <b>[Tipp]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Alternative] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 - 2.0 Units
-📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [Maximal 2 prägnante Sätze zur Kante]
+• <b>Match:</b> [Uhrzeit] Uhr | [Heim] vs. [Gast] ([Liga])
+   ↳ <b>Haupt-Pick:</b> <b>[Tipp]</b> @ [Quote]
+   ↳ <i>Buchmacher-Alternative:</i> [Alternative] @ [Quote]
+• <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 - 2.0 Units
+• <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+• <b>Edge:</b> [Maximal 2 prägnante Sätze zur Kante]
 
 ━━━━━━━━━━━━━━━━━━━━
 🔒 <b>CONSERVATIVE 2-LEG BANKER</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 1.0 - 1.5 Units
-🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
+• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 1.0 - 1.5 Units
+• <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚖️ <b>BALANCED VALUE ACCA (3-er Kombi)</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 - 1.0 Units
-🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote]
+• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 - 1.0 Units
+• <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚡ <b>HYBRID QUANT MULTI (Markt-Mix)</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
-🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
+• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
+• <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚽ <b>GOALS & BTTS VALUE ACCA</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 Units
-🔍 <b>Logik:</b> [Maximal 2 Sätze Begründung]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
+• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 Units
+• <b>Logik:</b> [Maximal 2 Sätze Begründung]
 
 ━━━━━━━━━━━━━━━━━━━━
 👟 <b>PLAYER PROP SPOTLIGHT / MULTI-TICKET</b>
-- [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
-🔍 <b>Edge:</b> [Maximal 2 Sätze Begründung]
+• [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
+• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
+• <b>Edge:</b> [Maximal 2 Sätze Begründung]
 
 ---JSON_TRACKING---
 {{
