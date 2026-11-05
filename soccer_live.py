@@ -528,21 +528,27 @@ def run_soccer_live():
 
     live_block = "\n\n".join(live_sections)
 
+    # Trennung des Originaltexts: exakt am Tracker-Header abschneiden
     split_targets = ["⏱️ <b>LIVE-TRACKER", "⏱️ LIVE-TRACKER", "⏳ <b>AUSSTEHEND", "⏳ AUSSTEHEND"]
     base_text = raw_text
     for target in split_targets:
         if target in base_text:
             base_text = base_text.split(target)[0].rstrip()
 
+    # Platz schaffen für alle Live-Karten:
+    # Entfernt Fließtext-Begründungen (Edge, Logik) aus den oberen Picks, falls das Telegram-Limit droht
+    if len(base_text) + len(live_block) > 3950:
+        print("[SoccerLive] Text nähert sich 4096 Zeichen. Kürze Fließtext-Begründungen für Live-Betrieb...")
+        base_text = re.sub(r"(• <b>Edge:</b>|• <b>Logik:</b>).*?(?=\n\n━━━━━━━━━━━━━━━━━━━━|\Z)", "", base_text, flags=re.DOTALL)
+
     if base_text.endswith("━━━━━━━━━━━━━━━━━━━━"):
         new_text = base_text + "\n" + live_block
     else:
         new_text = base_text + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
 
-    # Telegram Limit Absicherung (Max 4096 Zeichen)
-    if len(new_text) > 4000:
-        print(f"[SoccerLive] Warnung: Textlänge {len(new_text)} Zeichen. Kürze Pending-Liste auf 3950 Zeichen.")
-        new_text = new_text[:3950] + "\n\n<i>[...weitere Spiele in Auswertung...]</i>"
+    # Letzter Sicherheits-Puffer gegen Telegram-Limit (4096 Zeichen)
+    if len(new_text) > 4050:
+        new_text = new_text[:4020].rsplit("\n", 1)[0] + "\n\n<i>[...weitere Spiele in Auswertung...]</i>"
 
     if active_cards or new_text.strip() != raw_text.strip():
         print(f"[SoccerLive] Aktualisiere Telegram (ID: {msg_id}, Länge: {len(new_text)} Zeichen)...")
