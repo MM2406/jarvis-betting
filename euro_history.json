@@ -31,9 +31,7 @@
       "odds": "1.91",
       "date": "2026-10-30",
       "status": "WON"
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Real Madrid vs. Panathinaikos",
       "sport": "Euro-Hoops & Ice",
@@ -41,7 +39,10 @@
       "odds": 1.8,
       "stake": 1.5,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "WON",
+      "score": "112:115 OT",
+      "info": "Panathinaikos gewann nach Verlängerung mit drei Punkten Differenz und deckte das Handicap ab.",
+      "pnl": 1.2
     },
     {
       "match": "Real Madrid vs. Panathinaikos",
@@ -50,7 +51,10 @@
       "odds": 3.44,
       "stake": 0.75,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "WON",
+      "score": "112:115 OT",
+      "info": "Panathinaikos gewann nach Verlängerung mit drei Punkten Vorsprung bei 227 Gesamtpunkten.",
+      "pnl": 1.83
     },
     {
       "match": "Real Madrid vs. Panathinaikos",
@@ -59,7 +63,11 @@
       "odds": 1.91,
       "stake": 0.75,
       "date": "2026-11-04",
-      "status": "PENDING"
+      "status": "WON",
+      "score": "112:115 OT",
+      "info": "Mit 227 Gesamtpunkten wurde die Over-Line von 172,5 Punkten nach Verlängerung deutlich übertroffen.",
+      "pnl": 0.68
     }
-  ]
+  ],
+  "pending": []
 }
