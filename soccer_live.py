@@ -24,7 +24,7 @@ LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def clean_team_name(name):
     clean = str(name).lower()
-    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|lisbon|lissabon|donetsk|u19|u21|u23|youth|frauen|women)\b", " ", clean)
+    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|lisbon|lissabon|donetsk|u19|u21|u23|youth|frauen|women|tsg|1899|fk|sk)\b", " ", clean)
     clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
 
@@ -36,6 +36,7 @@ def shorten_tag(tag):
         "HYBRID QUANT MULTI": "HYBRID",
         "GOALS & BTTS VALUE ACCA": "GOALS",
         "PLAYER PROP SPOTLIGHT / MULTI-TICKET": "PROPS",
+        "PLAYER PROPS MULTI": "PROPS",
         "⭐ POTD": "POTD",
         "POTD": "POTD",
         "BANKER": "BANKER",
@@ -84,15 +85,13 @@ def get_match_minute(ev):
     if start_ts:
         now_ts = int(time.time())
         elapsed = (now_ts - start_ts) // 60
-        if "2nd" in desc or "second" in desc:
-            calc_min = max(46, elapsed - 15)
-            if calc_min >= 90:
-                extra = calc_min - 90
-                return 90, f"90+{extra}'" if extra > 0 else "90'", False
-            return calc_min, f"{calc_min}'", False
-        else:
-            calc_min = min(45, max(1, elapsed))
-            return calc_min, f"{calc_min}'", False
+        if elapsed > 0:
+            if "2nd" in desc or "second" in desc or elapsed > 60:
+                calc_min = max(46, min(90, elapsed - 15))
+                return calc_min, f"{calc_min}'", False
+            else:
+                calc_min = min(45, max(1, elapsed))
+                return calc_min, f"{calc_min}'", False
 
     return 0, status.get("description", "Live"), False
 
@@ -100,13 +99,11 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
     pt = pick_text.lower()
     total_goals = h_score + a_score
 
-    # 1. Spieler-Props
     if any(k in pt for k in ["torschuss", "torschüsse", "shots on target", "scorer", "trifft", "torerzieler"]):
         if is_finished:
             return "✅ Spieler-Prop beendet"
         return "⏳ Spieler im Einsatz"
 
-    # 2. Tore-Märkte
     if "über 2.5" in pt or "over 2.5" in pt:
         if total_goals >= 3:
             return f"✅ {total_goals}/3 Tore"
@@ -135,7 +132,6 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
             return "✅ Beide getroffen"
         return f"❌ {hit}/2 Teams" if is_finished else f"⏳ {hit}/2 Teams"
 
-    # 3. Team-Tore & Sieg-Märkte
     parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", match_str, flags=re.IGNORECASE)]
     if len(parts) >= 2:
         h_name, a_name = parts[0], parts[1]
@@ -177,7 +173,8 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
 def fallback_gemini_match(match_str):
     if not GEMINI_API_KEY:
         return None
-    prompt = f"Recherchiere via Google Search das offizielle Ergebnis für das Fußballspiel: {match_str} von heute oder gestern. Antworte exakt: STATUS: FINISHED oder LIVE oder UPCOMING, SCORE: X:Y"
+    print(f"[SoccerLive] Starte Gemini-Websuche Fallback für: {match_str}...")
+    prompt = f"Recherchiere via Google Search das aktuelle Zwischenergebnis oder Endergebnis für das Fußballspiel: {match_str} von heute. Antworte exakt in zwei Zeilen:\nSTATUS: FINISHED oder LIVE oder UPCOMING\nSCORE: X:Y"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -200,7 +197,7 @@ def fallback_gemini_match(match_str):
                     h_p, a_p = int(re.sub(r"\D", "", parts[0]) or 0), int(re.sub(r"\D", "", parts[1]) or 0)
                 return {"status": st, "h_score": h_p, "a_score": a_p, "min_label": "Endstand" if st == "FINISHED" else "Live"}
     except Exception as e:
-        print(f"Fallback Gemini Fehler: {e}")
+        print(f"[SoccerLive] Fallback Gemini Fehler: {e}")
     return None
 
 def append_to_history(records):
@@ -220,7 +217,7 @@ def append_to_history(records):
                     r.get("profit", 0.0)
                 ])
     except Exception as e:
-        print(f"Fehler beim Schreiben in {HISTORY_FILE}: {e}")
+        print(f"[SoccerLive] Fehler beim Schreiben in {HISTORY_FILE}: {e}")
 
 def send_telegram_msg(text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -236,7 +233,7 @@ def send_telegram_msg(text):
     try:
         requests.post(url, json=payload, timeout=10)
     except Exception as e:
-        print(f"Telegram-Fehler: {e}")
+        print(f"[SoccerLive] Telegram Send Fehler: {e}")
 
 def load_state():
     if not os.path.exists(STATE_FILE):
@@ -245,7 +242,7 @@ def load_state():
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        print(f"Fehler beim Laden von {STATE_FILE}: {e}")
+        print(f"[SoccerLive] Fehler beim Laden von {STATE_FILE}: {e}")
         return None
 
 def save_state(state):
@@ -253,10 +250,11 @@ def save_state(state):
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"Fehler beim Speichern von {STATE_FILE}: {e}")
+        print(f"[SoccerLive] Fehler beim Speichern von {STATE_FILE}: {e}")
 
 def edit_telegram(message_id, text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not message_id:
+        print("[SoccerLive] Telegram Credentials oder message_id fehlen für Edit.")
         return False
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
@@ -271,6 +269,7 @@ def edit_telegram(message_id, text):
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code == 200 or "message is not modified" in res.text:
             return True
+        print(f"[SoccerLive] Edit mit HTML fehlgeschlagen ({res.text}), versuche ohne parse_mode...")
         payload.pop("parse_mode", None)
         res2 = requests.post(url, json=payload, timeout=20)
         return res2.status_code == 200 or "message is not modified" in res2.text
@@ -280,6 +279,7 @@ def edit_telegram(message_id, text):
 
 def fetch_football_events(date_str):
     if not RAPIDAPI_KEY:
+        print("[SoccerLive] Kein RAPIDAPI_KEY hinterlegt.")
         return []
     headers = {
         "x-rapidapi-key": RAPIDAPI_KEY,
@@ -291,11 +291,14 @@ def fetch_football_events(date_str):
         url_live = "https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live"
         res = requests.get(url_live, headers=headers, timeout=12)
         if res.status_code == 200:
-            all_events.extend(res.json().get("events", []))
+            events_live = res.json().get("events", [])
+            all_events.extend(events_live)
+            print(f"[SoccerLive] SportAPI Live-Events empfangen: {len(events_live)}")
+        else:
+            print(f"[SoccerLive] SportAPI Live-URL Status: {res.status_code}")
     except Exception as e:
-        print(f"[SportAPI Live Exception] {e}")
+        print(f"[SoccerLive] SportAPI Live Exception: {e}")
 
-    # Heutige und gestrige Scheduled Events holen
     dates_to_check = [date_str]
     try:
         prev_day = (datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -313,8 +316,9 @@ def fetch_football_events(date_str):
                 for ev in sched_events:
                     if ev.get("id") not in live_ids:
                         all_events.append(ev)
+                print(f"[SoccerLive] SportAPI Scheduled Events für {d}: {len(sched_events)}")
         except Exception as e:
-            print(f"[SportAPI Sched Exception für {d}] {e}")
+            print(f"[SoccerLive] SportAPI Sched Exception für {d}: {e}")
 
     return all_events
 
@@ -344,28 +348,27 @@ def match_teams(search_str, home_name, away_name):
     return False
 
 def run_soccer_live():
+    print(f"[{datetime.now(LOCAL_TZ).strftime('%H:%M:%S')}] Starte JARVIS Soccer Live Ticker...")
     state = load_state()
     if not state:
-        print("[SoccerLive] Keine pending_soccer.json vorhanden.")
+        print("[SoccerLive] Keine pending_soccer.json vorhanden. Beende.")
         return
 
     msg_id = state.get("message_id")
     raw_text = state.get("original_text", "")
     if not msg_id or not raw_text:
-        print(f"[SoccerLive] Message-ID ({msg_id}) oder Text fehlt.")
+        print(f"[SoccerLive] Message-ID ({msg_id}) oder original_text fehlt. Beende.")
         return
 
     finished_matches = state.setdefault("finished_matches", {})
     match_picks = {}
 
-    # POTD einbinden
     if "potd" in state and isinstance(state["potd"], dict):
         m = state["potd"].get("match")
         p = state["potd"].get("pick")
         if m:
             match_picks.setdefault(m, []).append(f"⭐ POTD: {p}")
 
-    # Tickets einbinden (unterstützt sowohl List als auch Dict!)
     raw_tickets = state.get("tickets", [])
     tickets_normalized = []
     
@@ -392,9 +395,7 @@ def run_soccer_live():
             if m:
                 match_picks.setdefault(m, []).append(f"{t_name}: {pick_label}")
 
-    if not match_picks:
-        print("[SoccerLive] Keine Match-Picks extrahiert.")
-        return
+    print(f"[SoccerLive] Überwache insgesamt {len(match_picks)} Spiele mit Message-ID {msg_id}.")
 
     today_str = state.get("date", datetime.now().strftime("%Y-%m-%d"))
     events = fetch_football_events(today_str)
@@ -437,8 +438,8 @@ def run_soccer_live():
             h_score = matched_ev.get("homeScore", {}).get("current", 0)
             a_score = matched_ev.get("awayScore", {}).get("current", 0)
             curr_min, min_label, is_finished = get_match_minute(matched_ev)
-
             status_desc = matched_ev.get("status", {}).get("description", "").lower()
+
             if status_desc in ["not started", "timed"] and curr_min == 0:
                 all_games_finished = False
                 pick_summaries = []
@@ -470,7 +471,7 @@ def run_soccer_live():
                     pick_evals.append(f"   ↳ {eval_str} ({tag})")
 
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
-            icon = "🏁" if is_finished else "🔴"
+            icon = "🏁" if is_finished else "🟢"
 
             active_cards.append(
                 f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({min_label})\n"
@@ -478,7 +479,6 @@ def run_soccer_live():
                 f"{eval_block}"
             )
         else:
-            # Notfall-Fallback auf Gemini Search, falls SportAPI Namen nicht auflöst
             gemini_res = fallback_gemini_match(match)
             if gemini_res and gemini_res["status"] in ["FINISHED", "LIVE"]:
                 h_score = gemini_res["h_score"]
@@ -502,7 +502,7 @@ def run_soccer_live():
                         tag = shorten_tag(pick_desc.split(":")[0])
                         pick_evals.append(f"   ↳ {eval_str} ({tag})")
                 eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
-                icon = "🏁" if is_fin else "🔴"
+                icon = "🏁" if is_fin else "🟢"
                 active_cards.append(
                     f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({gemini_res['min_label']})\n"
                     f"   Zeit: <code>{progress_bar}</code>"
@@ -542,15 +542,20 @@ def run_soccer_live():
         new_text = base_text + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
 
     if new_text.strip() != raw_text.strip():
+        print(f"[SoccerLive] Neuer Ticker-Inhalt erkannt! Sende Update an Telegram (ID: {msg_id})...")
         if edit_telegram(msg_id, new_text):
             state["original_text"] = new_text
             save_state(state)
-            print("[SoccerLive] Telegram erfolgreich aktualisiert.")
+            print("[SoccerLive] ✅ Telegram Nachricht erfolgreich editiert.")
+        else:
+            print("[SoccerLive] ❌ Telegram Edit fehlgeschlagen.")
     else:
+        print("[SoccerLive] Keine sichtbare Änderung am Ticker-Text. Telegram-Nachricht bleibt unverändert.")
         save_state(state)
 
     # Settlement
     if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
+        print("[SoccerLive] Alle Spiele beendet! Starte Tagesabschluss und Settlement...")
         ticket_results = []
         history_records = []
         tickets_won = 0
@@ -677,7 +682,7 @@ def run_soccer_live():
             f"📁 <i>Alle Tickets wurden in history_soccer.csv archiviert.</i>"
         )
         send_telegram_msg(summary_msg)
-        print("[SoccerLive] Tagesabschluss mit Ticket-Abrechnung gesendet.")
+        print("[SoccerLive] ✅ Tagesabschluss mit Ticket-Abrechnung gesendet.")
 
 if __name__ == "__main__":
     run_soccer_live()
