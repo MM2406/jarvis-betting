@@ -13,9 +13,7 @@
       "score": "4:6, 1:6",
       "info": "Mit nur 17 absolvierten Spielen wurde die Grenze von 23,5 Games klar unterboten.",
       "pnl": -0.75
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Matteo Berrettini vs. Ugo Humbert",
       "sport": "Tennis",
@@ -25,9 +23,10 @@
       "stake": 1.5,
       "date": "2026-11-04",
       "is_kombi": false,
-      "status": "PENDING",
-      "score": "Noch nicht begonnen",
-      "info": "Das Match ist noch nicht gestartet und steht daher noch aus."
+      "status": "LOST",
+      "score": "7:6, 7:5",
+      "info": "Matteo Berrettini gewann das Match in zwei Sätzen gegen Ugo Humbert.",
+      "pnl": -1.5
     },
     {
       "match": "Thiago Agustin Tirante vs. Jan-Lennard Struff // Nuno Borges vs. Karen Khachanov",
@@ -38,9 +37,10 @@
       "stake": 0.75,
       "date": "2026-11-04",
       "is_kombi": true,
-      "status": "PENDING",
-      "score": "Noch nicht beendet",
-      "info": "Mindestens ein Match ist noch live oder noch nicht gestartet und nicht final beendet."
+      "status": "LOST",
+      "score": "Struff def. Tirante 6:7, 6:3, 7:6 // Borges def. Khachanov 6:3, 6:4",
+      "info": "Da Karen Khachanov gegen Nuno Borges in zwei Sätzen verlor, ist die Kombiwette verloren.",
+      "pnl": -0.75
     },
     {
       "match": "Matteo Berrettini vs Ugo Humbert",
@@ -51,7 +51,10 @@
       "stake": 1.5,
       "date": "2026-11-04",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "7:6, 7:5",
+      "info": "Matteo Berrettini gewann das Match in zwei Sätzen gegen Ugo Humbert.",
+      "pnl": -1.5
     },
     {
       "match": "Thiago Agustin Tirante vs Jan-Lennard Struff // Arthur Fils vs Tomas Machac",
@@ -62,7 +65,10 @@
       "stake": 0.75,
       "date": "2026-11-04",
       "is_kombi": true,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "6:7, 6:3, 7:6 // 6:3, 7:6",
+      "info": "Sowohl Jan-Lennard Struff als auch Arthur Fils haben ihre Matches regulär gewonnen.",
+      "pnl": 0.89
     },
     {
       "match": "Matteo Berrettini vs Ugo Humbert",
@@ -72,6 +78,44 @@
       "odds": 1.82,
       "stake": 0.75,
       "date": "2026-11-04",
+      "is_kombi": false,
+      "status": "LOST",
+      "score": "7:6, 7:5",
+      "info": "Mit insgesamt 25 absolvierten Games wurde die erforderliche Line von Über 25,5 knapp verfehlt.",
+      "pnl": -0.75
+    }
+  ],
+  "pending": [
+    {
+      "match": "Nuno Borges vs. Ignacio Buse",
+      "sport": "Tennis",
+      "category": "POTD",
+      "pick": "Nuno Borges Sieg (ML)",
+      "odds": 1.55,
+      "stake": 1.5,
+      "date": "2026-11-05",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "Rinky Hijikata vs. Tomas Martin Etcheverry // Arthur Fils vs. Taylor Fritz",
+      "sport": "Tennis",
+      "category": "ACCA",
+      "pick": "Tomas Martin Etcheverry ML + Arthur Fils ML",
+      "odds": 2.98,
+      "stake": 0.75,
+      "date": "2026-11-05",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "Jan-Lennard Struff vs. Casper Ruud",
+      "sport": "Tennis",
+      "category": "TOTALS",
+      "pick": "Over 23.5 Games",
+      "odds": 1.94,
+      "stake": 0.75,
+      "date": "2026-11-05",
       "is_kombi": false,
       "status": "PENDING"
     }
