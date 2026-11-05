@@ -2,10 +2,10 @@ name: JARVIS Daily Soccer Intel
 
 on:
   schedule:
-    # 1. MITTAGS-EDITION: 10:30 UTC (= 11:30 Uhr MEZ)
-    - cron: '30 10 * * *'
-    # 2. ABEND-EDITION: 15:30 UTC (= 16:30 Uhr MEZ)
-    - cron: '30 15 * * *'
+    # 1. WOCHENENDE (Sa & So): Frühe Liga-Spiele (13:30 / 15:30 Uhr) -> 10:15 UTC (= 11:15 MEZ)
+    - cron: '15 10 * * 0,6'
+    # 2. HAUPT-SLATE (Täglich): Perfekt 2h vor Europacup / Abendslot (18:45 / 21:00 Uhr) -> 15:45 UTC (= 16:45 MEZ)
+    - cron: '45 15 * * *'
   workflow_dispatch:
 
 concurrency:
