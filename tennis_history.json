@@ -83,9 +83,7 @@
       "score": "7:6, 7:5",
       "info": "Mit insgesamt 25 absolvierten Games wurde die erforderliche Line von Über 25,5 knapp verfehlt.",
       "pnl": -0.75
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Nuno Borges vs. Ignacio Buse",
       "sport": "Tennis",
@@ -95,7 +93,10 @@
       "stake": 1.5,
       "date": "2026-11-05",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "6:0, 6:2",
+      "info": "Nuno Borges gewann das Achtelfinale in Paris souverän in zwei Sätzen.",
+      "pnl": 0.83
     },
     {
       "match": "Rinky Hijikata vs. Tomas Martin Etcheverry // Arthur Fils vs. Taylor Fritz",
@@ -106,8 +107,13 @@
       "stake": 0.75,
       "date": "2026-11-05",
       "is_kombi": true,
-      "status": "PENDING"
-    },
+      "status": "LOST",
+      "score": "6:2, 3:6, 5:7",
+      "info": "Da Etcheverry gegen Hijikata verloren hat, ist die Kombiwette bereits verloren.",
+      "pnl": -0.75
+    }
+  ],
+  "pending": [
     {
       "match": "Jan-Lennard Struff vs. Casper Ruud",
       "sport": "Tennis",
@@ -117,6 +123,30 @@
       "stake": 0.75,
       "date": "2026-11-05",
       "is_kombi": false,
+      "status": "PENDING",
+      "score": "-",
+      "info": "Das Achtelfinal-Match beim Paris Masters 2026 ist noch nicht abgeschlossen oder gestartet."
+    },
+    {
+      "match": "Arthur Fils vs. Taylor Fritz",
+      "sport": "Tennis",
+      "category": "POTD",
+      "pick": "Taylor Fritz Sieg",
+      "odds": 2.0,
+      "stake": 1.5,
+      "date": "2026-11-05",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "Jan-Lennard Struff vs. Casper Ruud // Ben Shelton vs. Tommy Paul",
+      "sport": "Tennis",
+      "category": "ACCA",
+      "pick": "Casper Ruud ML + Tommy Paul ML",
+      "odds": 2.58,
+      "stake": 0.75,
+      "date": "2026-11-05",
+      "is_kombi": true,
       "status": "PENDING"
     }
   ]
