@@ -313,5 +313,74 @@
     "info": "Tage Thompson lieferte einen Assist und erzielte damit den benötigten Scorerpunkt.",
     "stake": 1.0,
     "pnl": 0.55
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "pick": "Buffalo Sabres Sieg (inkl. OT)",
+    "odds": "1.80",
+    "odds_val": 1.8,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Buffalo Sabres vs Ottawa Senators | Ergebnis: 1:2 | LOST"
+    ]
+  },
+  {
+    "match": "Florida Panthers vs Chicago Blackhawks / Los Angeles Kings vs San Jose Sharks",
+    "pick": "Panthers ML + Kings ML",
+    "odds": "2.22",
+    "odds_val": 2.22,
+    "stake": 1.0,
+    "pnl": 1.2200000000000002,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-04",
+    "is_kombi": true,
+    "legs_won": 2,
+    "legs_total": 2,
+    "details": [
+      "- Bein 1: Florida Panthers vs Chicago Blackhawks | Ergebnis: 5:3 | WON",
+      "- Bein 2: Los Angeles Kings vs San Jose Sharks | Ergebnis: 7:2 | WON"
+    ]
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "pick": "Over 6.5 Tore",
+    "odds": "1.82",
+    "odds_val": 1.82,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Buffalo Sabres vs Ottawa Senators | Ergebnis: 1:2 | LOST"
+    ]
+  },
+  {
+    "match": "Buffalo Sabres vs Ottawa Senators",
+    "pick": "Tage Thompson Over 0.5 Scorerpunkte",
+    "odds": "1.55",
+    "odds_val": 1.55,
+    "stake": 1.0,
+    "pnl": 0.55,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-04",
+    "is_kombi": false,
+    "legs_won": 1,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Buffalo Sabres vs Ottawa Senators | Ergebnis: 1:2 (Tage Thompson: 1 Scorerpunkt / 1 Assist) | WON"
+    ]
   }
 ]
