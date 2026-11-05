@@ -5,7 +5,7 @@ import re
 import time
 import csv
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "").strip()
@@ -23,20 +23,26 @@ HISTORY_FILE = "history_soccer.csv"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def clean_team_name(name):
-    clean = name.lower()
+    clean = str(name).lower()
     clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|lisbon|lissabon|donetsk|u19|u21|u23|youth|frauen|women)\b", " ", clean)
     clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
 
 def shorten_tag(tag):
-    tag_clean = tag.strip()
+    tag_clean = str(tag).strip()
     mapping = {
         "CONSERVATIVE 2-LEG BANKER": "BANKER",
         "BALANCED VALUE ACCA": "BALANCED",
         "HYBRID QUANT MULTI": "HYBRID",
         "GOALS & BTTS VALUE ACCA": "GOALS",
         "PLAYER PROP SPOTLIGHT / MULTI-TICKET": "PROPS",
-        "⭐ POTD": "POTD"
+        "⭐ POTD": "POTD",
+        "POTD": "POTD",
+        "BANKER": "BANKER",
+        "BALANCED": "BALANCED",
+        "GOALS": "GOALS",
+        "HYBRID": "HYBRID",
+        "PROPS": "PROPS"
     }
     return mapping.get(tag_clean, tag_clean)
 
@@ -168,6 +174,35 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
 
     return None
 
+def fallback_gemini_match(match_str):
+    if not GEMINI_API_KEY:
+        return None
+    prompt = f"Recherchiere via Google Search das offizielle Ergebnis für das Fußballspiel: {match_str} von heute oder gestern. Antworte exakt: STATUS: FINISHED oder LIVE oder UPCOMING, SCORE: X:Y"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"googleSearch": {}}],
+        "generationConfig": {"temperature": 0.1}
+    }
+    try:
+        res = requests.post(url, json=payload, timeout=25)
+        if res.status_code == 200:
+            ans = res.json()["candidates"][0]["content"]["parts"][0]["text"]
+            st = "UPCOMING"
+            sc = "0:0"
+            for line in ans.splitlines():
+                if "STATUS:" in line: st = line.split("STATUS:")[1].strip().upper()
+                if "SCORE:" in line: sc = line.split("SCORE:")[1].strip()
+            if st in ["FINISHED", "LIVE"]:
+                h_p, a_p = 0, 0
+                if ":" in sc:
+                    parts = sc.split(":")
+                    h_p, a_p = int(re.sub(r"\D", "", parts[0]) or 0), int(re.sub(r"\D", "", parts[1]) or 0)
+                return {"status": st, "h_score": h_p, "a_score": a_p, "min_label": "Endstand" if st == "FINISHED" else "Live"}
+    except Exception as e:
+        print(f"Fallback Gemini Fehler: {e}")
+    return None
+
 def append_to_history(records):
     file_exists = os.path.exists(HISTORY_FILE)
     try:
@@ -221,7 +256,7 @@ def save_state(state):
         print(f"Fehler beim Speichern von {STATE_FILE}: {e}")
 
 def edit_telegram(message_id, text):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not message_id:
         return False
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
@@ -260,17 +295,26 @@ def fetch_football_events(date_str):
     except Exception as e:
         print(f"[SportAPI Live Exception] {e}")
 
+    # Heutige und gestrige Scheduled Events holen
+    dates_to_check = [date_str]
     try:
-        url_sched = f"https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/{date_str}"
-        res_sched = requests.get(url_sched, headers=headers, timeout=12)
-        if res_sched.status_code == 200:
-            sched_events = res_sched.json().get("events", [])
-            live_ids = {e.get("id") for e in all_events}
-            for ev in sched_events:
-                if ev.get("id") not in live_ids:
-                    all_events.append(ev)
-    except Exception as e:
-        print(f"[SportAPI Sched Exception] {e}")
+        prev_day = (datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+        dates_to_check.append(prev_day)
+    except Exception:
+        pass
+
+    for d in dates_to_check:
+        try:
+            url_sched = f"https://sportapi7.p.rapidapi.com/api/v1/sport/football/scheduled-events/{d}"
+            res_sched = requests.get(url_sched, headers=headers, timeout=12)
+            if res_sched.status_code == 200:
+                sched_events = res_sched.json().get("events", [])
+                live_ids = {e.get("id") for e in all_events}
+                for ev in sched_events:
+                    if ev.get("id") not in live_ids:
+                        all_events.append(ev)
+        except Exception as e:
+            print(f"[SportAPI Sched Exception für {d}] {e}")
 
     return all_events
 
@@ -291,10 +335,11 @@ def match_teams(search_str, home_name, away_name):
         p1_tokens = [w for w in p1.split() if len(w) >= 3]
         p2_tokens = [w for w in p2.split() if len(w) >= 3]
 
-        if any(t in h for t in p1_tokens) and any(t in a for t in p2_tokens):
-            return True
-        if any(t in h for t in p2_tokens) and any(t in a for t in p1_tokens):
-            return True
+        if p1_tokens and p2_tokens:
+            if any(t in h for t in p1_tokens) and any(t in a for t in p2_tokens):
+                return True
+            if any(t in h for t in p2_tokens) and any(t in a for t in p1_tokens):
+                return True
 
     return False
 
@@ -307,28 +352,48 @@ def run_soccer_live():
     msg_id = state.get("message_id")
     raw_text = state.get("original_text", "")
     if not msg_id or not raw_text:
+        print(f"[SoccerLive] Message-ID ({msg_id}) oder Text fehlt.")
         return
 
-    finished_matches = state.get("finished_matches", {})
+    finished_matches = state.setdefault("finished_matches", {})
     match_picks = {}
 
+    # POTD einbinden
     if "potd" in state and isinstance(state["potd"], dict):
         m = state["potd"].get("match")
         p = state["potd"].get("pick")
         if m:
             match_picks.setdefault(m, []).append(f"⭐ POTD: {p}")
 
-    for ticket in state.get("tickets", []):
+    # Tickets einbinden (unterstützt sowohl List als auch Dict!)
+    raw_tickets = state.get("tickets", [])
+    tickets_normalized = []
+    
+    if isinstance(raw_tickets, dict):
+        for cat_name, legs in raw_tickets.items():
+            if isinstance(legs, list):
+                ticket_obj = {"ticket_name": cat_name.upper(), "picks": []}
+                for l in legs:
+                    if isinstance(l, dict):
+                        ticket_obj["picks"].append(l)
+                    elif isinstance(l, str):
+                        ticket_obj["picks"].append({"match": l, "pick": ""})
+                tickets_normalized.append(ticket_obj)
+    elif isinstance(raw_tickets, list):
+        tickets_normalized = raw_tickets
+
+    for ticket in tickets_normalized:
         t_name = ticket.get("ticket_name", "Kombi")
         for p_item in ticket.get("picks", []):
             m = p_item.get("match")
-            p = p_item.get("pick")
+            p = p_item.get("pick", "")
             pl = p_item.get("player")
             pick_label = f"{pl}: {p}" if pl else p
             if m:
                 match_picks.setdefault(m, []).append(f"{t_name}: {pick_label}")
 
     if not match_picks:
+        print("[SoccerLive] Keine Match-Picks extrahiert.")
         return
 
     today_str = state.get("date", datetime.now().strftime("%Y-%m-%d"))
@@ -413,15 +478,46 @@ def run_soccer_live():
                 f"{eval_block}"
             )
         else:
-            all_games_finished = False
-            pick_summaries = []
-            for pick_desc in picks:
-                parts_p = pick_desc.split(":", 1)
-                tag = shorten_tag(parts_p[0])
-                p_text = parts_p[1].strip() if len(parts_p) > 1 else ""
-                pick_summaries.append(f"{p_text} ({tag})")
-            p_joined = " • ".join(pick_summaries)
-            pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
+            # Notfall-Fallback auf Gemini Search, falls SportAPI Namen nicht auflöst
+            gemini_res = fallback_gemini_match(match)
+            if gemini_res and gemini_res["status"] in ["FINISHED", "LIVE"]:
+                h_score = gemini_res["h_score"]
+                a_score = gemini_res["a_score"]
+                is_fin = gemini_res["status"] == "FINISHED"
+                if is_fin:
+                    finished_matches[match] = {
+                        "h_score": h_score,
+                        "a_score": a_score,
+                        "finished_at": datetime.now(LOCAL_TZ).isoformat()
+                    }
+                    state["finished_matches"] = finished_matches
+                else:
+                    all_games_finished = False
+
+                progress_bar = make_progress_bar(90 if is_fin else 45, total=90, length=10)
+                pick_evals = []
+                for pick_desc in picks:
+                    eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_fin)
+                    if eval_str:
+                        tag = shorten_tag(pick_desc.split(":")[0])
+                        pick_evals.append(f"   ↳ {eval_str} ({tag})")
+                eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
+                icon = "🏁" if is_fin else "🔴"
+                active_cards.append(
+                    f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({gemini_res['min_label']})\n"
+                    f"   Zeit: <code>{progress_bar}</code>"
+                    f"{eval_block}"
+                )
+            else:
+                all_games_finished = False
+                pick_summaries = []
+                for pick_desc in picks:
+                    parts_p = pick_desc.split(":", 1)
+                    tag = shorten_tag(parts_p[0])
+                    p_text = parts_p[1].strip() if len(parts_p) > 1 else ""
+                    pick_summaries.append(f"{p_text} ({tag})")
+                p_joined = " • ".join(pick_summaries)
+                pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
 
     live_sections = ["⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>"]
     if active_cards:
@@ -453,9 +549,7 @@ def run_soccer_live():
     else:
         save_state(state)
 
-    # =========================================================================
-    # SETTLEMENT: Auswertung AUF TICKET-EBENE (Kombis & POTD)
-    # =========================================================================
+    # Settlement
     if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
         ticket_results = []
         history_records = []
@@ -476,7 +570,7 @@ def run_soccer_live():
                 "picks": [{"match": state["potd"].get("match"), "pick": state["potd"].get("pick")}]
             })
 
-        for t in state.get("tickets", []):
+        for t in tickets_normalized:
             t_odds = float(t.get("odds", 2.0))
             stake = 1.0
             t_name_upper = t.get("ticket_name", "").upper()
