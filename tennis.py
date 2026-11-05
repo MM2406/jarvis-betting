@@ -83,8 +83,7 @@ def deduplicate_picks(items):
 def clean_score_text(raw_score):
     if not raw_score:
         return ""
-    cleaned = re.sub(r"\s*\([^)]*\)", "", raw_score).strip()
-    return cleaned
+    return re.sub(r"\s*\([^)]*\)", "", raw_score).strip()
 
 def clean_info_sentence(info):
     if not info:
@@ -288,7 +287,7 @@ def fetch_tennis_odds():
     now_utc = datetime.now(timezone.utc)
     cutoff = now_utc + timedelta(hours=36)
 
-    # 1. Zuerst alle aktiven Tennis-Keys dynamisch von der API abfragen
+    # 1. Dynamisch aktive Tennis-Turniere abrufen
     active_tennis_sports = []
     try:
         sports_url = "https://api.the-odds-api.com/v4/sports/"
@@ -300,13 +299,12 @@ def fetch_tennis_odds():
     except Exception as e:
         print(f"Fehler beim Abrufen der aktiven Tennis-Ligen: {e}")
 
-    # Fallback-Ligen
     if not active_tennis_sports:
         active_tennis_sports = ["tennis_atp", "tennis_wta"]
 
     print(f"Aktive Tennis-Keys gefunden: {active_tennis_sports}")
 
-    # 2. Quoten für alle aktiven Tennis-Ligen abrufen
+    # 2. Quoten für alle aktiven Tennis-Events laden
     for sport in active_tennis_sports:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
@@ -345,7 +343,7 @@ def run_tennis_report():
     slate_name = "Tages-Slate (Europa / Asien)" if now_hour < 15 else "Abend- & Nacht-Slate (Übersee)"
 
     odds_data = fetch_tennis_odds()
-    if not odds_data:
+    if not odds_data or len(odds_data.strip()) < 20:
         print("Keine Tennis-Partien im aktuellen Zeitfenster gefunden.")
         return
 
@@ -360,7 +358,7 @@ VERFÜGBARE MATCHES & QUOTEN:
 {odds_data}
 
 RICHTLINIEN & MÄRKTE:
-- Wähle ausschließlich Matches aus der Liste.
+- Wähle ausschließlich Matches aus der obigen Liste.
 - Analysiere Serve/Return Dominance Ratio, Belag-Profil (Hardcourt/Clay/Grass/Indoor), 1st Serve In % und Breakball-Verwertung via Google Search.
 - Erstelle:
   1x Pick of the Day (1.5u)
@@ -368,12 +366,15 @@ RICHTLINIEN & MÄRKTE:
   1x Totals / Set-Handicap Spotlight (0.75u).
 - Mindestquote beachten: Keine Quoten unter 1.35!
 
-FORMATIERUNGS-REGELN FÜR TELEGRAM:
-- Keine doppelten Leerzeilen.
-- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
-- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'
-- Am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+================================================================================
+STRIKTE TELEGRAM-FORMATIERUNG (KEINE ABWEICHUNGEN!):
+================================================================================
+- KEINE doppelten Leerzeilen zwischen Absätzen!
+- Aufzählungen beginnen IMMER direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch danach.
+- Sub-Punkte und Auswahlen rücken sauber mit '   ↳ ' ein (z. B. '   ↳ <b>Haupt-Pick:</b> ...').
+- Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'
+- Begründungen kompakt, prägnant und fundiert in 2-3 Sätzen halten.
+- Am Ende MUSS der exakte Tracking-Block '---JSON_TRACKING---' folgen.
 
 REPORT-HTML:
 🎾 <b>JARVIS TENNIS INTEL DOSSIER</b>
@@ -382,29 +383,28 @@ REPORT-HTML:
 
 ━━━━━━━━━━━━━━━━━━━━
 ⭐ <b>TENNIS PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Spieler A] vs. [Spieler B]
-➔ <b>Haupt-Pick:</b> <b>[Sieg / Games-Handicap / Satz-Wette]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 Units
-📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [Aufschlag-Dominanz, Hold-Statistiken, Return-Qualität, Formkurve]
+• <b>Match:</b> [Uhrzeit] Uhr | [Turnier/Kategorie] [Spieler A] vs. [Spieler B]
+   ↳ <b>Haupt-Pick:</b> <b>[Sieg / Games-Handicap / Satz-Wette]</b> @ [Quote]
+   ↳ <i>Buchmacher-Alternative:</i> [Klassische Standard-Linie] @ [Quote]
+• <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 Units
+• <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+• <b>Edge:</b> [Aufschlag-Dominanz, Hold-Statistiken, Return-Qualität, Belags-Mismatch kompakt]
 
 ━━━━━━━━━━━━━━━━━━━━
 🔥 <b>QUANT VALUE ACCA (2-er Kombi)</b>
-- [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B] ➔ <b>[Tipp 1]</b> @ [Quote]
-- [Uhrzeit] Uhr | [Spieler C] vs. [Spieler D] ➔ <b>[Tipp 2]</b> @ [Quote]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
-⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
-💰 <b>Einsatz:</b> 0.75 Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination rechnerischen Vorteil bietet]
+• [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B] ➔ <b>[Tipp 1]</b> @ [Quote]
+• [Uhrzeit] Uhr | [Spieler C] vs. [Spieler D] ➔ <b>[Tipp 2]</b> @ [Quote]
+• <b>Gesamtquote:</b> <b>@[Quote]</b>
+• <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 0.75 Units
+• <b>Kombi-Logik:</b> [Warum beide Spots kombiniert mathematischen Vorteil bieten]
 
 ━━━━━━━━━━━━━━━━━━━━
 🎯 <b>TOTAL GAMES & SETS SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B]
-➔ <b>Pick:</b> <b>[Over/Under Games / Satz-Handicap]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 0.75 Units
-🔍 <b>Rationale:</b> [Tie-Break-Wahrscheinlichkeit, Aufschlagstärke, historische H2H-Länge]
+• <b>Match:</b> [Uhrzeit] Uhr | [Turnier/Kategorie] [Spieler A] vs. [Spieler B]
+   ↳ <b>Pick:</b> <b>[Over/Under Games / Satz-Handicap]</b> @ [Quote]
+   ↳ <i>Alternative:</i> [Alternative Linie] @ [Quote]
+• <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 0.75 Units
+• <b>Rationale:</b> [Tie-Break-Wahrscheinlichkeit, Aufschlagstärke, historische H2H-Länge]
 
 ---JSON_TRACKING---
 [
