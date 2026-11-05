@@ -47,12 +47,6 @@ def shorten_tag(tag):
     }
     return mapping.get(tag_clean, tag_clean)
 
-def make_progress_bar(current, total=90, length=10):
-    pct = min(1.0, max(0.0, current / total))
-    filled = int(round(pct * length))
-    bar = "█" * filled + "░" * (length - filled)
-    return f"[{bar}] {int(pct * 100)}%"
-
 def get_match_minute(ev):
     status = ev.get("status", {})
     desc = status.get("description", "").lower().strip()
@@ -102,7 +96,7 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=F
     if any(k in pt for k in ["torschuss", "torschüsse", "shots on target", "scorer", "trifft", "torerzieler"]):
         if is_finished:
             return "✅ Spieler-Prop beendet"
-        return "⏳ Spieler im Einsatz"
+        return "⏳ Spieler aktiv"
 
     if "über 2.5" in pt or "over 2.5" in pt:
         if total_goals >= 3:
@@ -272,7 +266,10 @@ def edit_telegram(message_id, text):
         print(f"[SoccerLive] Edit mit HTML fehlgeschlagen ({res.text}), versuche ohne parse_mode...")
         payload.pop("parse_mode", None)
         res2 = requests.post(url, json=payload, timeout=20)
-        return res2.status_code == 200 or "message is not modified" in res2.text
+        if res2.status_code == 200 or "message is not modified" in res2.text:
+            return True
+        print(f"[SoccerLive] Zweiter Edit-Versuch fehlgeschlagen: {res2.text}")
+        return False
     except Exception as e:
         print(f"[SoccerLive] Telegram Edit Ausnahme: {e}")
         return False
@@ -411,20 +408,17 @@ def run_soccer_live():
             f_data = finished_matches[match]
             h_score = f_data["h_score"]
             a_score = f_data["a_score"]
-            progress_bar = make_progress_bar(90, total=90, length=10)
 
             pick_evals = []
             for pick_desc in picks:
                 eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=True)
                 if eval_str:
                     tag = shorten_tag(pick_desc.split(":")[0])
-                    pick_evals.append(f"   ↳ {eval_str} ({tag})")
+                    pick_evals.append(f" ↳ {eval_str} ({tag})")
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
 
             active_cards.append(
-                f"🏁 <b>{match}</b> | <b>{h_score}:{a_score}</b> (Endstand)\n"
-                f"   Zeit: <code>{progress_bar}</code>"
-                f"{eval_block}"
+                f"🏁 <b>{match}</b> • <b>{h_score}:{a_score}</b> (<i>Endstand</i>){eval_block}"
             )
             continue
 
@@ -436,7 +430,6 @@ def run_soccer_live():
                 matched_ev = ev
                 break
 
-        # Fall 1: Spiel in SportAPI gefunden
         if matched_ev:
             h_score = matched_ev.get("homeScore", {}).get("current", 0)
             a_score = matched_ev.get("awayScore", {}).get("current", 0)
@@ -473,24 +466,20 @@ def run_soccer_live():
                 curr_min = min(45, max(1, elapsed))
                 min_label = f"{curr_min}'"
 
-            progress_bar = make_progress_bar(curr_min, total=90, length=10)
             pick_evals = []
             for pick_desc in picks:
                 eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_finished)
                 if eval_str:
                     tag = shorten_tag(pick_desc.split(":")[0])
-                    pick_evals.append(f"   ↳ {eval_str} ({tag})")
+                    pick_evals.append(f" ↳ {eval_str} ({tag})")
 
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
             icon = "🏁" if is_finished else "🟢"
 
             active_cards.append(
-                f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({min_label})\n"
-                f"   Zeit: <code>{progress_bar}</code>"
-                f"{eval_block}"
+                f"{icon} <b>{match}</b> • <b>{h_score}:{a_score}</b> (<i>{min_label}</i>){eval_block}"
             )
         else:
-            # Fall 2: Nicht in SportAPI -> Gemini Fallback
             gemini_res = fallback_gemini_match(match)
             if gemini_res and gemini_res["status"] in ["FINISHED", "LIVE"]:
                 h_score = gemini_res["h_score"]
@@ -506,19 +495,16 @@ def run_soccer_live():
                 else:
                     all_games_finished = False
 
-                progress_bar = make_progress_bar(90 if is_fin else 45, total=90, length=10)
                 pick_evals = []
                 for pick_desc in picks:
                     eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_fin)
                     if eval_str:
                         tag = shorten_tag(pick_desc.split(":")[0])
-                        pick_evals.append(f"   ↳ {eval_str} ({tag})")
+                        pick_evals.append(f" ↳ {eval_str} ({tag})")
                 eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
                 icon = "🏁" if is_fin else "🟢"
                 active_cards.append(
-                    f"{icon} <b>{match}</b> | <b>{h_score}:{a_score}</b> ({gemini_res['min_label']})\n"
-                    f"   Zeit: <code>{progress_bar}</code>"
-                    f"{eval_block}"
+                    f"{icon} <b>{match}</b> • <b>{h_score}:{a_score}</b> (<i>{gemini_res['min_label']}</i>){eval_block}"
                 )
             else:
                 all_games_finished = False
@@ -533,7 +519,7 @@ def run_soccer_live():
 
     live_sections = ["⏱️ <b>LIVE-TRACKER & FORTSCHRITT</b>"]
     if active_cards:
-        live_sections.append("\n\n".join(active_cards))
+        live_sections.append("\n".join(active_cards))
     if pending_list:
         if active_cards:
             live_sections.append("━━━━━━━━━━━━━━━━━━━━\n⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
@@ -553,8 +539,13 @@ def run_soccer_live():
     else:
         new_text = base_text + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
 
+    # Telegram Limit Absicherung (Max 4096 Zeichen)
+    if len(new_text) > 4000:
+        print(f"[SoccerLive] Warnung: Textlänge {len(new_text)} Zeichen. Kürze Pending-Liste auf 3950 Zeichen.")
+        new_text = new_text[:3950] + "\n\n<i>[...weitere Spiele in Auswertung...]</i>"
+
     if active_cards or new_text.strip() != raw_text.strip():
-        print(f"[SoccerLive] Aktualisiere Telegram (ID: {msg_id})...")
+        print(f"[SoccerLive] Aktualisiere Telegram (ID: {msg_id}, Länge: {len(new_text)} Zeichen)...")
         if edit_telegram(msg_id, new_text):
             state["original_text"] = new_text
             save_state(state)
