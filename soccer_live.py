@@ -404,6 +404,8 @@ def run_soccer_live():
     pending_list = []
     all_games_finished = True
 
+    now_berlin = datetime.now(LOCAL_TZ)
+
     for match, picks in sorted(match_picks.items()):
         if match in finished_matches:
             f_data = finished_matches[match]
@@ -434,13 +436,17 @@ def run_soccer_live():
                 matched_ev = ev
                 break
 
+        # Fall 1: Spiel in SportAPI gefunden
         if matched_ev:
             h_score = matched_ev.get("homeScore", {}).get("current", 0)
             a_score = matched_ev.get("awayScore", {}).get("current", 0)
             curr_min, min_label, is_finished = get_match_minute(matched_ev)
             status_desc = matched_ev.get("status", {}).get("description", "").lower()
 
-            if status_desc in ["not started", "timed"] and curr_min == 0:
+            start_ts = matched_ev.get("startTimestamp")
+            is_started_by_time = (start_ts and now_berlin.timestamp() >= start_ts)
+
+            if status_desc in ["not started", "timed"] and curr_min == 0 and not is_started_by_time:
                 all_games_finished = False
                 pick_summaries = []
                 for pick_desc in picks:
@@ -462,6 +468,11 @@ def run_soccer_live():
             else:
                 all_games_finished = False
 
+            if curr_min == 0 and is_started_by_time:
+                elapsed = int((now_berlin.timestamp() - start_ts) // 60)
+                curr_min = min(45, max(1, elapsed))
+                min_label = f"{curr_min}'"
+
             progress_bar = make_progress_bar(curr_min, total=90, length=10)
             pick_evals = []
             for pick_desc in picks:
@@ -479,6 +490,7 @@ def run_soccer_live():
                 f"{eval_block}"
             )
         else:
+            # Fall 2: Nicht in SportAPI -> Gemini Fallback
             gemini_res = fallback_gemini_match(match)
             if gemini_res and gemini_res["status"] in ["FINISHED", "LIVE"]:
                 h_score = gemini_res["h_score"]
@@ -530,7 +542,7 @@ def run_soccer_live():
 
     live_block = "\n\n".join(live_sections)
 
-    split_targets = ["⏱️ <b>LIVE-TRACKER", "⏱️ <b>LIVE-", "⏳ <b>AUSSTEHEND"]
+    split_targets = ["⏱️ <b>LIVE-TRACKER", "⏱️ LIVE-TRACKER", "⏳ <b>AUSSTEHEND", "⏳ AUSSTEHEND"]
     base_text = raw_text
     for target in split_targets:
         if target in base_text:
@@ -541,8 +553,8 @@ def run_soccer_live():
     else:
         new_text = base_text + "\n\n━━━━━━━━━━━━━━━━━━━━\n" + live_block
 
-    if new_text.strip() != raw_text.strip():
-        print(f"[SoccerLive] Neuer Ticker-Inhalt erkannt! Sende Update an Telegram (ID: {msg_id})...")
+    if active_cards or new_text.strip() != raw_text.strip():
+        print(f"[SoccerLive] Aktualisiere Telegram (ID: {msg_id})...")
         if edit_telegram(msg_id, new_text):
             state["original_text"] = new_text
             save_state(state)
@@ -550,7 +562,7 @@ def run_soccer_live():
         else:
             print("[SoccerLive] ❌ Telegram Edit fehlgeschlagen.")
     else:
-        print("[SoccerLive] Keine sichtbare Änderung am Ticker-Text. Telegram-Nachricht bleibt unverändert.")
+        print("[SoccerLive] Noch keine aktiven Live-Karten vorhanden.")
         save_state(state)
 
     # Settlement
