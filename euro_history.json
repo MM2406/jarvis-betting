@@ -69,5 +69,33 @@
       "pnl": 0.68
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "match": "Anadolu Efes vs. Paris Basketball",
+      "sport": "Euro-Hoops & Ice",
+      "pick": "Under 178.5 Punkte",
+      "odds": 2.0,
+      "stake": 1.5,
+      "date": "2026-11-05",
+      "status": "PENDING"
+    },
+    {
+      "match": "Fenerbahce / Baskonia & Hapoel / Barcelona & Milano / Valencia",
+      "sport": "Euro-Hoops & Ice",
+      "pick": "Baskonia +14.5 & Barcelona +5.5 & Valencia -1.5",
+      "odds": 6.19,
+      "stake": 0.75,
+      "date": "2026-11-05",
+      "status": "PENDING"
+    },
+    {
+      "match": "ASVEL Lyon Villeurbanne vs. FC Bayern München",
+      "sport": "Euro-Hoops & Ice",
+      "pick": "FC Bayern München ML",
+      "odds": 1.99,
+      "stake": 0.75,
+      "date": "2026-11-05",
+      "status": "PENDING"
+    }
+  ]
 }
