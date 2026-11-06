@@ -3,9 +3,13 @@ import sys
 import json
 import time
 import requests
-import re
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
+
+try:
+    from telegram_formatter import send_to_sport_channel
+except ImportError:
+    send_to_sport_channel = None
 
 # ==========================================
 # KONFIGURATION & CREDENTIALS
@@ -18,40 +22,70 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 # Sicheres Routing ins NBA-Thema
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_THREAD_NBA", "").strip()
+    or os.environ.get("TELEGRAM_NBA_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_nba.json"
+HISTORY_FILE = "nba_history.json"
 
 # ==========================================
 # STATE & TELEGRAM HILFSFUNKTIONEN
 # ==========================================
-def send_telegram(text):
+def send_telegram(text, reply_to=None):
+    if send_to_sport_channel:
+        msg_id = send_to_sport_channel(text, sport="nba", reply_to=reply_to)
+        if msg_id:
+            return msg_id
+
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram Credentials fehlen.")
-        return
+        print("[Telegram] FEHLER: Credentials fehlen.")
+        return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
-    if TELEGRAM_THREAD_ID:
-        try:
-            payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
-        except ValueError:
-            print(f"Ungueltige Thread-ID fuer NBA: {TELEGRAM_THREAD_ID}")
+    max_len = 3900
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
 
-    try:
-        res = requests.post(url, json=payload, timeout=25)
-        if res.status_code != 200:
-            payload.pop("parse_mode", None)
-            requests.post(url, json=payload, timeout=25)
-    except Exception as e:
-        print(f"Telegram-Fehler: {e}")
+    last_msg_id = None
+    for chunk in chunks:
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        if TELEGRAM_THREAD_ID:
+            try:
+                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+            except ValueError:
+                pass
+        if reply_to:
+            payload["reply_to_message_id"] = int(reply_to)
+
+        try:
+            res = requests.post(url, json=payload, timeout=25)
+            if res.status_code != 200:
+                payload.pop("parse_mode", None)
+                res2 = requests.post(url, json=payload, timeout=25)
+                if res2.status_code == 200:
+                    last_msg_id = res2.json().get("result", {}).get("message_id")
+            else:
+                last_msg_id = res.json().get("result", {}).get("message_id")
+        except Exception as e:
+            print(f"[Telegram] Netzwerkfehler: {e}")
+
+    return last_msg_id
 
 def load_pending():
     if not os.path.exists(PENDING_FILE):
@@ -70,6 +104,25 @@ def save_pending(pending_list):
             json.dump(pending_list, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
+
+def append_to_history(settled_items):
+    if not settled_items:
+        return
+    history = []
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                history = json.load(f)
+                if not isinstance(history, list):
+                    history = []
+        except Exception:
+            history = []
+    history.extend(settled_items)
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Fehler beim Speichern von {HISTORY_FILE}: {e}")
 
 # ==========================================
 # 1. MORGEN-SETTLEMENT (ABRECHNUNG & BILANZ)
@@ -102,14 +155,14 @@ Suche nach "{match} nba box score final" oder "{match} espn final".
 
 AUFGABE:
 1. Prüfe, ob das Spiel offiziell beendet ist (FINAL).
-2. Falls beendet: Ermittle den Endstand (z.B. '112:108') und bewerte, ob die Wette '{pick}' GEWONNEN (WON) oder VERLOREN (LOST) ist.
+2. Falls beendet: Ermittle den Endstand (z. B. '112:108') und bewerte, ob die Wette '{pick}' GEWONNEN (WON) oder VERLOREN (LOST) ist.
 3. Falls das Spiel noch nicht beendet, verschoben oder noch nicht gespielt ist, antworte mit PENDING.
 
 Antworte STRIKT in diesem Format:
 STATUS: FINISHED oder PENDING
-SCORE: Endergebnis (z.B. 115:102)
+SCORE: Endergebnis (z. B. 115:102)
 RESULT: WON oder LOST oder PENDING
-DETAILS: Ein kurzer Satz zum Ergebnis (z.B. 'Celtics gewinnen mit 12 Punkten Vorsprung.')
+DETAILS: Ein kurzer Satz zum Ergebnis.
 """
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
@@ -140,15 +193,18 @@ DETAILS: Ein kurzer Satz zum Ergebnis (z.B. 'Celtics gewinnen mit 12 Punkten Vor
 
                 if status == "FINISHED" and result in ["WON", "LOST"]:
                     icon = "✅" if result == "WON" else "❌"
-                    settled_results.append({
+                    item = {
                         "match": match,
                         "pick": pick,
                         "odds": odds,
                         "result": result,
                         "icon": icon,
                         "score": score,
-                        "details": details
-                    })
+                        "details": details,
+                        "date": date_str,
+                        "sport": "NBA"
+                    }
+                    settled_results.append(item)
                 else:
                     remaining_pending.append(bet)
             else:
@@ -159,8 +215,8 @@ DETAILS: Ein kurzer Satz zum Ergebnis (z.B. 'Celtics gewinnen mit 12 Punkten Vor
 
     save_pending(remaining_pending)
 
-    # Abrechnungs-Dossier mit Kennzahlen-Header senden
     if settled_results:
+        append_to_history(settled_results)
         total_bets = len(settled_results)
         won_bets = sum(1 for r in settled_results if r["result"] == "WON")
         strike_rate = (won_bets / total_bets) * 100 if total_bets > 0 else 0
@@ -182,25 +238,31 @@ DETAILS: Ein kurzer Satz zum Ergebnis (z.B. 'Celtics gewinnen mit 12 Punkten Vor
         profit = total_returned - total_staked
         roi = (profit / total_staked) * 100 if total_staked > 0 else 0
         profit_sign = "+" if profit >= 0 else ""
+        profit_color = "🟢" if profit >= 0 else "🔴"
 
-        msg = "🏀 <b>JARVIS NBA • RECAP & BILANZ</b>\n"
-        msg += "<i>Performance-Auswertung der Vornacht</i>\n\n"
-        msg += "📊 <b>STATISTIK-ÜBERSICHT:</b>\n"
-        msg += f"• <b>Trefferquote:</b> {won_bets}/{total_bets} ({strike_rate:.1f}%)\n"
-        msg += f"• <b>Netto-Ertrag:</b> <b>{profit_sign}{profit:.2f} Units</b>\n"
-        msg += f"• <b>ROI:</b> <b>{profit_sign}{roi:.1f}%</b>\n"
-        msg += "━━━━━━━━━━━━━━━━━━━━\n"
+        lines = [
+            "🏁 <b>JARVIS NBA — TAGESABSCHLUSS & BILANZ</b>",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "📋 <b>ERGEBNISSE:</b>\n"
+        ]
 
         for r in settled_results:
-            msg += f"{r['icon']} <b>Tipp:</b> {r['pick']} @ {r['odds']}\n"
-            msg += f"• <b>Match:</b> {r['match']}\n"
-            msg += f"• <b>Ergebnis:</b> {r['score']} ({r['result']})\n"
+            lines.append(f"{r['icon']} <b>{r['pick']}</b> (<code>@{r['odds']}</code>)")
+            lines.append(f"• <b>Match:</b> {r['match']} ({r['score']})")
             if r['details']:
-                msg += f"• <i>{r['details']}</i>\n"
-            msg += "━━━━━━━━━━━━━━━━━━━━\n"
+                lines.append(f"• <i>{r['details']}</i>")
+            lines.append("")
 
-        send_telegram(msg)
-        print("Abrechnung mit voller Statistik erfolgreich gesendet.")
+        lines.append("━━━━━━━━━━━━━━━━━━━━")
+        lines.append("📊 <b>BILANZ & KENNZAHLEN</b>")
+        lines.append(f"• <b>Trefferquote:</b> {won_bets}/{total_bets} ({strike_rate:.1f}%)")
+        lines.append(f"• <b>Einsatz / Rücklauf:</b> {total_staked:.2f}u ➔ {total_returned:.2f}u")
+        lines.append(f"• {profit_color} <b>Netto-Ergebnis:</b> <b>{profit_sign}{profit:.2f} Units</b>")
+        lines.append(f"• <b>ROI:</b> <b>{profit_sign}{roi:.1f}%</b>")
+        lines.append("\n📁 <i>Alle Wetten wurden in nba_history.json archiviert.</i>")
+
+        send_telegram("\n".join(lines).strip())
+        print("NBA-Abrechnung erfolgreich gepostet.")
 
 # ==========================================
 # 2. THE ODDS API & PICKS GENERIERUNG
@@ -246,68 +308,58 @@ def run_nba_intel():
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS NBA QUANT' – Spezialist für quantitative NBA-Modellierung, Possession-Analytics und Quoten-Diskrepanzen.
-Erstelle für heute ({today_str}) das NBA-Dossier.
+Du bist 'JARVIS NBA QUANT ARCHITECT'.
+Erstelle für heute ({today_str}) das NBA-Value-Dossier.
 
 VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
 
-RICHTLINIEN & MÄRKTE:
-- Wähle ausschließlich Partien aus der obigen Liste.
-- Analysiere Pace, Offensive/Defensive Ratings, Net-Rating Edge, Rest Advantage (Back-to-Back) und Lineup-News via Google Search.
-- DYNAMISCHE ACCA: Begrenze dich beim Kombi-Ticket NICHT auf 2 Spiele. Kombiniere 2 bis 4 Spiele mit klarem mathematischem Vorteil (+EV).
-- BUCHMACHER-ALTERNATIVE: Gib für jeden Spread/Total-Pick immer eine Standard-Linie für europäische Bookies an (z.B. bet365/Tipico).
-- VALUE-GRENZE: Weise für jeden Single-Tipp und für die Kombi eine Mindestquote aus ('Spielbar bis @ X.XX').
-- UNITS:
-  * Pick of the Day: 1.0 bis 2.0 Units
-  * Value Acca: 0.5 bis 1.0 Units
-  * Totals Spotlight: 0.5 bis 1.0 Units
-  * Player Prop: 0.5 bis 1.0 Units
+================================================================================
+STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
+================================================================================
+1. PICKS FIRST:
+   - Alle spielfertigen Wettscheine stehen ZWINGEND GANZ OBEN direkt unter dem Header!
+   - Erst DANACH folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und der Abschnitt 'ANALYSEN & MODELL-LOGIK (DEEP DIVE)'.
+2. LÄNGEN-LIMIT:
+   - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen.
+3. FORMATIERUNG:
+   - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.90</code>, <code>1.50u</code>).
+   - Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
+   - Begründungen im Deep Dive kurz und schlüssig in maximal 2 Sätzen halten.
 
-FORMATIERUNGS-REGELN FÜR TELEGRAM:
-- Keine doppelten Leerzeilen.
-- Beginne jede Aufzählung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
-- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+⛔ STRIKTE QUANT- & VETO-REGELN:
+1. Keine Quoten unter 1.40 bei Einzel-Tipps.
+2. Form- & Verletzungs-Check via Google Search (Verletzungen, Rest Advantage, B2B).
+3. Bei Player Props: Nur Starter mit fester Rotation.
 
-REPORT-HTML:
-🏀 <b>JARVIS NBA INTEL DOSSIER</b>
-<i>Quantitative Match-Modelle • Net-Rating Edge • Value-Picks</i>
+EXAKTES HTML-AUSGABEFORMAT:
+🏀 <b>JARVIS NBA — TAGESEMPFEHLUNGEN ({today_str})</b>
+━━━━━━━━━━━━━━━━━━━━
+📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
+
+⭐ <b>POTD (<code>1.50u</code> | <code>@[Quote]</code>)</b>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Spread / Total / ML]</i>
+
+🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+
+🎯 <b>PACE & TOTALS SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under Tipp]</i>
+
+👟 <b>PLAYER PROP SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
+• [Spieler] ([Team]) ➔ <i>[Punkte / Rebounds / Assists / 3PT]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>NBA PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Haupt-Pick:</b> <b>[Spread / Total / Moneyline]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
-📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [Pace-Projektion, Matchup-Vorteile, Rest Advantage, Schussqualität]
+📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
-⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
-💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhängig starken Value bietet]
+🔎 <b>POTD: [Heim] vs. [Gast]</b>
+• <b>Edge:</b> [Net-Rating Vorteil / Fair-Quote]
+• <b>Logik:</b> [Maximal 2 präzise Sätze zu Matchup, Pace und Defense-Matchups]
 
-━━━━━━━━━━━━━━━━━━━━
-🎯 <b>PACE &amp; TOTALS SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Pick:</b> <b>[Over/Under / Team-Total]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Rationale:</b> [Possessions-Projektion, Transition-Defense, Shooting-Splits]
-
-━━━━━━━━━━━━━━━━━━━━
-👟 <b>NBA PLAYER PROP SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-➔ <b>Pick:</b> <b>[Spielername: Punkte / Rebounds / Assists / 3PT Made]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie / Markt-Fallback] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Rationale:</b> [Usage-Rate, Matchup gegen gegnerische Defense-Position, Minuten-Projektion]
+🔎 <b>Acca & Spotlights Begründung:</b>
+• [Team 1 / Pick 1]: [1-2 Sätze Begründung]
+• [Totals / Prop]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
@@ -344,7 +396,7 @@ REPORT-HTML:
                             np["status"] = "PENDING"
                         pending.extend(new_picks)
                         save_pending(pending)
-                        print(f"{len(new_picks)} NBA-Picks getrackt.")
+                        print(f"{len(new_picks)} NBA-Picks in {PENDING_FILE} gesichert.")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
@@ -371,15 +423,15 @@ def main():
 
     print(f"=== JARVIS NBA ENGINE START [{now_berlin.strftime('%Y-%m-%d %H:%M:%S %Z')}] ===")
 
-    # 1. Abrechnung läuft IMMER bei jedem Trigger
+    # 1. Abrechnung läuft morgens oder per manuellem Dispatch
     settle_pending_bets()
 
-    # 2. Picks nur ab 16:00 Uhr MEZ generieren
+    # 2. Picks werden im Abendfenster (ab 16:00 Uhr MEZ) generiert
     if current_hour >= 16:
         print(f"Abend-Fenster aktiv ({current_hour} Uhr MEZ): Starte Quotenabfrage & Dossier-Erstellung...")
         run_nba_intel()
     else:
-        print(f"Morgen-Fenster aktiv ({current_hour} Uhr MEZ): Nur Abrechnung ausgeführt. Picks folgen um 18:00 Uhr MEZ.")
+        print(f"Morgen-Fenster aktiv ({current_hour} Uhr MEZ): Nur Abrechnung ausgeführt. Picks folgen am späten Nachmittag.")
 
 if __name__ == "__main__":
     main()
