@@ -19,23 +19,23 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Sicheres Routing ins NHL-Thema
+# Sicheres Routing ins NFL-Thema
 TELEGRAM_THREAD_ID = (
-    os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
-    or os.environ.get("TELEGRAM_NHL_THREAD_ID", "").strip()
+    os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
+    or os.environ.get("TELEGRAM_NFL_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
-PENDING_FILE = "pending_nhl.json"
-HISTORY_FILE = "nhl_history.json"
+PENDING_FILE = "pending_nfl.json"
+HISTORY_FILE = "nfl_history.json"
 
 # ==========================================
 # STATE & TELEGRAM HILFSFUNKTIONEN
 # ==========================================
 def send_telegram(text, reply_to=None):
     if send_to_sport_channel:
-        msg_id = send_to_sport_channel(text, sport="nhl", reply_to=reply_to)
+        msg_id = send_to_sport_channel(text, sport="nfl", reply_to=reply_to)
         if msg_id:
             return msg_id
 
@@ -122,7 +122,7 @@ def save_to_history(settled_list):
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
-        print(f"{len(settled_list)} Wetten in {HISTORY_FILE} archiviert.")
+        print(f"{len(settled_list)} NFL-Wetten in {HISTORY_FILE} archiviert.")
     except Exception as e:
         print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
 
@@ -132,10 +132,10 @@ def save_to_history(settled_list):
 def settle_pending_bets():
     pending = load_pending()
     if not pending:
-        print("Keine offenen Wetten in pending_nhl.json gefunden.")
+        print("Keine offenen Wetten in pending_nfl.json gefunden.")
         return
 
-    print(f"Prüfe Abrechnung für {len(pending)} offene NHL-Picks...")
+    print(f"Prüfe Abrechnung für {len(pending)} offene NFL-Picks...")
     remaining_pending = []
     settled_results = []
 
@@ -147,25 +147,24 @@ def settle_pending_bets():
         is_kombi = bet.get("is_kombi", False) or "kombi" in bet.get("category", "").lower() or "+" in pick
 
         prompt = f"""
-Du bist ein Sport-Abrechnungssystem für Eishockey (NHL).
-Ermittle via Google Search die offiziellen Endergebnisse für folgende NHL-Wette:
+Du bist ein Sport-Abrechnungssystem für American Football (NFL).
+Ermittle via Google Search die offiziellen Endergebnisse für folgende NFL-Wette:
 - Spiel / Begegnungen: {match}
 - Datum: {date_str}
 - Wette: {pick}
 - Ist Kombiwette: {is_kombi}
 
-REGELN FÜR NHL:
-- Alle Torwetten und Sieger gelten inklusive Overtime (OT) und Shootout (SO), sofern nicht anders angegeben.
-- Tore und Assists ergeben Scorerpunkte.
+REGELN FÜR NFL:
+- Alle Spreads, Over/Under und Siegwetten gelten inklusive Overtime (OT).
+- Touchdowns, Passing/Rushing/Receiving Yards zählen bis zum offiziellen Spielende.
 
 AUFGABE:
 1. Prüfe, ob alle relevanten Spiele offiziell beendet sind (FINAL).
 2. Falls eine Kombiwette vorliegt:
-   - Werte jedes einzelne Bein (Leg) separat aus.
-   - Wenn alle Beine gewonnen sind -> RESULT: WON
-   - Wenn mindestens ein Bein verloren ist -> RESULT: LOST
-   - Gib für jedes Bein das exakte Ergebnis und den Status an.
-3. Falls Einzelwette: Ermittle Endstand und bewerte WON oder LOST.
+   - Werte jedes einzelne Bein separat aus.
+   - Alle Beine gewonnen -> WON
+   - Mindestens ein Bein verloren -> LOST
+3. Falls Einzelwette: Ermittle Endstand (z. B. 24:20) und bewerte WON oder LOST.
 4. Falls Spiele noch laufen oder ausstehen -> STATUS: PENDING
 
 Antworte STRIKT in diesem Format:
@@ -243,14 +242,14 @@ DETAILS:
                         "legs_won": legs_won,
                         "legs_total": legs_total,
                         "details": details_lines,
-                        "sport": "NHL"
+                        "sport": "NFL"
                     })
                 else:
                     remaining_pending.append(bet)
             else:
                 remaining_pending.append(bet)
         except Exception as e:
-            print(f"Fehler bei NHL-Settlement für {match}: {e}")
+            print(f"Fehler bei NFL-Settlement für {match}: {e}")
             remaining_pending.append(bet)
 
     save_pending(remaining_pending)
@@ -278,7 +277,7 @@ DETAILS:
         overall_accuracy = (total_picks_won / total_picks_count * 100) if total_picks_count > 0 else 0
 
         lines = [
-            "🏁 <b>JARVIS NHL — TAGESABSCHLUSS & BILANZ</b>",
+            "🏁 <b>JARVIS NFL — TAGESABSCHLUSS & BILANZ</b>",
             "━━━━━━━━━━━━━━━━━━━━",
             "📋 <b>ERGEBNISSE:</b>\n"
         ]
@@ -312,23 +311,23 @@ DETAILS:
             k_sign = "+" if k_pnl >= 0 else ""
             lines.append(f"• <b>Kombis:</b> {kombis_won}/{len(kombis)} | {k_sign}{k_pnl:.2f}u")
 
-        lines.append(f"• <b>Trefferquote (inkl. Legs):</b> {total_picks_won}/{total_picks_count} ({overall_accuracy:.1f}%)")
+        lines.append(f"• <b>Trefferquote:</b> {total_picks_won}/{total_picks_count} ({overall_accuracy:.1f}%)")
         lines.append(f"• {profit_color} <b>Netto-Ertrag:</b> <b>{pnl_sign}{total_pnl:.2f} Units</b>")
         lines.append(f"• <b>ROI:</b> <b>{pnl_sign}{roi:.1f}%</b>")
-        lines.append("\n📁 <i>Alle Tickets wurden in nhl_history.json archiviert.</i>")
+        lines.append("\n📁 <i>Alle Tickets wurden in nfl_history.json archiviert.</i>")
 
         send_telegram("\n".join(lines).strip())
-        print("NHL-Settlement erfolgreich gesendet.")
+        print("NFL-Settlement erfolgreich gesendet.")
 
 # ==========================================
 # 2. ODDS API & PICKS GENERIERUNG
 # ==========================================
-def fetch_nhl_odds():
-    url = "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/"
+def fetch_nfl_odds():
+    url = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
         "regions": "eu,us",
-        "markets": "h2h,totals",
+        "markets": "h2h,spreads,totals",
         "oddsFormat": "decimal"
     }
     try:
@@ -336,11 +335,11 @@ def fetch_nhl_odds():
         if res.status_code == 200:
             events = []
             now_utc = datetime.now(timezone.utc)
-            cutoff = now_utc + timedelta(hours=18)
+            cutoff = now_utc + timedelta(hours=36)
             for m in res.json():
                 commence = datetime.fromisoformat(m["commence_time"].replace("Z", "+00:00"))
                 if now_utc <= commence <= cutoff:
-                    time_str = commence.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
+                    time_str = commence.astimezone(LOCAL_TZ).strftime("%a %H:%M Uhr")
                     bookies = m.get("bookmakers", [])
                     if not bookies:
                         continue
@@ -351,13 +350,13 @@ def fetch_nhl_odds():
                     events.append(f"{m['home_team']} vs. {m['away_team']} ({time_str}) | {' // '.join(m_details)}")
             return "\n".join(events[:40])
     except Exception as e:
-        print(f"Fehler bei NHL Odds: {e}")
+        print(f"Fehler bei NFL Odds: {e}")
     return ""
 
-def run_nhl_intel():
-    odds_data = fetch_nhl_odds()
+def run_nfl_intel():
+    odds_data = fetch_nfl_odds()
     if not odds_data:
-        print("Keine NHL-Spiele im Zeitfenster gefunden.")
+        print("Keine NFL-Spiele im Zeitfenster gefunden.")
         return
 
     now_dt = datetime.now(LOCAL_TZ)
@@ -366,8 +365,8 @@ def run_nhl_intel():
     current_year = now_dt.strftime("%Y")
 
     prompt = f"""
-Du bist 'JARVIS NHL QUANT ARCHITECT'.
-Erstelle für heute ({today_str}, Jahr: {current_year}) das NHL-Value-Dossier.
+Du bist 'JARVIS NFL QUANT ARCHITECT'.
+Erstelle für heute ({today_str}, Saison: {current_year}) das NFL-Value-Dossier.
 
 VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
@@ -381,61 +380,61 @@ STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
 2. LÄNGEN-LIMIT:
    - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen.
 3. FORMATIERUNG:
-   - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.85</code>, <code>1.50u</code>).
+   - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.90</code>, <code>1.50u</code>).
    - Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
-   - Begründungen im Deep Dive präzise und fundiert in maximal 2 Sätzen halten.
+   - Begründungen im Deep Dive kurz und schlüssig in maximal 2 Sätzen halten.
 
 ⛔ STRIKTE QUANT- & VETO-REGELN:
 1. Keine Quoten unter 1.40 bei Einzel-Tipps.
-2. Form- & Starting-Goalie-Check via Google Search (Confirmed/Expected Goalies, Back-to-Back, Special Teams PP/PK).
-3. Bei Player Props: Nur Over-Märkte (Tore/Assists/Punkte/Schüsse), KEINE Under-Props!
+2. Injury- & Weather-Check via Google Search (QB-Status, Wind/Regen bei Freiluft-Stadien, Key-Defenders Out).
+3. Bei Player Props: Nur Starter (Passing Yards, Rushing Yards, Anytime Touchdown).
 
 EXAKTES HTML-AUSGABEFORMAT:
-🏒 <b>JARVIS NHL — TAGESEMPFEHLUNGEN ({today_str})</b>
+🏈 <b>JARVIS NFL — TAGESEMPFEHLUNGEN ({today_str})</b>
 ━━━━━━━━━━━━━━━━━━━━
 📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
 
 ⭐ <b>POTD (<code>1.50u</code> | <code>@[Quote]</code>)</b>
-• <b>[Heim] vs. [Gast]</b> ➔ <i>[Tipp inkl. OT/SO]</i>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Spread / Total / ML]</i>
 
 🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
 • [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
 • [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
 
 🎯 <b>TOTALS SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
-• <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under Tore]</i>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under Punkte]</i>
 
 👟 <b>PLAYER PROP SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
-• [Spieler] ([Team]) ➔ <i>[1+ Punkt / 3+ Schüsse]</i>
+• [Spieler] ([Team]) ➔ <i>[Anytime TD / Rush/Rec Yards]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
 🔎 <b>POTD: [Heim] vs. [Gast]</b>
-• <b>Edge:</b> [Goalie Save-% Differenz / Fair-Quote]
-• <b>Logik:</b> [Maximal 2 Sätze zu Starting Goalie Matchup, 5v5 Expected Goals & Special Teams]
+• <b>Edge:</b> [EPA/Play Vorteil, Key-Matchup oder Fair-Quote]
+• <b>Logik:</b> [Maximal 2 Sätze zu Offense/Defense EPA, O-Line vs D-Line Pressure Rate]
 
 🔎 <b>Acca & Spotlights Begründung:</b>
-• [Pick 1 / Team]: [1-2 Sätze Begründung]
+• [Pick 1]: [1-2 Sätze Begründung]
 • [Totals / Prop]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
   {{
     "match": "Team A vs Team B",
-    "sport": "NHL",
+    "sport": "NFL",
     "category": "PICK OF THE DAY",
-    "pick": "Team A Sieg (inkl. OT)",
-    "odds": "1.85",
+    "pick": "Team A -3.5",
+    "odds": "1.90",
     "date": "{today_iso}",
     "is_kombi": false
   }},
   {{
     "match": "Team C vs Team D / Team E vs Team F",
-    "sport": "NHL",
+    "sport": "NFL",
     "category": "QUANT VALUE ACCA",
-    "pick": "Team C ML + Team E ML",
-    "odds": "2.80",
+    "pick": "Team C ML + Team E Over 44.5",
+    "odds": "2.75",
     "date": "{today_iso}",
     "is_kombi": true
   }}
@@ -465,9 +464,9 @@ EXAKTES HTML-AUSGABEFORMAT:
                             np["status"] = "PENDING"
                         pending.extend(new_picks)
                         save_pending(pending)
-                        print(f"{len(new_picks)} NHL-Picks in {PENDING_FILE} gesichert.")
+                        print(f"{len(new_picks)} NFL-Picks in {PENDING_FILE} gesichert.")
                     except Exception as je:
-                        print(f"Fehler beim Parsen der NHL-Picks: {je}")
+                        print(f"Fehler beim Parsen der NFL-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
                 send_telegram(report)
@@ -484,23 +483,30 @@ EXAKTES HTML-AUSGABEFORMAT:
                 sys.exit(1)
 
 # ==========================================
-# 3. HAUPTSTEUERUNG MIT ZEIT-WEICHE
+# 3. HAUPTSTEUERUNG
 # ==========================================
 def main():
     now_berlin = datetime.now(LOCAL_TZ)
     current_hour = now_berlin.hour
 
-    print(f"=== JARVIS NHL ENGINE START [{now_berlin.strftime('%Y-%m-%d %H:%M:%S %Z')}] ===")
+    print(f"=== JARVIS NFL ENGINE START [{now_berlin.strftime('%Y-%m-%d %H:%M:%S %Z')}] ===")
 
-    # 1. Abrechnung läuft morgens wie abends immer
+    # Flag: Reiner Settlement-Lauf per Parameter
+    settle_only = "--settle-only" in sys.argv
+
+    # 1. Abrechnung läuft immer
     settle_pending_bets()
 
-    # 2. Picks nur im Abendfenster (ab 16:00 Uhr MEZ) generieren
-    if current_hour >= 16:
-        print(f"Abend-Fenster aktiv ({current_hour} Uhr MEZ): Generiere neues NHL-Dossier...")
-        run_nhl_intel()
+    if settle_only:
+        print("Reiner Abrechnungslauf (--settle-only). Keine Dossier-Erstellung.")
+        return
+
+    # 2. Picks nach 15:00 Uhr MEZ an Spieltagen generieren
+    if current_hour >= 15:
+        print(f"Spiele-Fenster aktiv ({current_hour} Uhr MEZ): Generiere neues NFL-Dossier...")
+        run_nfl_intel()
     else:
-        print(f"Morgen-Fenster aktiv ({current_hour} Uhr MEZ): Nur Abrechnung ausgeführt. Picks folgen abends.")
+        print(f"Morgen-Fenster aktiv ({current_hour} Uhr MEZ): Nur Abrechnung ausgeführt. Picks folgen nachmittags.")
 
 if __name__ == "__main__":
     main()
