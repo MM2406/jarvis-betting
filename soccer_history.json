@@ -278,5 +278,65 @@
     "status": "WON",
     "sport": "Soccer",
     "date": "2026-11-04"
+  },
+  {
+    "match": "Crystal Palace vs. TSG Hoffenheim",
+    "pick": "Crystal Palace Sieg",
+    "odds": 1.68,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-06"
+  },
+  {
+    "match": "Sparta Prague vs. Bournemouth / AS Monaco vs. FC Nordsjaelland",
+    "pick": "CONSERVATIVE 2-LEG BANKER (Bournemouth Sieg + AS Monaco Sieg)",
+    "odds": 1.98,
+    "stake": 1.0,
+    "pnl": 0.98,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-06"
+  },
+  {
+    "match": "Real Sociedad vs. Lyon / SK Sturm Graz vs. NK Celje / Getafe vs. Brighton",
+    "pick": "BALANCED VALUE ACCA (Sociedad Sieg + Sturm Graz Sieg + Brighton Sieg)",
+    "odds": 3.53,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-06"
+  },
+  {
+    "match": "KuPS Kuopio vs. Gent / FC Midtjylland vs. Ajax / Sint Truiden vs. SK Brann",
+    "pick": "HYBRID QUANT MULTI (Gent Sieg + Midtjylland/Ajax Über 2.5 + Sint Truiden Sieg)",
+    "odds": 3.6,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-06"
+  },
+  {
+    "match": "Trabzonspor vs. SC Freiburg / Lincoln Red Imps FC vs. Hajduk Split",
+    "pick": "GOALS & BTTS VALUE ACCA (Trabzonspor Über 2.5 + Lincoln Red Imps Über 2.5)",
+    "odds": 2.51,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "status": "LOST",
+    "sport": "Soccer",
+    "date": "2026-11-06"
+  },
+  {
+    "match": "Crystal Palace vs. Hoffenheim / Getafe vs. Brighton",
+    "pick": "PLAYER PROPS MULTI (Mateta 1+ SoT + Mitoma 1+ SoT [Void])",
+    "odds": 1.42,
+    "stake": 1.0,
+    "pnl": 0.42,
+    "status": "WON",
+    "sport": "Soccer",
+    "date": "2026-11-06"
   }
 ]
