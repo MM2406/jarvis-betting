@@ -2,52 +2,61 @@ import os
 import requests
 from typing import Dict, List, Optional, Any
 
-# Mapping von Sportarten zu Icons und Telegram-Thread-Umgebungsvariablen
+# Exaktes Mapping passend zu deinen GitHub Repository Secrets
 SPORT_CONFIG = {
     "soccer": {
         "name": "SOCCER",
         "icon": "⚽",
-        "thread_keys": ["TELEGRAM_THREAD_SOCCER", "TELEGRAM_SOCCER_THREAD_ID", "TELEGRAM_THREAD_ID"]
-    },
-    "football": {
-        "name": "SOCCER",
-        "icon": "⚽",
-        "thread_keys": ["TELEGRAM_THREAD_SOCCER", "TELEGRAM_SOCCER_THREAD_ID", "TELEGRAM_THREAD_ID"]
+        "secret_key": "TELEGRAM_THREAD_SOCCER"
     },
     "nba": {
         "name": "BASKETBALL (NBA)",
         "icon": "🏀",
-        "thread_keys": ["TELEGRAM_THREAD_NBA", "TELEGRAM_NBA_THREAD_ID", "TELEGRAM_THREAD_ID"]
-    },
-    "basketball": {
-        "name": "BASKETBALL",
-        "icon": "🏀",
-        "thread_keys": ["TELEGRAM_THREAD_NBA", "TELEGRAM_NBA_THREAD_ID", "TELEGRAM_THREAD_ID"]
+        "secret_key": "TELEGRAM_THREAD_NBA"
     },
     "nhl": {
         "name": "ICE HOCKEY (NHL)",
         "icon": "🏒",
-        "thread_keys": ["TELEGRAM_THREAD_NHL", "TELEGRAM_NHL_THREAD_ID", "TELEGRAM_THREAD_ID"]
-    },
-    "hockey": {
-        "name": "EISHOCKEY",
-        "icon": "🏒",
-        "thread_keys": ["TELEGRAM_THREAD_NHL", "TELEGRAM_NHL_THREAD_ID", "TELEGRAM_THREAD_ID"]
+        "secret_key": "TELEGRAM_THREAD_NHL"
     },
     "nfl": {
         "name": "AMERICAN FOOTBALL (NFL)",
         "icon": "🏈",
-        "thread_keys": ["TELEGRAM_THREAD_NFL", "TELEGRAM_NFL_THREAD_ID", "TELEGRAM_THREAD_ID"]
+        "secret_key": "TELEGRAM_THREAD_NFL"
     },
     "tennis": {
         "name": "TENNIS",
         "icon": "🎾",
-        "thread_keys": ["TELEGRAM_THREAD_TENNIS", "TELEGRAM_THREAD_ID"]
+        "secret_key": "TELEGRAM_TENNIS_THREAD_ID"
+    },
+    "darts": {
+        "name": "DARTS",
+        "icon": "🎯",
+        "secret_key": "TELEGRAM_DARTS_THREAD_ID"
+    },
+    "euro": {
+        "name": "EURO LEAGUES",
+        "icon": "🏆",
+        "secret_key": "TELEGRAM_EURO_THREAD_ID"
+    },
+    "college": {
+        "name": "COLLEGE SPORTS (NCAA)",
+        "icon": "🎓",
+        "secret_key": "TELEGRAM_COLLEGE_THREAD_ID"
+    },
+    "moneyrace": {
+        "name": "MONEYRACE",
+        "icon": "🚀",
+        "secret_key": "TELEGRAM_MONEYRACE_THREAD_ID"
+    },
+    "analytics": {
+        "name": "ANALYTICS",
+        "icon": "📈",
+        "secret_key": "TELEGRAM_ANALYTICS_THREAD_ID"
     }
 }
 
 def shorten_tag(tag: str) -> str:
-    """Kürzt lange Ticket-Namen für saubere, kompakte Überschriften."""
     t = str(tag).strip().upper()
     mapping = {
         "CONSERVATIVE 2-LEG BANKER": "BANKER",
@@ -64,7 +73,6 @@ def shorten_tag(tag: str) -> str:
     return mapping.get(t, t)
 
 def get_ticket_icon(ticket_name: str) -> str:
-    """Weist jeder Ticket-Kategorie ein passendes Icon zu."""
     name = ticket_name.upper()
     if "POTD" in name:
         return "⭐"
@@ -88,17 +96,10 @@ def format_picks_first_post(
     analyses: Optional[Any] = None,
     max_char_limit: int = 4000
 ) -> str:
-    """
-    Erstellt den Hauptpost für jede Sportart nach dem strikten 'Picks First'-Prinzip:
-    1. Header mit Sportart und Datum
-    2. Wettscheine auf einen Blick (POTD, Banker, Value, Props) inklusive Quoten und Units
-    3. Trennlinie
-    4. Analysen & Deep Dive (Modell-Logik, xG/Stats, Edge)
-    """
     cfg = SPORT_CONFIG.get(sport.lower(), {
         "name": sport.upper(),
         "icon": "🎯",
-        "thread_keys": ["TELEGRAM_THREAD_ID"]
+        "secret_key": "TELEGRAM_THREAD_ID"
     })
 
     header = (
@@ -176,7 +177,7 @@ def format_picks_first_post(
 
     full_post = f"{header}\n{picks_block}\n\n{analysis_block}".strip()
 
-    # Absicherung gegen das Telegram-Limit (4.096 Zeichen)
+    # Absicherung Telegram-Limit (4.096 Zeichen)
     if len(full_post) > max_char_limit:
         excess = len(full_post) - max_char_limit
         allowed_analysis_len = max(200, len(analysis_block) - excess - 60)
@@ -190,10 +191,6 @@ def format_standalone_live_ticker(
     active_cards: List[str],
     pending_list: List[str]
 ) -> str:
-    """
-    Erstellt den eigenständigen Live-Ticker-Post für jede Sportart.
-    Wird als Antwort auf das Haupt-Dossier gepostet und fortlaufend editiert.
-    """
     cfg = SPORT_CONFIG.get(sport.lower(), {"name": sport.upper(), "icon": "⏱️"})
 
     sections = [
@@ -224,9 +221,6 @@ def format_daily_settlement(
     total_profit: float,
     history_file_name: str = "history.csv"
 ) -> str:
-    """
-    Erstellt den standardisierten Tagesabschluss-Post für jede Sportart.
-    """
     cfg = SPORT_CONFIG.get(sport.lower(), {"name": sport.upper(), "icon": "🏁"})
     net_sign = "+" if total_profit > 0 else ""
     profit_color = "🟢" if total_profit > 0 else ("🔴" if total_profit < 0 else "⚪")
@@ -247,10 +241,6 @@ def format_daily_settlement(
     return summary_msg
 
 def send_to_sport_channel(text: str, sport: str, reply_to: Optional[int] = None) -> Optional[int]:
-    """
-    Sendet eine Nachricht garantiert in das richtige Sportarten-Thema (Thread/Topic).
-    Gibt die neue Telegram Message-ID zurück.
-    """
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
@@ -258,13 +248,9 @@ def send_to_sport_channel(text: str, sport: str, reply_to: Optional[int] = None)
         print(f"[{sport.upper()}] Fehler: TELEGRAM_BOT_TOKEN oder TELEGRAM_CHAT_ID fehlt.")
         return None
 
-    cfg = SPORT_CONFIG.get(sport.lower(), {"thread_keys": ["TELEGRAM_THREAD_ID"]})
-    thread_id = None
-    for key in cfg["thread_keys"]:
-        val = os.environ.get(key, "").strip()
-        if val:
-            thread_id = val
-            break
+    cfg = SPORT_CONFIG.get(sport.lower(), {})
+    secret_key = cfg.get("secret_key", "TELEGRAM_THREAD_ID")
+    thread_id = os.environ.get(secret_key, "").strip()
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
@@ -282,8 +268,7 @@ def send_to_sport_channel(text: str, sport: str, reply_to: Optional[int] = None)
     try:
         res = requests.post(url, json=payload, timeout=15)
         if res.status_code == 200:
-            msg_id = res.json().get("result", {}).get("message_id")
-            return msg_id
+            return res.json().get("result", {}).get("message_id")
         print(f"[{sport.upper()}] Telegram Send-Fehler ({res.status_code}): {res.text}")
     except Exception as e:
         print(f"[{sport.upper()}] Telegram Send Exception: {e}")
@@ -291,9 +276,6 @@ def send_to_sport_channel(text: str, sport: str, reply_to: Optional[int] = None)
     return None
 
 def edit_sport_channel_message(message_id: int, text: str) -> bool:
-    """
-    Editiert eine bereits existierende Nachricht (z. B. den Live-Ticker).
-    """
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
@@ -313,7 +295,6 @@ def edit_sport_channel_message(message_id: int, text: str) -> bool:
         res = requests.post(url, json=payload, timeout=15)
         if res.status_code == 200 or "message is not modified" in res.text:
             return True
-        # Fallback ohne parse_mode, falls defektes HTML enthalten war
         payload.pop("parse_mode", None)
         res2 = requests.post(url, json=payload, timeout=15)
         return res2.status_code == 200 or "message is not modified" in res2.text
