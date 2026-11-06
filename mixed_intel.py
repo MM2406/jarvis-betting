@@ -112,6 +112,20 @@ def save_history(history):
     except Exception as e:
         print(f"Fehler beim Speichern von {HISTORY_FILE}: {e}")
 
+def format_commence_time(val):
+    if not val:
+        return ""
+    try:
+        clean = str(val).strip()
+        if "T" in clean:
+            dt = datetime.fromisoformat(clean.replace("Z", "+00:00")).astimezone(LOCAL_TZ)
+            return dt.strftime("%H:%M")
+        elif len(clean) == 5 and ":" in clean:
+            return clean
+    except Exception:
+        pass
+    return ""
+
 def collect_daily_picks_pool():
     pool = []
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
@@ -127,22 +141,26 @@ def collect_daily_picks_pool():
                 if sport_label == "Soccer" and isinstance(data, dict):
                     if "potd" in data and isinstance(data["potd"], dict):
                         p = data["potd"]
+                        t_str = format_commence_time(p.get("time") or p.get("commence_time"))
                         pool.append({
                             "sport": "Soccer",
                             "category": "POTD",
                             "match": p.get("match"),
                             "pick": p.get("pick"),
+                            "time": t_str,
                             "odds": float(p.get("odds", 1.60)),
                             "is_anchor": True
                         })
                     for t in data.get("tickets", []):
                         t_name = t.get("ticket_name", "Kombi")
                         for p_leg in t.get("picks", []):
+                            t_str = format_commence_time(p_leg.get("time") or p_leg.get("commence_time"))
                             pool.append({
                                 "sport": "Soccer",
                                 "category": t_name,
                                 "match": p_leg.get("match"),
                                 "pick": p_leg.get("pick"),
+                                "time": t_str,
                                 "odds": 1.65,
                                 "is_anchor": False
                             })
@@ -162,13 +180,13 @@ def collect_daily_picks_pool():
                     if item_date and item_date != today_iso:
                         continue
 
-                    # Keine Beine übernehmen, die bereits kombinierte Wetten sind
                     match_str = str(it.get("match", ""))
                     if " // " in match_str or " + " in str(it.get("pick", "")):
                         continue
 
                     cat = str(it.get("category", "")).upper()
                     is_potd = any(k in cat for k in ["POTD", "MOTD", "TOP", "ANCHOR"])
+                    t_str = format_commence_time(it.get("time") or it.get("commence_time"))
                     
                     try:
                         odds_val = float(str(it.get("odds", 1.70)).replace(",", "."))
@@ -180,6 +198,7 @@ def collect_daily_picks_pool():
                         "category": cat or "SINGLE",
                         "match": match_str,
                         "pick": it.get("pick"),
+                        "time": t_str,
                         "odds": odds_val,
                         "is_anchor": is_potd
                     })
@@ -317,36 +336,33 @@ def run_mixed_intel():
     history = load_history()
     settle_pending_mixed(history)
 
-    # 12-Uhr-Sperre für manuellen Testlauf deaktiviert:
-    # now_hour = datetime.now(LOCAL_TZ).hour
-    # if now_hour < 12:
-    #     print("Morgen-Run: Nur Abrechnung durchgeführt.")
-    #     return
+    now_hour = datetime.now(LOCAL_TZ).hour
+    if now_hour < 12:
+        print("Morgen-Run: Nur Abrechnung durchgeführt.")
+        return
 
     pool = collect_daily_picks_pool()
     print(f"[Mixed] Gefundene Live-Picks im Pool: {len(pool)}")
 
-    # Test-Picks einspeisen, falls noch keine heutigen Daten vorliegen
     if len(pool) < 3:
-        print("[Mixed] Zu wenige Live-Picks vorhanden – verwende Test-Picks für Verifikation...")
-        pool = [
-            {"sport": "Soccer", "category": "POTD", "match": "Arsenal vs. Chelsea", "pick": "Über 2.5 Tore", "odds": 1.75, "is_anchor": True},
-            {"sport": "NBA", "category": "POTD", "match": "Boston Celtics vs. Miami Heat", "pick": "Celtics -5.5", "odds": 1.90, "is_anchor": True},
-            {"sport": "Darts", "category": "SINGLE", "match": "Luke Littler vs. Michael van Gerwen", "pick": "Littler Sieg", "odds": 1.65, "is_anchor": False},
-            {"sport": "NHL", "category": "SINGLE", "match": "Edmonton Oilers vs. Calgary Flames", "pick": "Oilers ML", "odds": 1.70, "is_anchor": False}
-        ]
+        print(f"Zu wenige Picks im Tages-Pool ({len(pool)}). Mindestens 3 erforderlich.")
+        return
 
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
-    pool_text = "\n".join([
-        f"[{p['sport']} | {p['category']}] {p['match']} ➔ {p['pick']} (@{p['odds']:.2f}) {'[POTD-ANKER]' if p['is_anchor'] else ''}"
-        for p in pool
-    ])
+    pool_lines = []
+    for p in pool:
+        time_part = f" [{p['time']} Uhr]" if p.get("time") else ""
+        anchor_part = " [POTD-ANKER]" if p.get("is_anchor") else ""
+        pool_lines.append(
+            f"[{p['sport']} | {p['category']}]{time_part} {p['match']} ➔ {p['pick']} (@{p['odds']:.2f}){anchor_part}"
+        )
+    pool_text = "\n".join(pool_lines)
 
     prompt = f"""
 Du bist 'JARVIS CROSS-SPORT PORTFOLIO QUANT'.
-Deine Aufgabe ist es, aus den heutigen, bereits validierten Sport-Tipps aus verschiedenen Ligen die mathematisch stärksten Cross-Sport-Kombiwetten zu bauen.
+Deine Aufgabe ist es, aus den heutigen vorvalidierten Sport-Tipps aus verschiedenen Ligen die mathematisch stärksten Cross-Sport-Kombiwetten zu bauen.
 
 VERFÜGBARE VORVALIDIERTE PICKS ({len(pool)} STÜCK):
 {pool_text}
@@ -370,7 +386,8 @@ STRIKTE PORTFOLIO-ARCHITEKTUR & REGELN:
       - Höhere Hebelwirkung bei kontrolliertem Risiko.
       - Ziel-Gesamtquote: 7.00 bis 14.00+. Einsatz: 0.35 Units.
 
-2. QUANT-VETO-REGELN:
+2. QUANT-VETO- & ZEIT-REGELN:
+   - STARTZEITEN: Gib bei JEDEM Bein zwingend die Uhrzeit an! Wenn im Input eine Uhrzeit vorhanden ist, übernimm sie. Falls im Input keine steht, recherchiere sie via Google Search. Format: '(HH:MM Uhr)'.
    - Keine Quoten unter 1.30 auf Einzelbeinen!
    - Eishockey NUR 2-Weg (inkl. OT) oder Puckline (+1.5), NIEMALS 3-Weg reguläre Spielzeit!
    - DIVERSITÄT: Mische die Sportarten zwingend (z. B. Fußball + NBA + Darts + NHL).
@@ -388,19 +405,19 @@ EXAKTES HTML-AUSGABEFORMAT:
 📋 <b>DIE 3 SCHEINE AUF EINEN BLICK:</b>
 
 🛡️ <b>SAFE HARBOR ACCA (<code>1.50u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Sport 1] [Match 1] ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
-• [Sport 2] [Match 2] ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
+• [Sport 1] [Match 1] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
+• [Sport 2] [Match 2] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
 
 ⚖️ <b>BALANCED VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Sport 1] [Match 1] ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
-• [Sport 2] [Match 2] ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
-• [Sport 3] [Match 3] ➔ <i>[Tipp 3]</i> (<code>@[Quote]</code>)
+• [Sport 1] [Match 1] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
+• [Sport 2] [Match 2] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
+• [Sport 3] [Match 3] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 3]</i> (<code>@[Quote]</code>)
 
 🚀 <b>MOONSHOT MULTI (<code>0.35u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Sport 1] [Match 1] ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
-• [Sport 2] [Match 2] ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
-• [Sport 3] [Match 3] ➔ <i>[Tipp 3]</i> (<code>@[Quote]</code>)
-• [Sport 4] [Match 4] ➔ <i>[Tipp 4]</i> (<code>@[Quote]</code>)
+• [Sport 1] [Match 1] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
+• [Sport 2] [Match 2] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
+• [Sport 3] [Match 3] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 3]</i> (<code>@[Quote]</code>)
+• [Sport 4] [Match 4] (<i>[HH:MM] Uhr</i>) ➔ <i>[Tipp 4]</i> (<code>@[Quote]</code>)
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 <b>PORTFOLIO-LOGIK & DIVERSIFIKATION (DEEP DIVE)</b>
