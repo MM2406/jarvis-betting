@@ -438,5 +438,75 @@
     "info": "Connor McDavid erzielte mit einem Tor und drei Assists insgesamt vier Scorerpunkte.",
     "stake": 1.0,
     "pnl": 0.8
+  },
+  {
+    "match": "Pittsburgh Penguins vs. Boston Bruins",
+    "pick": "Boston Bruins Sieg (inkl. OT)",
+    "odds": "1.93",
+    "odds_val": 1.93,
+    "stake": 1.0,
+    "pnl": 0.9299999999999999,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "legs_won": 1,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Pittsburgh Penguins vs Boston Bruins | Ergebnis: 2:6 | WON"
+    ]
+  },
+  {
+    "match": "NYI vs CAR / NJD vs STL / EDM vs ANA",
+    "pick": "Hurricanes ML + Devils ML + Oilers ML",
+    "odds": "3.35",
+    "odds_val": 3.35,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-05",
+    "is_kombi": true,
+    "legs_won": 2,
+    "legs_total": 3,
+    "details": [
+      "- Bein 1: New York Islanders vs. Carolina Hurricanes | Ergebnis: 3:5 | WON",
+      "- Bein 2: New Jersey Devils vs. St. Louis Blues | Ergebnis: 5:4 n.V. | WON",
+      "- Bein 3: Edmonton Oilers vs. Anaheim Ducks | Ergebnis: 4:5 | LOST"
+    ]
+  },
+  {
+    "match": "Edmonton Oilers vs. Anaheim Ducks",
+    "pick": "Over 6.5 Tore",
+    "odds": "1.68",
+    "odds_val": 1.68,
+    "stake": 1.0,
+    "pnl": 0.6799999999999999,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "legs_won": 1,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Edmonton Oilers vs. Anaheim Ducks | Ergebnis: 4:5 | WON"
+    ]
+  },
+  {
+    "match": "Edmonton Oilers vs. Anaheim Ducks",
+    "pick": "Connor McDavid Over 1.5 Scorerpunkte",
+    "odds": "1.80",
+    "odds_val": 1.8,
+    "stake": 1.0,
+    "pnl": 0.8,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "legs_won": 1,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Edmonton Oilers vs. Anaheim Ducks | Ergebnis: 4:5 (Connor McDavid: 4 Scorerpunkte – 1 Tor, 3 Assists) | WON"
+    ]
   }
 ]
