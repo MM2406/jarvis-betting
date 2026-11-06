@@ -111,9 +111,7 @@
       "score": "6:2, 3:6, 5:7",
       "info": "Da Etcheverry gegen Hijikata verloren hat, ist die Kombiwette bereits verloren.",
       "pnl": -0.75
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Jan-Lennard Struff vs. Casper Ruud",
       "sport": "Tennis",
@@ -123,9 +121,10 @@
       "stake": 0.75,
       "date": "2026-11-05",
       "is_kombi": false,
-      "status": "PENDING",
-      "score": "-",
-      "info": "Das Achtelfinal-Match beim Paris Masters 2026 ist noch nicht abgeschlossen oder gestartet."
+      "status": "LOST",
+      "score": "3:6, 3:6",
+      "info": "Mit nur 18 gespielten Games wurde die geforderte Mindestanzahl von 24 Games verfehlt.",
+      "pnl": -0.75
     },
     {
       "match": "Arthur Fils vs. Taylor Fritz",
@@ -136,7 +135,10 @@
       "stake": 1.5,
       "date": "2026-11-05",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "3:6, 4:6",
+      "info": "Taylor Fritz setzte sich souverän in zwei Sätzen gegen Arthur Fils durch.",
+      "pnl": 1.5
     },
     {
       "match": "Jan-Lennard Struff vs. Casper Ruud // Ben Shelton vs. Tommy Paul",
@@ -147,6 +149,44 @@
       "stake": 0.75,
       "date": "2026-11-05",
       "is_kombi": true,
+      "status": "LOST",
+      "score": "6:3, 6:3 // 6:4, 4:6, 6:3",
+      "info": "Ruud gewann souverän, doch Tommy Paul verlor sein Match gegen Ben Shelton in drei Sätzen.",
+      "pnl": -0.75
+    }
+  ],
+  "pending": [
+    {
+      "match": "[ATP] Casper Ruud vs. Nuno Borges",
+      "sport": "Tennis",
+      "category": "POTD",
+      "pick": "Nuno Borges (+3.5 Games)",
+      "odds": 1.78,
+      "stake": 1.5,
+      "date": "2026-11-06",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "[ATP] Taylor Fritz vs. Carlos Alcaraz // [ATP] Casper Ruud vs. Nuno Borges",
+      "sport": "Tennis",
+      "category": "ACCA",
+      "pick": "Carlos Alcaraz Sieg + Casper Ruud Sieg",
+      "odds": 1.9,
+      "stake": 1.0,
+      "date": "2026-11-06",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "[ATP] Casper Ruud vs. Nuno Borges",
+      "sport": "Tennis",
+      "category": "TOTALS",
+      "pick": "Over 22.5 Games",
+      "odds": 1.9,
+      "stake": 0.75,
+      "date": "2026-11-06",
+      "is_kombi": false,
       "status": "PENDING"
     }
   ]
