@@ -8,7 +8,9 @@
       "odds": 2.89,
       "stake": 1.5,
       "date": "2026-11-06",
-      "status": "PENDING"
+      "status": "PENDING",
+      "score": "",
+      "info": ""
     },
     {
       "tier": "⚖️ BALANCED VALUE ACCA",
@@ -17,13 +19,42 @@
       "odds": 5.33,
       "stake": 0.75,
       "date": "2026-11-06",
-      "status": "PENDING"
+      "status": "PENDING",
+      "score": "Celtics @ Hornets (steht noch an, Beginn 19:00 Uhr ET) | Oilers (kein Spiel am 06.11.2026; 4:5-Niederlage am 05.11. gegen die Ducks) | Luke Littler (kein beendetes Match)",
+      "info": "Gemäß Regel 1 muss zwingend mit PENDING geantwortet werden, da noch nicht alle Partien regulär beendet sind und mindestens ein Spiel der Wette (Boston Celtics bei den Charlotte Hornets) noch ansteht."
     },
     {
       "tier": "🚀 MOONSHOT MULTI",
       "sport": "Mixed",
       "pick": "Arsenal Über 2.5 (Soccer) + Celtics -5.5 (NBA) + Littler Sieg (Darts) + Oilers ML (NHL)",
       "odds": 9.33,
+      "stake": 0.35,
+      "date": "2026-11-06",
+      "status": "PENDING"
+    },
+    {
+      "tier": "🛡️ SAFE HARBOR ACCA",
+      "sport": "Mixed",
+      "pick": "Unter 2.5 Tore (Sevilla vs. Alavés) + Žalgiris Sieg (Beşiktaş vs. Žalgiris)",
+      "odds": 2.97,
+      "stake": 1.5,
+      "date": "2026-11-06",
+      "status": "PENDING"
+    },
+    {
+      "tier": "⚖️ BALANCED VALUE ACCA",
+      "sport": "Mixed",
+      "pick": "Dynamo Dresden Sieg + Žalgiris Sieg + 1+ Schuss aufs Tor (Everton vs. Coventry)",
+      "odds": 4.9,
+      "stake": 0.75,
+      "date": "2026-11-06",
+      "status": "PENDING"
+    },
+    {
+      "tier": "🚀 MOONSHOT MULTI",
+      "sport": "Mixed",
+      "pick": "Sevilla Sieg + Under 174.5 (Beşiktaş vs. Žalgiris) + Über 2.5 Tore (Toulouse vs. Strasbourg) + 1+ Schuss aufs Tor (Everton vs. Coventry)",
+      "odds": 10.13,
       "stake": 0.35,
       "date": "2026-11-06",
       "status": "PENDING"
