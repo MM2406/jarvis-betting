@@ -382,5 +382,61 @@
     "details": [
       "- Bein 1: Buffalo Sabres vs Ottawa Senators | Ergebnis: 1:2 (Tage Thompson: 1 Scorerpunkt / 1 Assist) | WON"
     ]
+  },
+  {
+    "match": "Pittsburgh Penguins vs. Boston Bruins",
+    "sport": "NHL",
+    "category": "PICK OF THE DAY",
+    "pick": "Boston Bruins Sieg (inkl. OT)",
+    "odds": 1.93,
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "status": "WON",
+    "score": "BOS 6:2",
+    "info": "Die Boston Bruins gewannen die Partie in Pittsburgh regulär mit 6:2.",
+    "stake": 1.0,
+    "pnl": 0.93
+  },
+  {
+    "match": "NYI vs CAR / NJD vs STL / EDM vs ANA",
+    "sport": "NHL",
+    "category": "QUANT VALUE ACCA",
+    "pick": "Hurricanes ML + Devils ML + Oilers ML",
+    "odds": 3.35,
+    "date": "2026-11-05",
+    "is_kombi": true,
+    "status": "LOST",
+    "score": "CAR 5:3 / NJD 5:4 OT / ANA 5:4",
+    "info": "Hurricanes und Devils gewannen, doch die Oilers verloren mit 4:5 gegen Anaheim.",
+    "stake": 1.0,
+    "pnl": -1.0
+  },
+  {
+    "match": "Edmonton Oilers vs. Anaheim Ducks",
+    "sport": "NHL",
+    "category": "TOTALS SPOTLIGHT",
+    "pick": "Over 6.5 Tore",
+    "odds": 1.68,
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "status": "WON",
+    "score": "EDM 4:5 ANA",
+    "info": "Mit insgesamt 9 Toren wurde die Over-Linie von 6,5 deutlich übertroffen.",
+    "stake": 1.0,
+    "pnl": 0.68
+  },
+  {
+    "match": "Edmonton Oilers vs. Anaheim Ducks",
+    "sport": "NHL",
+    "category": "PLAYER PROP",
+    "pick": "Connor McDavid Over 1.5 Scorerpunkte",
+    "odds": 1.8,
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "status": "WON",
+    "score": "EDM 4:5 ANA",
+    "info": "Connor McDavid erzielte mit einem Tor und drei Assists insgesamt vier Scorerpunkte.",
+    "stake": 1.0,
+    "pnl": 0.8
   }
 ]
