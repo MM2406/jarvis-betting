@@ -1,1 +1,105 @@
-{}
+{
+  "date": "2026-11-06",
+  "potd": {
+    "match": "Sevilla vs. Alavés",
+    "pick": "Sevilla Sieg",
+    "odds": 1.86,
+    "stake": 1.5
+  },
+  "tickets": [
+    {
+      "ticket_name": "CONSERVATIVE BANKER",
+      "odds": 2.57,
+      "stake": 1.25,
+      "picks": [
+        {
+          "match": "Everton vs. Coventry City",
+          "pick": "Everton Sieg",
+          "odds": 1.56
+        },
+        {
+          "match": "Sevilla vs. Alavés",
+          "pick": "Unter 2.5 Tore",
+          "odds": 1.65
+        }
+      ]
+    },
+    {
+      "ticket_name": "BALANCED VALUE ACCA",
+      "odds": 6.53,
+      "stake": 0.75,
+      "picks": [
+        {
+          "match": "Dynamo Dresden vs. Greuther Fürth",
+          "pick": "Dynamo Dresden Sieg",
+          "odds": 1.93
+        },
+        {
+          "match": "Toulouse vs. Strasbourg",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.8
+        },
+        {
+          "match": "Venezia vs. Udinese",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.88
+        }
+      ]
+    },
+    {
+      "ticket_name": "HYBRID QUANT MULTI",
+      "odds": 3.88,
+      "stake": 0.5,
+      "picks": [
+        {
+          "match": "Hamburger SV vs. Borussia Mönchengladbach",
+          "pick": "Über 2.5 Tore",
+          "odds": 2.02
+        },
+        {
+          "match": "Eintracht Braunschweig vs. FC Energie Cottbus",
+          "pick": "Eintracht Braunschweig Sieg",
+          "odds": 1.92
+        }
+      ]
+    },
+    {
+      "ticket_name": "GOALS & BTTS VALUE ACCA",
+      "odds": 3.51,
+      "stake": 0.75,
+      "picks": [
+        {
+          "match": "Toulouse vs. Strasbourg",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.8
+        },
+        {
+          "match": "Eintracht Braunschweig vs. FC Energie Cottbus",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.95
+        }
+      ]
+    },
+    {
+      "ticket_name": "PLAYER PROPS MULTI",
+      "odds": 2.45,
+      "stake": 0.5,
+      "picks": [
+        {
+          "match": "Sevilla vs. Alavés",
+          "player": "Dodi Lukebakio",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.55
+        },
+        {
+          "match": "Everton vs. Coventry City",
+          "player": "Beto",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.58
+        }
+      ]
+    }
+  ],
+  "message_id": 243,
+  "original_text": "⚽ <b>JARVIS SOCCER — TAGESEMPFEHLUNGEN (06.11.2026)</b>\n━━━━━━━━━━━━━━━━━━━━\n📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>\n\n⭐ <b>POTD (<code>1.50u</code> | <code>@1.86</code>)</b>\n• <b>Sevilla vs. Alavés</b> ➔ <i>Sevilla Sieg</i> <code>@1.86</code>\n\n🔥 <b>CONSERVATIVE BANKER (<code>1.25u</code> | Gesamt: <code>@2.57</code>)</b>\n• Everton vs. Coventry City ➔ <i>Everton Sieg</i> <code>@1.56</code>\n• Sevilla vs. Alavés ➔ <i>Unter 2.5 Tore</i> <code>@1.65</code>\n\n⚖️ <b>BALANCED VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@6.53</code>)</b>\n• Dynamo Dresden vs. Greuther Fürth ➔ <i>Dynamo Dresden Sieg</i> <code>@1.93</code>\n• Toulouse vs. Strasbourg ➔ <i>Über 2.5 Tore</i> <code>@1.80</code>\n• Venezia vs. Udinese ➔ <i>Über 2.5 Tore</i> <code>@1.88</code>\n\n⚡ <b>HYBRID QUANT MULTI (<code>0.50u</code> | Gesamt: <code>@3.88</code>)</b>\n• Hamburger SV vs. Borussia Mönchengladbach ➔ <i>Über 2.5 Tore</i> <code>@2.02</code>\n• Eintracht Braunschweig vs. FC Energie Cottbus ➔ <i>Eintracht Braunschweig Sieg</i> <code>@1.92</code>\n\n⚽ <b>GOALS & BTTS VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@3.51</code>)</b>\n• Toulouse vs. Strasbourg ➔ <i>Über 2.5 Tore</i> <code>@1.80</code>\n• Eintracht Braunschweig vs. FC Energie Cottbus ➔ <i>Über 2.5 Tore</i> <code>@1.95</code>\n\n🎯 <b>PLAYER PROPS MULTI (<code>0.50u</code> | Gesamt: <code>@2.45</code>)</b>\n• Dodi Lukebakio (Sevilla) ➔ <i>1+ Schuss aufs Tor</i> <code>@1.55</code>\n• Beto (Everton) ➔ <i>1+ Schuss aufs Tor</i> <code>@1.58</code>\n\n━━━━━━━━━━━━━━━━━━━━\n📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>\n\n🔎 <b>POTD: Sevilla vs. Alavés</b>\n• <b>Edge:</b> +8,2% Value Kante (Modell-Fair-Quote: <code>@1.72</code> vs. API-Quote: <code>@1.86</code>).\n• <b>Logik:</b> Sevilla dominiert im heimischen Ramón Sánchez-Pizjuán mit stabiler Feldkontrolle und hoher Ballbesitzdominanz gegen Alavés, die auswärts chronisch abschluss- und pressinganfällig auftreten. Der xG-Projektionswert von 1.76 zu 0.74 generiert einen signifikanten mathematischen Vorteil für den Heimerfolg.\n\n🔎 <b>Banker & Value Begründungen:</b>\n• Everton: Klare individuelle Qualitätsvorteile an der Merseyside gegen Coventry City; ein xG-Delta von +0.85 pro 90 Minuten unterstreicht den Favoritenstatus.\n• Dynamo Dresden: Vor heimischer Kulisse mit intensiver Zweikampfführung gegen Fürth, deren Abwehrzentrum bei schnellen Umschaltmomenten über 1.7 Gegentore/Spiel projiziert.\n• Toulouse vs. Strasbourg: Vertikale Spielstile auf beiden Seiten treffen auf offene Zwischenlinien, was bei über 3.10 kumuliertem Match-xG Value auf das Über liefert."
+}
