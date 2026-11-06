@@ -121,6 +121,16 @@
       "return": 0.0
     }
   ],
-  "active_pick": null,
-  "last_run_date": "2026-11-05"
+  "active_pick": {
+    "step": 1,
+    "match": "Olympiacos vs. KK Crvena zvezda",
+    "sport": "Basketball",
+    "pick": "Sieg Olympiacos (Moneyline)",
+    "odds": 1.45,
+    "stake": 5.0,
+    "expected_return": 7.25,
+    "date": "2026-11-06",
+    "message_id": 248
+  },
+  "last_run_date": "2026-11-06"
 }
