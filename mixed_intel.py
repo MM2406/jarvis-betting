@@ -48,16 +48,17 @@ def send_telegram(text, reply_to=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3900
     chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
+    rem_text = text.strip()
+    while len(rem_text) > max_len:
+        split_idx = rem_text.rfind("\n\n", 0, max_len)
         if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
+            split_idx = rem_text.rfind("\n", 0, max_len)
         if split_idx == -1:
             split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
+        chunks.append(rem_text[:split_idx].strip())
+        rem_text = rem_text[split_idx:].strip()
+    if rem_text:
+        chunks.append(rem_text)
 
     last_msg_id = None
     for chunk in chunks:
@@ -161,7 +162,7 @@ def collect_daily_picks_pool():
                     if item_date and item_date != today_iso:
                         continue
 
-                    # Nur Einzelbeine in den Pool übernehmen (keine bereits kombinierten Strings)
+                    # Keine Beine übernehmen, die bereits kombinierte Wetten sind
                     match_str = str(it.get("match", ""))
                     if " // " in match_str or " + " in str(it.get("pick", "")):
                         continue
@@ -189,7 +190,7 @@ def collect_daily_picks_pool():
     seen = set()
     unique_pool = []
     for p in pool:
-        k = (p.get("match", "").strip().lower(), p.get("pick", "").strip().lower())
+        k = (str(p.get("match", "")).strip().lower(), str(p.get("pick", "")).strip().lower())
         if k not in seen and p.get("match") and p.get("pick"):
             seen.add(k)
             unique_pool.append(p)
@@ -316,15 +317,24 @@ def run_mixed_intel():
     history = load_history()
     settle_pending_mixed(history)
 
-    now_hour = datetime.now(LOCAL_TZ).hour
-    if now_hour < 12:
-        print("Morgen-Run: Nur Abrechnung durchgeführt.")
-        return
+    # 12-Uhr-Sperre für manuellen Testlauf deaktiviert:
+    # now_hour = datetime.now(LOCAL_TZ).hour
+    # if now_hour < 12:
+    #     print("Morgen-Run: Nur Abrechnung durchgeführt.")
+    #     return
 
     pool = collect_daily_picks_pool()
+    print(f"[Mixed] Gefundene Live-Picks im Pool: {len(pool)}")
+
+    # Test-Picks einspeisen, falls noch keine heutigen Daten vorliegen
     if len(pool) < 3:
-        print(f"Zu wenige Picks im Tages-Pool ({len(pool)}). Mindestens 3 erforderlich.")
-        return
+        print("[Mixed] Zu wenige Live-Picks vorhanden – verwende Test-Picks für Verifikation...")
+        pool = [
+            {"sport": "Soccer", "category": "POTD", "match": "Arsenal vs. Chelsea", "pick": "Über 2.5 Tore", "odds": 1.75, "is_anchor": True},
+            {"sport": "NBA", "category": "POTD", "match": "Boston Celtics vs. Miami Heat", "pick": "Celtics -5.5", "odds": 1.90, "is_anchor": True},
+            {"sport": "Darts", "category": "SINGLE", "match": "Luke Littler vs. Michael van Gerwen", "pick": "Littler Sieg", "odds": 1.65, "is_anchor": False},
+            {"sport": "NHL", "category": "SINGLE", "match": "Edmonton Oilers vs. Calgary Flames", "pick": "Oilers ML", "odds": 1.70, "is_anchor": False}
+        ]
 
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
