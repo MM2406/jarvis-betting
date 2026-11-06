@@ -73,5 +73,39 @@
       "pnl": 0.71
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "match": "Michigan Wolverines vs UConn Huskies",
+      "sport": "US College",
+      "category": "POTD",
+      "pick": "UConn Huskies -7.5",
+      "odds": 1.95,
+      "stake": 1.5,
+      "date": "2026-11-06",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "Boston College Eagles vs Massachusetts Minutemen // Clemson Tigers vs American Eagles",
+      "sport": "US College",
+      "category": "ACCA",
+      "pick": "Boston College Eagles -5.5 + Clemson Tigers -15.5",
+      "odds": 3.69,
+      "stake": 1.0,
+      "date": "2026-11-06",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "Saint Louis Billikens vs Missouri Tigers",
+      "sport": "US College",
+      "category": "SPOTLIGHT",
+      "pick": "Saint Louis Billikens ML",
+      "odds": 2.08,
+      "stake": 0.75,
+      "date": "2026-11-06",
+      "is_kombi": false,
+      "status": "PENDING"
+    }
+  ]
 }
