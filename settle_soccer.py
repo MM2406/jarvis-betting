@@ -6,17 +6,16 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 try:
-    from telegram_sender import send_to_telegram
+    from telegram_formatter import send_to_sport_channel
 except ImportError:
-    send_to_telegram = None
+    send_to_sport_channel = None
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-
-# Sichere Fallback-Kette für das Soccer-Topic
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_THREAD_SOCCER", "").strip()
+    or os.environ.get("TELEGRAM_SOCCER_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
@@ -54,16 +53,18 @@ def append_to_history(settled_items):
     except Exception as e:
         print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
 
-def send_telegram_message(text):
-    if send_to_telegram:
-        return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_SOCCER")
+def send_telegram_message(text, reply_to=None):
+    if send_to_sport_channel:
+        msg_id = send_to_sport_channel(text, sport="soccer", reply_to=reply_to)
+        if msg_id:
+            return msg_id
 
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
         return None
 
     if not TELEGRAM_THREAD_ID:
-        print("[Telegram] ABBRUCH: Keine Soccer Thread-ID vorhanden. Senden in Hauptchat blockiert.")
+        print("[Telegram] ABBRUCH: Keine Soccer Thread-ID vorhanden. Senden blockiert.")
         return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -87,6 +88,9 @@ def send_telegram_message(text):
             "parse_mode": "HTML",
             "message_thread_id": int(TELEGRAM_THREAD_ID)
         }
+        if reply_to:
+            payload["reply_to_message_id"] = int(reply_to)
+
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code != 200:
             payload.pop("parse_mode", None)
@@ -101,23 +105,21 @@ def settle_soccer_bets():
         return
 
     with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+        try:
+            data = json.load(f)
+        except Exception:
+            data = {}
 
-    if not data:
-        print("pending_soccer.json ist leer. Keine Wetten zum Abrechnen.")
+    # Bereits am Vorabend durch soccer_live abgerechnet oder komplett leer
+    if not data or data == {} or data.get("settled") is True:
+        print("pending_soccer.json ist bereits abgerechnet oder leer. Kein zweites Settlement nötig.")
         return
 
+    main_msg_id = data.get("message_id") if isinstance(data, dict) else None
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
     date_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     if isinstance(data, dict):
         date_display = data.get("date", date_display)
-    elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
-        d_val = data[0].get("date", "")
-        if d_val:
-            try:
-                date_display = datetime.strptime(d_val[:10], "%Y-%m-%d").strftime("%d.%m.%Y")
-            except Exception:
-                date_display = str(d_val)
 
     bt = "```"
 
@@ -132,7 +134,7 @@ REGELN:
 1. Prüfe, ob alle Spiele offiziell beendet sind (FT - Reguläre Spielzeit 90 Min + Nachspielzeit).
 2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
 3. Bei Kombiwetten: Zeige jedes Bein (Leg) mit Ergebnis und Status.
-4. Berechne Netto-Units (Einsatz: 1.00 Unit pro Wette/Schein).
+4. Berechne Netto-Units.
 
 Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
 {bt}json
@@ -162,10 +164,8 @@ Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
 {bt}
 
 FORMAT-VORLAGE FÜR TELEGRAM:
-<b>⚽ JARVIS SOCCER SETTLEMENT & RECAP</b>
-<i>Abrechnung der Fussball-Slate vom {date_display}</i>
-
-<b>━━━━━━━━━━━━━━━━━━━━</b>
+⚽ <b>JARVIS SOCCER — TAGESABSCHLUSS ({date_display})</b>
+━━━━━━━━━━━━━━━━━━━━
 [Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen übersichtlich darstellen]
 """
 
@@ -227,7 +227,7 @@ FORMAT-VORLAGE FÜR TELEGRAM:
             final_message = clean_text
             is_complete = "---STATUS: COMPLETE---" in raw_text
 
-        send_telegram_message(final_message)
+        send_telegram_message(final_message, reply_to=main_msg_id)
 
         if is_complete:
             items_to_archive = []
@@ -245,9 +245,10 @@ FORMAT-VORLAGE FÜR TELEGRAM:
 
             append_to_history(items_to_archive)
 
+            # WICHTIG: Als Dictionary {} leeren, NIE wieder als Liste []!
             with open(file_path, "w", encoding="utf-8") as f:
-                json.dump([], f, indent=2)
-            print("Alle Soccer Wetten final beendet. pending_soccer.json geleert und archiviert.")
+                json.dump({}, f, indent=2)
+            print("Alle Soccer Wetten final beendet. pending_soccer.json sauber als {} geleert.")
         else:
             print("Noch Soccer Spiele offen. pending_soccer.json bleibt erhalten.")
 
