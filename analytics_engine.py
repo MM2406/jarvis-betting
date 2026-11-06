@@ -23,7 +23,7 @@ TELEGRAM_ANALYTICS_THREAD = (
     or "134"
 )
 
-# Alle 8 Sport- und Challenge-Module einbinden
+# Alle 10 Sport-, Multi- und Challenge-Module vollständig integriert
 SPORT_FILES = {
     "Soccer": "soccer_history.json",
     "NBA": "nba_history.json",
@@ -33,7 +33,8 @@ SPORT_FILES = {
     "Euro-Hoops": "euro_history.json",
     "US College": "college_history.json",
     "Darts": "darts_history.json",
-    "Moneyrace": "moneyrace_state.json"
+    "Moneyrace": "moneyrace_state.json",
+    "Mixed": "mixed_history.json"
 }
 
 SPORT_ALIAS_MAP = {
@@ -56,7 +57,10 @@ SPORT_ALIAS_MAP = {
     "basketball_ncaab": "US College",
     "us college": "US College",
     "college": "US College",
-    "moneyrace": "Moneyrace"
+    "moneyrace": "Moneyrace",
+    "mixed": "Mixed",
+    "multi": "Mixed",
+    "cross-sport": "Mixed"
 }
 
 SPORT_ICONS = {
@@ -68,7 +72,8 @@ SPORT_ICONS = {
     "Euro-Hoops": "🇪🇺",
     "US College": "🎓",
     "Darts": "🎯",
-    "Moneyrace": "🎯"
+    "Moneyrace": "🚀",
+    "Mixed": "🎯"
 }
 
 def make_mini_bar(percentage, segments=5):
@@ -88,8 +93,12 @@ def is_parlay(bet):
     if bet.get("is_kombi") is True:
         return True
 
-    category = str(bet.get("category") or "").upper()
-    if any(k in category for k in ["ACCA", "KOMBI", "PARLAY", "MULTI"]):
+    # Mixed-Accas sind per Definition Kombiwetten
+    if str(bet.get("sport", "")).strip().lower() == "mixed":
+        return True
+
+    category = str(bet.get("category") or bet.get("tier") or "").upper()
+    if any(k in category for k in ["ACCA", "KOMBI", "PARLAY", "MULTI", "SAFE HARBOR", "MOONSHOT", "BALANCED"]):
         return True
 
     pick_str = str(bet.get("pick") or "")
@@ -345,7 +354,7 @@ def build_simple_caption(metrics, timeframe):
 {sports_text}
 
 ━━━━━━━━━━━━━━━━━━━━
-⚡ <b>TEIL 2: KOMBIWETTEN (PARLAYS)</b>
+⚡ <b>TEIL 2: KOMBIWETTEN (PARLAYS & MIXED)</b>
 • <b>Gespielt:</b> <code>{p['total']} Kombis</code>
 • <b>Bilanz:</b> <code>{p['wins']}W - {p['losses']}L - {p['pushes']}V</code>
 • <b>Profit:</b> <b>{p_pnl_sign}{p['pnl']:.2f} Units</b> ({p_roi_sign}{p['roi']:.1f}% ROI)
