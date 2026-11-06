@@ -86,80 +86,141 @@ def get_match_minute(ev):
 
     return 0, status.get("description", "Live"), False
 
-def evaluate_pick_progress(match_str, pick_text, h_score, a_score, is_finished=False):
+def evaluate_pick_progress(match_str, pick_text, h_score, a_score, curr_min=0, is_finished=False):
     pt = pick_text.lower()
     total_goals = h_score + a_score
 
+    # 1. Spieler-Props
     if any(k in pt for k in ["torschuss", "torschüsse", "shots on target", "scorer", "trifft", "torerzieler"]):
         if is_finished:
-            return "✅ Spieler-Prop beendet"
-        return "⏳ Spieler aktiv"
+            return "✅ Spieler-Prop beendet", "🏁"
+        return "⏳ Spieler aktiv", ("🟡" if curr_min >= 65 else "🟢")
 
+    # 2. Über 2.5 Tore
     if "über 2.5" in pt or "over 2.5" in pt:
         if total_goals >= 3:
-            return f"✅ {total_goals}/3 Tore"
-        return f"❌ {total_goals}/3 Tore" if is_finished else f"⏳ {total_goals}/3 Tore"
+            return f"✅ {total_goals}/3 Tore", "🟢"
+        if is_finished:
+            return f"❌ {total_goals}/3 Tore", "🏁"
+        if curr_min >= 70:
+            return f"🔴 {total_goals}/3 Tore (Kritisch)", "🔴"
+        if curr_min >= 45:
+            return f"🟡 {total_goals}/3 Tore", "🟡"
+        return f"⏳ {total_goals}/3 Tore", "🟢"
 
+    # 3. Über 2.0 Tore
     if "über 2.0" in pt or "over 2.0" in pt:
         if total_goals > 2:
-            return f"✅ {total_goals}/2 Tore"
-        elif total_goals == 2 and is_finished:
-            return "🟡 Push (2 Tore)"
-        return f"❌ {total_goals}/2 Tore" if is_finished else f"⏳ {total_goals}/2 Tore"
+            return f"✅ {total_goals}/2 Tore", "🟢"
+        if is_finished:
+            return ("🟡 Push (2 Tore)", "🏁") if total_goals == 2 else (f"❌ {total_goals}/2 Tore", "🏁")
+        if curr_min >= 70:
+            return f"🔴 {total_goals}/2 Tore (Kritisch)", "🔴"
+        return (f"🟡 {total_goals}/2 Tore", "🟡") if curr_min >= 45 else (f"⏳ {total_goals}/2 Tore", "🟢")
 
+    # 4. Über 1.5 Tore
     if "über 1.5" in pt and "team" not in pt:
         if total_goals >= 2:
-            return f"✅ {total_goals}/2 Tore"
-        return f"❌ {total_goals}/2 Tore" if is_finished else f"⏳ {total_goals}/2 Tore"
+            return f"✅ {total_goals}/2 Tore", "🟢"
+        if is_finished:
+            return f"❌ {total_goals}/2 Tore", "🏁"
+        if curr_min >= 75:
+            return f"🔴 {total_goals}/2 Tore (Kritisch)", "🔴"
+        return (f"🟡 {total_goals}/2 Tore", "🟡") if curr_min >= 55 else (f"⏳ {total_goals}/2 Tore", "🟢")
 
+    # 5. Unter 2.5 Tore
     if "unter 2.5" in pt or "under 2.5" in pt:
         if total_goals >= 3:
-            return f"❌ {total_goals} Tore (Max 2)"
-        return f"✅ {total_goals} Tore (Max 2)" if is_finished else f"⏳ {total_goals} Tore (Max 2)"
+            return f"❌ {total_goals} Tore (Max 2)", "🏁" if is_finished else "🔴"
+        if is_finished:
+            return f"✅ {total_goals} Tore (Max 2)", "🏁"
+        if total_goals == 2:
+            return f"🔴 {total_goals} Tore (Akut gefährdet)", "🔴"
+        if curr_min >= 65:
+            return f"🟡 {total_goals} Tore (Unter Druck)", "🟡"
+        return f"⏳ {total_goals} Tore (Max 2)", "🟢"
 
+    # 6. Beide treffen (BTTS)
     if "beide" in pt or "btts" in pt:
         hit = (1 if h_score > 0 else 0) + (1 if a_score > 0 else 0)
         if hit == 2:
-            return "✅ Beide getroffen"
-        return f"❌ {hit}/2 Teams" if is_finished else f"⏳ {hit}/2 Teams"
+            return "✅ Beide getroffen", "🟢"
+        if is_finished:
+            return f"❌ {hit}/2 Teams", "🏁"
+        if curr_min >= 70:
+            return f"🔴 {hit}/2 Teams (Kritisch)", "🔴"
+        return (f"🟡 {hit}/2 Teams", "🟡") if curr_min >= 45 else (f"⏳ {hit}/2 Teams", "🟢")
 
+    # 7. Siegwetten, DNB & Doppelte Chance
     parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", match_str, flags=re.IGNORECASE)]
     if len(parts) >= 2:
         h_name, a_name = parts[0], parts[1]
 
+        # Team-Tore
         if "team-tore" in pt or "team tore" in pt:
             team_score = h_score if h_name in pt else (a_score if a_name in pt else h_score)
             if team_score >= 2:
-                return f"✅ {team_score}/2 Team-Tore"
-            return f"❌ {team_score}/2 Team-Tore" if is_finished else f"⏳ {team_score}/2 Team-Tore"
+                return f"✅ {team_score}/2 Team-Tore", "🟢"
+            if is_finished:
+                return f"❌ {team_score}/2 Team-Tore", "🏁"
+            if curr_min >= 70:
+                return f"🔴 {team_score}/2 Team-Tore (Kritisch)", "🔴"
+            return (f"🟡 {team_score}/2 Team-Tore", "🟡") if curr_min >= 45 else (f"⏳ {team_score}/2 Team-Tore", "🟢")
 
         is_home_pick = h_name in pt
         is_away_pick = a_name in pt
 
+        # Doppelte Chance 1X
         if "1x" in pt:
             if h_score >= a_score:
-                return "✅ 1X auf Kurs" if not is_finished else "✅ 1X gewonnen"
-            return "❌ 1X verloren" if is_finished else "⏳ 1X im Rückstand"
+                if is_finished:
+                    return "✅ 1X gewonnen", "🏁"
+                return ("🟡 1X knapp (Remis)", "🟡") if (h_score == a_score and curr_min >= 60) else ("🟢 1X auf Kurs", "🟢")
+            if is_finished:
+                return "❌ 1X verloren", "🏁"
+            return "🔴 1X im Rückstand", "🔴"
 
+        # DNB
         if "dnb" in pt:
-            if (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score):
-                return "✅ DNB auf Kurs" if not is_finished else "✅ DNB gewonnen"
-            elif h_score == a_score:
-                return "⏳ DNB (Remis)" if not is_finished else "🟡 DNB Push (Void)"
-            return "❌ DNB verloren" if is_finished else "⏳ DNB im Rückstand"
+            leads = (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score)
+            is_draw = (h_score == a_score)
+            if leads:
+                if is_finished:
+                    return "✅ DNB gewonnen", "🏁"
+                return "🟢 DNB Führung", "🟢"
+            elif is_draw:
+                if is_finished:
+                    return "🟡 DNB Push (Void)", "🏁"
+                return ("🟡 DNB (Remis)", "🟡") if curr_min >= 50 else ("⏳ DNB (Remis)", "🟢")
+            else:
+                if is_finished:
+                    return "❌ DNB verloren", "🏁"
+                return "🔴 DNB im Rückstand", "🔴"
 
+        # Regulärer Sieg / Remis
         if "sieg" in pt or "remis" in pt:
             if "remis" in pt:
                 if h_score == a_score:
-                    return "⏳ Remis" if not is_finished else "✅ Remis getroffen"
-                return "❌ Kein Remis" if is_finished else "⏳ Kein Remis"
-            if (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score):
-                return "✅ Führung" if not is_finished else "✅ Sieg gewonnen"
-            elif h_score == a_score:
-                return "⏳ Remis" if not is_finished else "❌ Kein Sieg"
-            return "❌ Rückstand" if is_finished else "⏳ Rückstand"
+                    return ("✅ Remis getroffen", "🏁") if is_finished else ("🟢 Remis", "🟢")
+                return ("❌ Kein Remis", "🏁") if is_finished else (("🔴 Kein Remis", "🔴") if curr_min >= 70 else ("🟡 Kein Remis", "🟡"))
 
-    return None
+            leads = (is_home_pick and h_score > a_score) or (is_away_pick and a_score > h_score)
+            is_draw = (h_score == a_score)
+
+            if leads:
+                if is_finished:
+                    return "✅ Sieg gewonnen", "🏁"
+                return ("🟢 Führung komfortabel", "🟢") if abs(h_score - a_score) >= 2 else ("🟡 Führung knapp", "🟡" if curr_min >= 65 else "🟢")
+            elif is_draw:
+                if is_finished:
+                    return "❌ Kein Sieg (Remis)", "🏁"
+                return ("🔴 Remis (Kritisch)", "🔴") if curr_min >= 70 else ("🟡 Remis", "🟡" if curr_min >= 40 else "🟢")
+            else:
+                if is_finished:
+                    return "❌ Rückstand verloren", "🏁"
+                return "🔴 Im Rückstand", "🔴"
+
+    return None, "🟢"
 
 def fallback_gemini_match(match_str):
     if not GEMINI_API_KEY:
@@ -192,7 +253,6 @@ def fallback_gemini_match(match_str):
     return None
 
 def append_to_history(records, json_settled_items=None):
-    # 1. In CSV speichern
     file_exists = os.path.exists(HISTORY_CSV)
     try:
         with open(HISTORY_CSV, "a", newline="", encoding="utf-8") as f:
@@ -212,7 +272,6 @@ def append_to_history(records, json_settled_items=None):
     except Exception as e:
         print(f"[SoccerLive] Fehler beim Schreiben in {HISTORY_CSV}: {e}")
 
-    # 2. In soccer_history.json für analytics_engine.py spiegeln
     if json_settled_items:
         history_list = []
         if os.path.exists(HISTORY_JSON):
@@ -438,7 +497,7 @@ def run_soccer_live():
 
             pick_evals = []
             for pick_desc in picks:
-                eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=True)
+                eval_str, _ = evaluate_pick_progress(match, pick_desc, h_score, a_score, curr_min=90, is_finished=True)
                 if eval_str:
                     tag = shorten_tag(pick_desc.split(":")[0])
                     pick_evals.append(f"  ↳ {eval_str} ({tag})")
@@ -493,18 +552,25 @@ def run_soccer_live():
                 curr_min = min(45, max(1, elapsed))
                 min_label = f"{curr_min}'"
 
+            # Dynamische Ampel-Ermittlung über alle Picks der Partie
             pick_evals = []
+            worst_icon = "🟢"
+
             for pick_desc in picks:
-                eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_finished)
+                eval_str, p_icon = evaluate_pick_progress(match, pick_desc, h_score, a_score, curr_min=curr_min, is_finished=is_finished)
                 if eval_str:
                     tag = shorten_tag(pick_desc.split(":")[0])
                     pick_evals.append(f"  ↳ {eval_str} ({tag})")
+                    if p_icon == "🔴":
+                        worst_icon = "🔴"
+                    elif p_icon == "🟡" and worst_icon != "🔴":
+                        worst_icon = "🟡"
 
             eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
-            icon = "🏁" if is_finished else "🟢"
+            header_icon = "🏁" if is_finished else worst_icon
 
             active_cards.append(
-                f"{icon} <b>{match}</b> • <b>{h_score}:{a_score}</b> (<i>{min_label}</i>){eval_block}"
+                f"{header_icon} <b>{match}</b> • <b>{h_score}:{a_score}</b> (<i>{min_label}</i>){eval_block}"
             )
         else:
             gemini_res = fallback_gemini_match(match)
@@ -512,6 +578,8 @@ def run_soccer_live():
                 h_score = gemini_res["h_score"]
                 a_score = gemini_res["a_score"]
                 is_fin = gemini_res["status"] == "FINISHED"
+                fallback_min = 90 if is_fin else 60
+
                 if is_fin:
                     finished_matches[match] = {
                         "h_score": h_score,
@@ -523,15 +591,23 @@ def run_soccer_live():
                     all_games_finished = False
 
                 pick_evals = []
+                worst_icon = "🟢"
+
                 for pick_desc in picks:
-                    eval_str = evaluate_pick_progress(match, pick_desc, h_score, a_score, is_finished=is_fin)
+                    eval_str, p_icon = evaluate_pick_progress(match, pick_desc, h_score, a_score, curr_min=fallback_min, is_finished=is_fin)
                     if eval_str:
                         tag = shorten_tag(pick_desc.split(":")[0])
                         pick_evals.append(f"  ↳ {eval_str} ({tag})")
+                        if p_icon == "🔴":
+                            worst_icon = "🔴"
+                        elif p_icon == "🟡" and worst_icon != "🔴":
+                            worst_icon = "🟡"
+
                 eval_block = "\n" + "\n".join(pick_evals) if pick_evals else ""
-                icon = "🏁" if is_fin else "🟢"
+                header_icon = "🏁" if is_fin else worst_icon
+
                 active_cards.append(
-                    f"{icon} <b>{match}</b> • <b>{h_score}:{a_score}</b> (<i>{gemini_res['min_label']}</i>){eval_block}"
+                    f"{header_icon} <b>{match}</b> • <b>{h_score}:{a_score}</b> (<i>{gemini_res['min_label']}</i>){eval_block}"
                 )
             else:
                 all_games_finished = False
@@ -544,7 +620,7 @@ def run_soccer_live():
                 p_joined = " • ".join(pick_summaries)
                 pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
 
-    # Ticker zusammenbauen
+    # Ticker formatieren
     if format_standalone_live_ticker:
         ticker_text = format_standalone_live_ticker("soccer", active_cards, pending_list)
     else:
@@ -558,7 +634,7 @@ def run_soccer_live():
 
     last_ticker_text = state.get("last_ticker_text", "")
 
-    # Senden oder Editieren
+    # Telegram senden oder editieren
     if not ticker_msg_id:
         print("[SoccerLive] Erstelle ersten eigenständigen Ticker-Post in Telegram...")
         new_id = send_telegram_msg(ticker_text, reply_to=main_msg_id)
@@ -580,7 +656,7 @@ def run_soccer_live():
             print("[SoccerLive] Ticker-Inhalt unverändert. Kein Edit nötig.")
             save_state(state)
 
-    # Settlement
+    # Settlement bei Spielende aller Partien
     if all_games_finished and len(finished_matches) == len(match_picks) and not state.get("settled", False):
         print("[SoccerLive] Alle Spiele beendet! Starte Tagesabschluss und Settlement...")
         ticket_results = []
@@ -640,14 +716,14 @@ def run_soccer_live():
 
                 h_s = f_data["h_score"]
                 a_s = f_data["a_score"]
-                eval_res = evaluate_pick_progress(m_str, p_label, h_s, a_s, is_finished=True) or ""
+                eval_res, _ = evaluate_pick_progress(m_str, p_label, h_s, a_s, curr_min=90, is_finished=True)
 
-                if "❌" in eval_res:
+                if eval_res and "❌" in eval_res:
                     has_loss = True
                     pick_summaries.append(f"{m_str} ❌")
-                elif "🟡" in eval_res or "push" in eval_res.lower() or "void" in eval_res.lower():
+                elif eval_res and ("🟡" in eval_res or "push" in eval_res.lower() or "void" in eval_res.lower()):
                     pick_summaries.append(f"{m_str} 🟡")
-                elif "✅" in eval_res:
+                elif eval_res and "✅" in eval_res:
                     pick_summaries.append(f"{m_str} ✅")
                 else:
                     has_manual = True
@@ -682,7 +758,6 @@ def run_soccer_live():
             profit_str = f"{sign}{profit:.2f}u" if profit != 0 else "0.0u"
             ticket_results.append(f"• <b>{shorten_tag(t_name)}</b> (@{t_odds:.2f}) ➔ {t_status} (<i>{profit_str}</i>)")
 
-            # CSV Eintrag
             history_records.append({
                 "date": today_iso,
                 "ticket": t_name,
@@ -692,7 +767,6 @@ def run_soccer_live():
                 "profit": profit
             })
 
-            # JSON Eintrag für analytics_engine
             json_history_records.append({
                 "date": today_iso,
                 "sport": "Soccer",
