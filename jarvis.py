@@ -7,9 +7,9 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 try:
-    from telegram_sender import send_to_telegram
+    from telegram_formatter import send_to_sport_channel
 except ImportError:
-    send_to_telegram = None
+    send_to_sport_channel = None
 
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -17,6 +17,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_THREAD_SOCCER", "").strip()
+    or os.environ.get("TELEGRAM_SOCCER_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
@@ -37,8 +38,11 @@ SOCCER_LEAGUES = [
 ]
 
 def send_telegram(text):
-    if send_to_telegram:
-        return send_to_telegram(text, thread_env_var="TELEGRAM_THREAD_SOCCER")
+    """Sendet die Nachricht garantiert in das richtige Soccer-Topic."""
+    if send_to_sport_channel:
+        msg_id = send_to_sport_channel(text, sport="soccer")
+        if msg_id:
+            return msg_id
 
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("[Telegram] FEHLER: Credentials fehlen.")
@@ -131,7 +135,7 @@ def run_jarvis_soccer():
 
     # Unter der Woche (Mo - Fr) keine Posts vor 16:00 Uhr MEZ
     if weekday < 5 and now_hour < 16:
-        print(f"Wochentag-Check ({now_hour}:00 Uhr MEZ): Unter der Woche werden Dossiers erst ab 16:00 Uhr fuer die Abendslots generiert. Abbruch.")
+        print(f"Wochentag-Check ({now_hour}:00 Uhr MEZ): Unter der Woche werden Dossiers erst ab 16:00 Uhr für die Abendslots generiert. Abbruch.")
         return
 
     odds_data = fetch_soccer_odds()
@@ -153,14 +157,18 @@ VERFÜGBARE PARTIEN & REAL-QUOTEN AUS DER API:
 {odds_data}
 
 ================================================================================
-STRIKTE FORMATVORGABE (TELEGRAM COMPACT DESIGN):
+STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
 ================================================================================
-- Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.200 Zeichen umfassen!
-- Keine doppelten Leerzeilen zwischen Absätzen.
-- Jede Aufzählung beginnt strikt mit '• ' (Unicode Bullet).
-- Sub-Punkte und Auswahlen rücken mit '   ↳ ' ein (z. B. '   ↳ <b>Haupt-Pick:</b> ...').
-- Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
-- Begründungen extrem präzise und fundiert in 2 Sätzen halten.
+1. PICKS FIRST:
+   - Die spielfertigen Wettscheine (POTD, Kombis, Props) stehen ZWINGEND GANZ OBEN direkt unter dem Header!
+   - Erst DANACH folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und der Abschnitt 'ANALYSEN & MODELL-LOGIK (DEEP DIVE)'.
+2. LÄNGEN-LIMIT:
+   - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen!
+   - Keine doppelten Leerzeilen zwischen Absätzen.
+3. FORMATIERUNG:
+   - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.85</code>, <code>1.50u</code>).
+   - Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
+   - Begründungen im Deep Dive präzise und fundiert in maximal 2 Sätzen halten.
 
 ⛔ STRIKTE QUANT- & VETO-REGELN:
 1. MINDESTQUOTE BEACHTEN:
@@ -172,113 +180,101 @@ STRIKTE FORMATVORGABE (TELEGRAM COMPACT DESIGN):
    - Überprüfe via Google Search aktuelle Ausfälle, Rotationen und Trainerstimmen.
    - Bei Player Props: Nur Spieler wählen, die im Jahr {current_year} fix im Kader stehen und sicher starten. Nur OVER-Torschüsse (1+ Schuss aufs Tor), KEINE Under-Props!
 
-TICKET-ARCHITEKTUR:
-- ⭐ SOCCER PICK OF THE DAY: Bester Einzeltipp des Tages mit größtem mathematischem Edge (1.5 - 2.0u).
-- 🔒 CONSERVATIVE 2-LEG BANKER: Exakt 2 Beine. Mindest-Gesamtquote ~1.75 - 2.15 (1.0 - 1.5u).
-- ⚖️ BALANCED VALUE ACCA: Exakt 3 Beine. Gesamtquote ~2.50 - 4.00 (0.75 - 1.0u).
-- ⚡ HYBRID QUANT MULTI: 2 bis 3 Beine Markt-Mix (0.5 - 0.75u).
-- ⚽ GOALS & BTTS VALUE ACCA: 2 bis 3 Beine Tor-Märkte (0.75u).
-- 👟 PLAYER PROP SPOTLIGHT: 1 bis 2 Spieler (1+ Schuss aufs Tor, 0.5 - 0.75u).
+EXAKTES HTML-AUSGABEFORMAT:
+⚽ <b>JARVIS SOCCER — TAGESEMPFEHLUNGEN ({today_str})</b>
+━━━━━━━━━━━━━━━━━━━━
+📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
 
-REPORT-HTML:
-⚽ <b>JARVIS SOCCER INTEL • {edition_label}</b>
-<i>xG-Modelle • Poisson-Projektionen • Value-Kombis</i>
+⭐ <b>POTD (<code>1.50u</code> | <code>@[Quote]</code>)</b>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Tipp]</i>
+
+🔥 <b>CONSERVATIVE BANKER (<code>1.25u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+
+⚖️ <b>BALANCED VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 3]</i>
+
+⚡ <b>HYBRID QUANT MULTI (<code>0.50u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Heim] vs. [Gast] ➔ <i>[Markt & Tipp 1]</i>
+• [Heim] vs. [Gast] ➔ <i>[Markt & Tipp 2]</i>
+
+⚽ <b>GOALS & BTTS VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Heim] vs. [Gast] ➔ <i>[Tore-Tipp 1]</i>
+• [Heim] vs. [Gast] ➔ <i>[Tore-Tipp 2]</i>
+
+🎯 <b>PLAYER PROPS MULTI (<code>0.50u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Spieler 1] ([Team]) ➔ <i>1+ Schuss aufs Tor</i>
+• [Spieler 2] ([Team]) ➔ <i>1+ Schuss aufs Tor</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>SOCCER PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heim] vs. [Gast] ([Liga])
-   ↳ <b>Haupt-Pick:</b> <b>[Tipp]</b> @ [Quote]
-   ↳ <i>Buchmacher-Alternative:</i> [Alternative] @ [Quote]
-• <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 - 2.0 Units
-• <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-• <b>Edge:</b> [Maximal 2 prägnante Sätze zur Kante]
+📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🔒 <b>CONSERVATIVE 2-LEG BANKER</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
-• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 1.0 - 1.5 Units
-• <b>Logik:</b> [Maximal 2 Sätze Begründung]
+🔎 <b>POTD: [Heim] vs. [Gast]</b>
+• <b>Edge:</b> [Prozentuale Kante oder Fair-Quote]
+• <b>Logik:</b> [Maximal 2 präzise Sätze zur taktischen Kante / xG]
 
-━━━━━━━━━━━━━━━━━━━━
-⚖️ <b>BALANCED VALUE ACCA (3-er Kombi)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote]
-• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 - 1.0 Units
-• <b>Logik:</b> [Maximal 2 Sätze Begründung]
-
-━━━━━━━━━━━━━━━━━━━━
-⚡ <b>HYBRID QUANT MULTI (Markt-Mix)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Markt & Tipp]</b> @ [Quote]
-• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
-• <b>Logik:</b> [Maximal 2 Sätze Begründung]
-
-━━━━━━━━━━━━━━━━━━━━
-⚽ <b>GOALS & BTTS VALUE ACCA</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tore-Tipp]</b> @ [Quote]
-• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.75 Units
-• <b>Logik:</b> [Maximal 2 Sätze Begründung]
-
-━━━━━━━━━━━━━━━━━━━━
-👟 <b>PLAYER PROP SPOTLIGHT / MULTI-TICKET</b>
-• [Uhrzeit] Uhr | [Spieler 1] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
-• [Uhrzeit] Uhr | [Spieler 2] ([Team]) ➔ <b>[Tipp: 1+ Torschuss]</b> @ [Quote]
-• <b>Gesamtquote:</b> <b>@[Quote]</b> | 💰 <b>Einsatz:</b> 0.5 - 0.75 Units
-• <b>Edge:</b> [Maximal 2 Sätze Begründung]
+🔎 <b>Banker & Value Begründungen:</b>
+• [Team 1]: [1-2 Sätze Begründung]
+• [Team 2]: [1-2 Sätze Begründung]
+• [Team 3]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 {{
   "date": "{today_iso}",
   "potd": {{
-    "match": "Heim vs Gast",
+    "match": "Heim vs. Gast",
     "pick": "Tipp",
-    "odds": 1.85
+    "odds": 1.85,
+    "stake": 1.50
   }},
   "tickets": [
     {{
-      "ticket_name": "CONSERVATIVE 2-LEG BANKER",
+      "ticket_name": "CONSERVATIVE BANKER",
       "odds": 1.95,
+      "stake": 1.25,
       "picks": [
-        {{"match": "Team A vs Team B", "pick": "Team A Sieg", "odds": 1.40}},
-        {{"match": "Team C vs Team D", "pick": "Über 1.5 Tore", "odds": 1.39}}
+        {{"match": "Team A vs. Team B", "pick": "Team A Sieg", "odds": 1.40}},
+        {{"match": "Team C vs. Team D", "pick": "Über 1.5 Tore", "odds": 1.39}}
       ]
     }},
     {{
       "ticket_name": "BALANCED VALUE ACCA",
       "odds": 3.20,
+      "stake": 0.75,
       "picks": [
-        {{"match": "Team E vs Team F", "pick": "Team E DNB", "odds": 1.45}},
-        {{"match": "Team G vs Team H", "pick": "Team G Sieg", "odds": 1.50}},
-        {{"match": "Team I vs Team J", "pick": "Über 2.5 Tore", "odds": 1.47}}
+        {{"match": "Team E vs. Team F", "pick": "Team E DNB", "odds": 1.45}},
+        {{"match": "Team G vs. Team H", "pick": "Team G Sieg", "odds": 1.50}},
+        {{"match": "Team I vs. Team J", "pick": "Über 2.5 Tore", "odds": 1.47}}
       ]
     }},
     {{
       "ticket_name": "HYBRID QUANT MULTI",
-      "odds": 4.10,
+      "odds": 3.10,
+      "stake": 0.50,
       "picks": [
-        {{"match": "Team K vs Team L", "pick": "Team K Sieg", "odds": 1.60}},
-        {{"match": "Team M vs Team N", "pick": "BTTS Ja", "odds": 1.65}},
-        {{"match": "Team O vs Team P", "pick": "Unter 3.5 Tore", "odds": 1.55}}
+        {{"match": "Team K vs. Team L", "pick": "Team K Sieg", "odds": 1.60}},
+        {{"match": "Team M vs. Team N", "pick": "Unter 3.5 Tore", "odds": 1.55}}
       ]
     }},
     {{
       "ticket_name": "GOALS & BTTS VALUE ACCA",
       "odds": 2.80,
+      "stake": 0.75,
       "picks": [
-        {{"match": "Team Q vs Team R", "pick": "Über 2.5 Tore", "odds": 1.65}},
-        {{"match": "Team S vs Team T", "pick": "BTTS Ja", "odds": 1.70}}
+        {{"match": "Team Q vs. Team R", "pick": "Über 2.5 Tore", "odds": 1.65}},
+        {{"match": "Team S vs. Team T", "pick": "BTTS Ja", "odds": 1.70}}
       ]
     }},
     {{
       "ticket_name": "PLAYER PROPS MULTI",
       "odds": 2.45,
+      "stake": 0.50,
       "picks": [
-        {{"match": "Team U vs Team V", "player": "Spieler 1", "pick": "1+ Schuss aufs Tor", "odds": 1.55}},
-        {{"match": "Team W vs Team X", "player": "Spieler 2", "pick": "1+ Schuss aufs Tor", "odds": 1.58}}
+        {{"match": "Team U vs. Team V", "player": "Spieler 1", "pick": "1+ Schuss aufs Tor", "odds": 1.55}},
+        {{"match": "Team W vs. Team X", "player": "Spieler 2", "pick": "1+ Schuss aufs Tor", "odds": 1.58}}
       ]
     }}
   ]
