@@ -1,24 +1,24 @@
-name: darts-intel
+name: JARVIS Darts Intel & Settlement
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ) - Abrechnung der Vortages-Sessions
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ) - Abrechnung der Vortages-Sessions
     - cron: '45 6 * * *'
-    # 2. MITTAGS-RUN: 11:45 UTC (= 12:45 Uhr MEZ) - Picks für Nachmittags-Sessions (PDC / Players Champs)
+    # 2. MITTAGS-RUN: 11:45 UTC (= 12:45 MEZ) - Nachmittags-Sessions (PDC / Players Champs)
     - cron: '45 11 * * *'
-    # 3. ABEND-RUN: 16:45 UTC (= 17:45 Uhr MEZ) - Abrechnung Nachmittag + Picks für Abendsession (ab 20:00 Uhr)
+    # 3. ABEND-RUN: 16:45 UTC (= 17:45 MEZ) - Abendsessions (ab 20:00 Uhr)
     - cron: '45 16 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: darts-intel
+  group: darts-pipeline
   cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  run-darts-intel:
+  run-darts:
     runs-on: ubuntu-latest
     steps:
       - name: Code auschecken
@@ -43,19 +43,18 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_DARTS_THREAD_ID: ${{ secrets.TELEGRAM_DARTS_THREAD_ID }}
-          TELEGRAM_THREAD_DARTS: ${{ secrets.TELEGRAM_THREAD_DARTS }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_DARTS }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_DARTS_THREAD_ID }}
         run: python darts_intel.py
 
-      - name: History committen und pushen
+      - name: State & History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add darts_history.json 2>/dev/null || true
           if git diff --staged --quiet; then
-            echo "Keine relevanten Aenderungen an darts_history.json vorhanden."
+            echo "Keine Aenderungen an darts_history.json vorhanden."
           else
-            git commit -m "Update Darts History [skip ci]"
+            git commit -m "Auto-Update: darts_history.json [skip ci]"
             git checkout -- . 2>/dev/null || true
             git clean -fd 2>/dev/null || true
             git pull --rebase origin main
