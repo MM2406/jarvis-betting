@@ -1,6 +1,6 @@
 {
-  "current_step": 1,
-  "bankroll": 7.3,
+  "current_step": 0,
+  "bankroll": 5.0,
   "start_amount": 5.0,
   "target_amount": 100.0,
   "history": [
@@ -105,19 +105,22 @@
       "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 1 / 7</b>\nProgress: [⬜⬜⬜⬜⬜⬜⬜] (5.00 € / 100.00 €)\n\nEinsatz:  <b>5.00 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   Thiago Agustin Tirante vs. Jan-Lennard Struff\n🏆 <b>Sport:</b>   Tennis / ATP Paris Masters (Halle/Indoor Hard)\n⏰ <b>Beginn:</b>  18:50 Uhr\n🎯 <b>Tipp:</b>    <b>Sieg Jan-Lennard Struff (2-Weg Moneyline)</b> @ 1.46\n🔄 <b>Buchmacher-Alternative:</b> Jan-Lennard Struff (-1.5 Sätze) @ 2.15\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.38\n💰 <b>Return:</b>  <b>7.30 €</b> (+2.30 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE & QUANT-ANALYSE</b>\n- <b>Modell-Chance:</b> 74.2% | <b>Fair Odds:</b> ~1.35\n- <b>Mathematischer Edge:</b> +8.3% EV\n- <b>Rationale:</b>\n• <b>Belag & Matchup-Vorteil:</b> Jan-Lennard Struff verfügt über ein klassisches Indoor-Power-Profil mit extrem hohem erstem Aufschlag und direkter Angriffsausrichtung. Die schnellen Hallenbedingungen in Paris neutralisieren Return-Stärken und begünstigen seine Hold-Dominanz (historisch über 84% Aufschlagspiele gehalten unter vergleichbaren Bedingungen).\n• <b>Profil-Diskrepanz:</b> Thiago Agustin Tirante ist ein klassischer Sandplatzspezialist, dessen Erfolge fast ausschließlich auf langsamer Asche auf Challenger-Ebene erzielt wurden. Auf schnellen Indoor-Hartplätzen fehlt ihm das nötige Tempo im Aufschlag und die Durchschlagskraft in den Grundschlägen, um Struffs offensive Dominanz zu brechen.\n• <b>Risiko-Minimierung:</b> Durch die Wahl des reinen 2-Weg-Siegermarktes eliminieren wir Satzverlustrisiken oder Tie-Break-Varianz von Handicap-Wetten vollständig.\n\n━━━━━━━━━━━━━━━━━━━━\n\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 7.30 € direkt in Stufe 2.",
       "status": "WON",
       "return": 7.3
+    },
+    {
+      "step": 2,
+      "match": "AC Milan vs. Ferencváros TC",
+      "sport": "Fußball",
+      "pick": "AC Milan",
+      "odds": 1.38,
+      "stake": 7.3,
+      "expected_return": 10.07,
+      "date": "2026-11-05",
+      "message_id": 226,
+      "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 2 / 7</b>\nProgress: [🟩⬜⬜⬜⬜⬜⬜] (7.30 € / 100.00 €)\n\nEinsatz:  <b>7.30 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   AC Milan vs. Ferencváros TC\n🏆 <b>Sport:</b>   Fußball / UEFA Europa League\n⏰ <b>Beginn:</b>  18:45 Uhr\n🎯 <b>Tipp:</b>    <b>Sieg AC Milan (Tipp 1)</b> @ 1.38\n🔄 <b>Buchmacher-Alternative:</b> AC Milan Draw No Bet (DNB) @ 1.12\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.32\n💰 <b>Return:</b>  <b>10.07 €</b> (+2.77 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE &amp; QUANT-ANALYSE</b>\n• <b>Modell-Chance:</b> 76.5% | <b>Fair Odds:</b> ~1.31\n• <b>Mathematischer Edge:</b> +5.5% EV\n• <b>Rationale:</b> AC Milan agiert im San Siro gegen den ungarischen Vertreter Ferencváros mit einer erdrückenden qualitativen Überlegenheit auf sämtlichen Schlüsselpositionen (Kaderwert-Faktor > 8:1). In der Ligaphase der Europa League zählen Heimsiege gegen Teams aus den schwächeren Töpfen zum absoluten Pflichtprogramm, weshalb Trainer und Team mit voller Ernsthaftigkeit auflaufen. Milan dominiert sowohl Ballbesitz- als auch Expected-Goals-Metriken im eigenen Stadion klar, während Ferencváros international auswärts gegen europäische Top-10-Klubs historisch eine extrem niedrige Sieg- und Remis-Wahrscheinlichkeit aufweist. Mit einer Quote von 1.38 liegt die Auswahl exakt im Sweet Spot unseres konservativen Risikoprofils für Stufe 2.\n\n━━━━━━━━━━━━━━━━━━━━\n\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 10.07 € direkt in Stufe 3.",
+      "status": "LOST",
+      "return": 0.0
     }
   ],
-  "active_pick": {
-    "step": 2,
-    "match": "AC Milan vs. Ferencváros TC",
-    "sport": "Fußball",
-    "pick": "AC Milan",
-    "odds": 1.38,
-    "stake": 7.3,
-    "expected_return": 10.07,
-    "date": "2026-11-05",
-    "message_id": 226,
-    "original_text": "🎯 <b>JARVIS MONEYRACE • STUFE 2 / 7</b>\nProgress: [🟩⬜⬜⬜⬜⬜⬜] (7.30 € / 100.00 €)\n\nEinsatz:  <b>7.30 €</b> (All-In)\nZiel:     <b>100.00 €</b>\n\n━━━━━━━━━━━━━━━━━━━━\n📌 <b>Match:</b>   AC Milan vs. Ferencváros TC\n🏆 <b>Sport:</b>   Fußball / UEFA Europa League\n⏰ <b>Beginn:</b>  18:45 Uhr\n🎯 <b>Tipp:</b>    <b>Sieg AC Milan (Tipp 1)</b> @ 1.38\n🔄 <b>Buchmacher-Alternative:</b> AC Milan Draw No Bet (DNB) @ 1.12\n⚠️ <b>Value-Grenze:</b> Spielbar bis Mindestquote @ 1.32\n💰 <b>Return:</b>  <b>10.07 €</b> (+2.77 €)\n\n━━━━━━━━━━━━━━━━━━━━\n🔍 <b>EDGE &amp; QUANT-ANALYSE</b>\n• <b>Modell-Chance:</b> 76.5% | <b>Fair Odds:</b> ~1.31\n• <b>Mathematischer Edge:</b> +5.5% EV\n• <b>Rationale:</b> AC Milan agiert im San Siro gegen den ungarischen Vertreter Ferencváros mit einer erdrückenden qualitativen Überlegenheit auf sämtlichen Schlüsselpositionen (Kaderwert-Faktor > 8:1). In der Ligaphase der Europa League zählen Heimsiege gegen Teams aus den schwächeren Töpfen zum absoluten Pflichtprogramm, weshalb Trainer und Team mit voller Ernsthaftigkeit auflaufen. Milan dominiert sowohl Ballbesitz- als auch Expected-Goals-Metriken im eigenen Stadion klar, während Ferencváros international auswärts gegen europäische Top-10-Klubs historisch eine extrem niedrige Sieg- und Remis-Wahrscheinlichkeit aufweist. Mit einer Quote von 1.38 liegt die Auswahl exakt im Sweet Spot unseres konservativen Risikoprofils für Stufe 2.\n\n━━━━━━━━━━━━━━━━━━━━\n\n🗺️ <b>NÄCHSTER SCHRITT</b>\nBei Win geht es mit 10.07 € direkt in Stufe 3."
-  },
+  "active_pick": null,
   "last_run_date": "2026-11-05"
 }
