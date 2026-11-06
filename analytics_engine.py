@@ -8,23 +8,32 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+try:
+    from telegram_formatter import send_to_sport_channel
+except ImportError:
+    send_to_sport_channel = None
+
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 TELEGRAM_ANALYTICS_THREAD = (
     os.environ.get("TELEGRAM_ANALYTICS_THREAD_ID", "").strip()
+    or os.environ.get("TELEGRAM_THREAD_ANALYTICS", "").strip()
     or "134"
 )
 
+# Alle 8 Sport- und Challenge-Module einbinden
 SPORT_FILES = {
     "Soccer": "soccer_history.json",
     "NBA": "nba_history.json",
     "NHL": "nhl_history.json",
     "NFL": "nfl_history.json",
+    "Tennis": "tennis_history.json",
     "Euro-Hoops": "euro_history.json",
     "US College": "college_history.json",
-    "Darts": "darts_history.json"
+    "Darts": "darts_history.json",
+    "Moneyrace": "moneyrace_state.json"
 }
 
 SPORT_ALIAS_MAP = {
@@ -32,6 +41,7 @@ SPORT_ALIAS_MAP = {
     "nba": "NBA",
     "nhl": "NHL",
     "nfl": "NFL",
+    "tennis": "Tennis",
     "darts": "Darts",
     "darts_pdc_world_championship": "Darts",
     "darts_premier_league": "Darts",
@@ -45,7 +55,8 @@ SPORT_ALIAS_MAP = {
     "americanfootball_ncaaf": "US College",
     "basketball_ncaab": "US College",
     "us college": "US College",
-    "college": "US College"
+    "college": "US College",
+    "moneyrace": "Moneyrace"
 }
 
 SPORT_ICONS = {
@@ -53,9 +64,11 @@ SPORT_ICONS = {
     "NBA": "🏀",
     "NHL": "🏒",
     "NFL": "🏈",
+    "Tennis": "🎾",
     "Euro-Hoops": "🇪🇺",
     "US College": "🎓",
-    "Darts": "🎯"
+    "Darts": "🎯",
+    "Moneyrace": "🎯"
 }
 
 def make_mini_bar(percentage, segments=5):
@@ -72,16 +85,22 @@ def normalize_sport_name(sport_raw, fallback="Sonstige"):
 
 def is_parlay(bet):
     """Ermittelt, ob ein Datensatz eine Kombiwette ist."""
-    # 1. Spezifische JARVIS-Syntax: '+' im Tipp oder '/' in den Match-Namen
-    pick_str = str(bet.get("pick") or "")
-    match_str = str(bet.get("match") or "")
-    if " + " in pick_str or " / " in match_str:
+    if bet.get("is_kombi") is True:
         return True
 
-    # 2. Explizite Tags / Keys
+    category = str(bet.get("category") or "").upper()
+    if any(k in category for k in ["ACCA", "KOMBI", "PARLAY", "MULTI"]):
+        return True
+
+    pick_str = str(bet.get("pick") or "")
+    match_str = str(bet.get("match") or "")
+    if " + " in pick_str or " // " in match_str or " / " in match_str:
+        return True
+
     b_type = str(bet.get("bet_type") or bet.get("type") or "").lower()
     if any(k in b_type for k in ["parlay", "kombi", "acca", "multi"]):
         return True
+
     if isinstance(bet.get("legs"), list) and len(bet["legs"]) > 1:
         return True
     if isinstance(bet.get("selections"), list) and len(bet["selections"]) > 1:
@@ -97,14 +116,18 @@ def load_all_history():
                 with open(filename, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     items_list = []
+                    
                     if isinstance(data, list):
                         items_list = data
                     elif isinstance(data, dict):
-                        if "settled" in data and isinstance(data["settled"], list):
+                        # Speziell für moneyrace_state.json
+                        if default_sport == "Moneyrace" and "history" in data and isinstance(data["history"], list):
+                            items_list = data["history"]
+                        elif "settled" in data and isinstance(data["settled"], list):
                             items_list = data["settled"]
                         else:
                             for k, v in data.items():
-                                if isinstance(v, list):
+                                if isinstance(v, list) and k in ["settled", "history", "picks"]:
                                     items_list.extend(v)
 
                     for item in items_list:
@@ -147,26 +170,26 @@ def compute_metrics(bets):
     parlays = [b for b in bets if is_parlay(b)]
 
     def calc_group(items):
-        wins = sum(1 for b in items if str(b.get("status", "")).upper() in ["WON", "HIT", "WIN"])
-        losses = sum(1 for b in items if str(b.get("status", "")).upper() in ["LOST", "MISS", "LOSS"])
-        pushes = sum(1 for b in items if str(b.get("status", "")).upper() in ["PUSH", "VOID"])
+        wins = sum(1 for b in items if str(b.get("status") or b.get("result") or "").upper() in ["WON", "HIT", "WIN"])
+        losses = sum(1 for b in items if str(b.get("status") or b.get("result") or "").upper() in ["LOST", "MISS", "LOSS"])
+        pushes = sum(1 for b in items if str(b.get("status") or b.get("result") or "").upper() in ["PUSH", "VOID"])
         total_valid = wins + losses
         win_rate = (wins / total_valid * 100) if total_valid > 0 else 0.0
 
         total_pnl = 0.0
         total_stake = 0.0
         for b in items:
-            total_stake += float(b.get("stake") or 1.0)
+            stake_val = float(b.get("stake") or 1.0)
+            total_stake += stake_val
             if "pnl" in b and b["pnl"] is not None:
                 total_pnl += float(b["pnl"])
             else:
-                st = str(b.get("status", "")).upper()
+                st = str(b.get("status") or b.get("result") or "").upper()
                 odd = float(b.get("odds") or 0.0)
-                stake = float(b.get("stake") or 1.0)
                 if st in ["WON", "HIT", "WIN"]:
-                    total_pnl += (odd - 1.0) * stake
+                    total_pnl += (odd - 1.0) * stake_val
                 elif st in ["LOST", "MISS", "LOSS"]:
-                    total_pnl -= stake
+                    total_pnl -= stake_val
 
         roi = (total_pnl / total_stake * 100) if total_stake > 0 else 0.0
 
@@ -189,7 +212,7 @@ def compute_metrics(bets):
         if sport not in by_sport:
             by_sport[sport] = {"total": 0, "wins": 0, "losses": 0, "pnl": 0.0}
 
-        status = str(b.get("status", "")).upper()
+        status = str(b.get("status") or b.get("result") or "").upper()
         by_sport[sport]["total"] += 1
         if status in ["WON", "HIT", "WIN"]:
             by_sport[sport]["wins"] += 1
@@ -292,7 +315,6 @@ def build_simple_caption(metrics, timeframe):
             bar = make_mini_bar(pct, segments=5)
             pnl_sign = "+" if data["pnl"] >= 0 else ""
             pnl_str = f"{pnl_sign}{data['pnl']:.2f}u"
-            # Formatierung in 2 sauberen Zeilen verhindert jeglichen Zeilenumbruch mobil
             sport_lines.append(
                 f"{icon} <b>{sport}:</b> <code>{data['wins']:>2}/{data['total']:<2}</code> ({pct:.0f}%) | <b>{pnl_str}</b>\n"
                 f"   {bar}"
@@ -353,12 +375,16 @@ def send_telegram_recap(caption, image_path=None):
                 files = {"photo": img}
                 res = requests.post(url, data=payload, files=files, timeout=30)
                 if res.status_code != 200:
-                    print(f"[Telegram] Fehler: {res.text}")
+                    print(f"[Telegram] Fehler beim Senden der Grafik: {res.text}")
                 else:
                     print(f"[Telegram] Recap mit Grafik erfolgreich an Topic {thread_id} gesendet.")
         except Exception as e:
             print(f"[Telegram Exception] {e}")
     else:
+        if send_to_sport_channel:
+            send_to_sport_channel(caption, sport="analytics")
+            return
+
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         payload = {
             "chat_id": TELEGRAM_CHAT_ID,
@@ -376,7 +402,7 @@ def send_telegram_recap(caption, image_path=None):
 
 def main():
     timeframe = sys.argv[1].lower() if len(sys.argv) > 1 else "weekly"
-    print(f"Starte verbesserte JARVIS Analytics Engine ({timeframe})...")
+    print(f"Starte JARVIS Analytics Engine ({timeframe})...")
 
     bets = load_all_history()
     recent_bets = filter_bets(bets, timeframe=timeframe)
