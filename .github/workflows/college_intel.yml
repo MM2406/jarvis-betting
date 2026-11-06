@@ -1,20 +1,24 @@
-name: JARVIS US College Intel
+name: JARVIS US College Intel & Settlement
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 Uhr MEZ)
+    # 1. MORGEN-SETTLE: 06:45 UTC (= 07:45 MEZ)
     - cron: '45 6 * * *'
-    # 2. SAMSTAG/SONNTAG: Grosse Slates (15:00 UTC = 16:00 Uhr MEZ)
+    # 2. SAMSTAG/SONNTAG: Große Slates (15:00 UTC = 16:00 MEZ)
     - cron: '0 15 * * 6,0'
-    # 3. DIENSTAG-FREITAG: Midweek Hoops (17:00 UTC = 18:00 Uhr MEZ)
+    # 3. DIENSTAG-FREITAG: Midweek Hoops (17:00 UTC = 18:00 MEZ)
     - cron: '0 17 * * 2-5'
   workflow_dispatch:
+
+concurrency:
+  group: college-pipeline
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  run-college-intel:
+  run-college:
     runs-on: ubuntu-latest
     steps:
       - name: Code auschecken
@@ -42,7 +46,7 @@ jobs:
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_COLLEGE_THREAD_ID }}
         run: python college_intel.py
 
-      - name: History committen und pushen
+      - name: State & History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -50,7 +54,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "Keine Aenderungen an college_history.json vorhanden."
           else
-            git commit -m "Update college history [skip ci]"
+            git commit -m "Auto-Update: college_history.json [skip ci]"
             git checkout -- . 2>/dev/null || true
             git clean -fd 2>/dev/null || true
             git pull --rebase origin main
