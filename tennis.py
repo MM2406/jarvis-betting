@@ -46,16 +46,17 @@ def send_telegram(text, reply_to=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3900
     chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
+    rem_text = text.strip()
+    while len(rem_text) > max_len:
+        split_idx = rem_text.rfind("\n\n", 0, max_len)
         if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
+            split_idx = rem_text.rfind("\n", 0, max_len)
         if split_idx == -1:
             split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
+        chunks.append(rem_text[:split_idx].strip())
+        rem_text = rem_text[split_idx:].strip()
+    if rem_text:
+        chunks.append(rem_text)
 
     last_msg_id = None
     for chunk in chunks:
@@ -274,7 +275,6 @@ INFO: [Maximal 1 kurzer Satz Begründung]
         for p in settled_now:
             status = p["status"]
             odds_val = float(p.get("odds", 1.0))
-            stake = float(p.get("stake", 1.0))
             icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
             clean_score = clean_score_text(p.get("score", ""))
             score_disp = f" ({clean_score})" if clean_score else ""
@@ -312,15 +312,25 @@ def fetch_tennis_odds():
         res_sports = requests.get(sports_url, params={"apiKey": ODDS_API_KEY}, timeout=10)
         if res_sports.status_code == 200:
             for s in res_sports.json():
-                if s.get("group") == "Tennis" and s.get("active", False):
+                grp = str(s.get("group", "")).lower()
+                k = str(s.get("key", "")).lower()
+                # Dynamische Erkennung aller aktiven ATP & WTA Turniere
+                if (grp == "tennis" or "tennis" in k) and s.get("active", False):
                     active_tennis_sports.append(s.get("key"))
     except Exception as e:
         print(f"Fehler beim Abrufen der aktiven Tennis-Ligen: {e}")
 
+    # Breiter Fallback für beide Touren inklusive WTA Finals / Turniere
     if not active_tennis_sports:
-        active_tennis_sports = ["tennis_atp", "tennis_wta"]
+        active_tennis_sports = [
+            "tennis_atp",
+            "tennis_wta",
+            "tennis_atp_challenger",
+            "tennis_wta_wta_finals",
+            "tennis_wta_125"
+        ]
 
-    print(f"Aktive Tennis-Keys: {active_tennis_sports}")
+    print(f"Aktive Tennis-Keys (ATP & WTA): {active_tennis_sports}")
 
     for sport in active_tennis_sports:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -333,7 +343,9 @@ def fetch_tennis_odds():
         try:
             res = requests.get(url, params=params, timeout=12)
             if res.status_code == 200:
-                for match in res.json():
+                events = res.json()
+                tour_tag = "WTA" if "wta" in sport.lower() else "ATP"
+                for match in events:
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
                         time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%a %H:%M Uhr")
@@ -345,12 +357,12 @@ def fetch_tennis_odds():
                             outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
                             odds_details.append(f"{m.get('key')}: {', '.join(outcomes)}")
                         
-                        all_events.append(f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
+                        all_events.append(f"[{tour_tag} | {sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
         except Exception as e:
             print(f"Fehler bei {sport}: {e}")
 
-    print(f"Gefundene Tennis-Partien: {len(all_events)}")
-    return "\n".join(all_events[:45])
+    print(f"Gefundene Tennis-Partien (gesamt): {len(all_events)}")
+    return "\n".join(all_events[:55])
 
 def run_tennis_report():
     history = load_history()
@@ -370,8 +382,9 @@ def run_tennis_report():
     prompt = f"""
 Du bist 'JARVIS TENNIS QUANT ARCHITECT'.
 Erstelle für die aktuelle Slate ({today_str} – {slate_name}) das Tennis-Value-Dossier.
+Das Slate-Board enthält Spiele beider Touren: ATP (Herren) und WTA (Damen).
 
-VERFÜGBARE MATCHES & ECHTE BUCHMACHERQUOTEN:
+VERFÜGBARE MATCHES & ECHTE BUCHMACHERQUOTEN (ATP & WTA):
 {odds_data}
 
 ================================================================================
@@ -380,9 +393,13 @@ STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
 1. PICKS FIRST:
    - Alle spielfertigen Wettscheine stehen ZWINGEND GANZ OBEN direkt unter dem Header!
    - Erst DANACH folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und der Abschnitt 'ANALYSEN & MODELL-LOGIK (DEEP DIVE)'.
-2. LÄNGEN-LIMIT:
+2. TOUR-DIVERSITÄT (ATP & WTA):
+   - Bewerte ATP und WTA gleichwertig nach mathematischem Edge (+EV).
+   - Wenn auf der WTA-Tour ein starker Value-Spot (Match-Winner, Games-Handicap oder Totals) vorliegt, nimm ihn aktiv in die Wettscheine auf!
+   - Kennzeichne jedes Match mit [ATP] bzw. [WTA].
+3. LÄNGEN-LIMIT:
    - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen.
-3. FORMATIERUNG:
+4. FORMATIERUNG:
    - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.75</code>, <code>1.50u</code>).
    - Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
    - Begründungen im Deep Dive kurz und schlüssig in maximal 2 Sätzen halten.
@@ -393,35 +410,35 @@ STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
 
 EXAKTES HTML-AUSGABEFORMAT:
 🎾 <b>JARVIS TENNIS — TAGESEMPFEHLUNGEN ({today_str})</b>
-<i>{slate_name}</i>
+<i>{slate_name} • ATP & WTA Tour</i>
 ━━━━━━━━━━━━━━━━━━━━
 📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
 
 ⭐ <b>POTD (<code>1.50u</code> | <code>@[Quote]</code>)</b>
-• <b>[Spieler A] vs. [Spieler B]</b> ➔ <i>[Sieg / Games-Handicap / Satz]</i>
+- <b>[ATP/WTA] [Spieler A] vs. [Spieler B]</b> ➔ <i>[Sieg / Games-Handicap / Satz]</i>
 
 🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Spieler A] vs. [Spieler B] ➔ <i>[Tipp 1]</i>
-• [Spieler C] vs. [Spieler D] ➔ <i>[Tipp 2]</i>
+- [ATP/WTA] [Spieler A] vs. [Spieler B] ➔ <i>[Tipp 1]</i>
+- [ATP/WTA] [Spieler C] vs. [Spieler D] ➔ <i>[Tipp 2]</i>
 
 🎯 <b>TOTALS SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
-• <b>[Spieler A] vs. [Spieler B]</b> ➔ <i>[Over/Under Games / Sätze]</i>
+- <b>[ATP/WTA] [Spieler A] vs. [Spieler B]</b> ➔ <i>[Over/Under Games / Sätze]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
-🔎 <b>POTD: [Spieler A] vs. [Spieler B]</b>
-• <b>Edge:</b> [Dominance Ratio Vorteil / Fair-Quote]
-• <b>Logik:</b> [Maximal 2 präzise Sätze zu Belags-Mismatch, Aufschlag-Dominanz und Return-Statistik]
+🔎 <b>POTD: [ATP/WTA] [Spieler A] vs. [Spieler B]</b>
+- <b>Edge:</b> [Dominance Ratio Vorteil / Fair-Quote]
+- <b>Logik:</b> [Maximal 2 präzise Sätze zu Belags-Mismatch, Aufschlag-Dominanz und Return-Statistik]
 
 🔎 <b>Acca & Spotlight Begründung:</b>
-• [Pick 1]: [1-2 Sätze Begründung]
-• [Totals]: [1-2 Sätze Begründung]
+- [Pick 1]: [1-2 Sätze Begründung]
+- [Totals]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
   {{
-    "match": "Player A vs Player B",
+    "match": "[ATP/WTA] Player A vs Player B",
     "sport": "Tennis",
     "category": "POTD",
     "pick": "Player A Sieg",
@@ -431,7 +448,7 @@ EXAKTES HTML-AUSGABEFORMAT:
     "is_kombi": false
   }},
   {{
-    "match": "Player A vs Player B // Player C vs Player D",
+    "match": "[ATP/WTA] Player A vs Player B // [ATP/WTA] Player C vs Player D",
     "sport": "Tennis",
     "category": "ACCA",
     "pick": "Player A ML + Player C ML",
