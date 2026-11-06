@@ -1,27 +1,27 @@
-name: JARVIS NBA Intel
+name: JARVIS NBA Intel & Daily Picks
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE (Täglich): 06:45 UTC (= 07:45 Uhr MEZ) - Alle Nachtspiele abrechnen
+    # 1. MORGEN-SETTLE (Täglich um 06:45 UTC = 07:45 Uhr MEZ): Nachtspiele abrechnen
     - cron: '45 6 * * *'
 
-    # 2. WOCHENENDE-PICKS (Samstag & Sonntag): 16:30 UTC (= 17:30 Uhr MEZ) - Frühe Tip-offs (ab 19:00 / 21:30 Uhr MEZ)
+    # 2. WOCHENENDE-PICKS (Samstag & Sonntag um 16:30 UTC = 17:30 Uhr MEZ): Frühe Tip-offs
     - cron: '30 16 * * 6,0'
 
-    # 3. WOCHENTAGS-PICKS (Montag bis Freitag): 20:15 UTC (= 21:15 Uhr MEZ) - Nacht-Slate
+    # 3. WOCHENTAGS-PICKS (Montag bis Freitag um 20:15 UTC = 21:15 Uhr MEZ): Nacht-Slate
     - cron: '15 20 * * 1-5'
 
   workflow_dispatch:
 
 concurrency:
-  group: daily-nba-intel
+  group: nba-pipeline
   cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  run-nba-jarvis:
+  run-nba:
     runs-on: ubuntu-latest
     steps:
       - name: Code auschecken
@@ -39,7 +39,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: NBA Jarvis ausfuehren
+      - name: JARVIS NBA Engine ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -49,15 +49,16 @@ jobs:
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NBA }}
         run: python jarvis_nba.py
 
-      - name: History committen und pushen
+      - name: State & History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add pending_nba.json 2>/dev/null || true
+          git add nba_history.json 2>/dev/null || true
           if git diff --staged --quiet; then
-            echo "Keine relevanten Aenderungen an pending_nba.json vorhanden."
+            echo "Keine Aenderungen an NBA-Dateien vorhanden."
           else
-            git commit -m "Update NBA pending picks [skip ci]"
+            git commit -m "Update NBA pending and history [skip ci]"
             git checkout -- . 2>/dev/null || true
             git clean -fd 2>/dev/null || true
             git pull --rebase origin main
