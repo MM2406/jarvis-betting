@@ -7,11 +7,10 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
-# Sichere Anbindung der zentralen Telegram-Hilfsfunktion
 try:
-    from telegram_sender import send_to_telegram
+    from telegram_formatter import send_to_sport_channel
 except ImportError:
-    send_to_telegram = None
+    send_to_sport_channel = None
 
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -41,40 +40,61 @@ def make_progress_bar(percentage, segments=10):
     empty = segments - filled
     return f"[{'🟩' * filled}{'⬜' * empty}]"
 
-def send_telegram(text):
-    if send_to_telegram:
-        return send_to_telegram(text, thread_env_var="TELEGRAM_EURO_THREAD_ID")
+def send_telegram(text, reply_to=None):
+    if send_to_sport_channel:
+        msg_id = send_to_sport_channel(text, sport="euro", reply_to=reply_to)
+        if msg_id:
+            return msg_id
 
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram Credentials fehlen.")
-        return None
-
-    if not TELEGRAM_THREAD_ID:
-        print("[Telegram] ABBRUCH: Keine Europa Thread-ID vorhanden. Senden in den Hauptchat blockiert.")
+        print("[Telegram] FEHLER: Credentials fehlen.")
         return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-        "message_thread_id": int(TELEGRAM_THREAD_ID)
-    }
+    max_len = 3900
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
 
-    try:
-        res = requests.post(url, json=payload, timeout=25)
-        if res.status_code != 200:
-            payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=25)
-            return res2.json().get("result", {}).get("message_id") if res2.status_code == 200 else None
-        return res.json().get("result", {}).get("message_id")
-    except Exception as e:
-        print(f"Telegram-Fehler: {e}")
-        return None
+    last_msg_id = None
+    for chunk in chunks:
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        if TELEGRAM_THREAD_ID:
+            try:
+                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+            except ValueError:
+                pass
+        if reply_to:
+            payload["reply_to_message_id"] = int(reply_to)
+
+        try:
+            res = requests.post(url, json=payload, timeout=25)
+            if res.status_code != 200:
+                payload.pop("parse_mode", None)
+                res2 = requests.post(url, json=payload, timeout=25)
+                if res2.status_code == 200:
+                    last_msg_id = res2.json().get("result", {}).get("message_id")
+            else:
+                last_msg_id = res.json().get("result", {}).get("message_id")
+        except Exception as e:
+            print(f"[Telegram] Netzwerkfehler: {e}")
+
+    return last_msg_id
 
 def deduplicate_picks(items):
-    """Entfernt identische Wetten anhand von Datum, Match und Pick."""
     seen = set()
     unique = []
     for item in items:
@@ -91,8 +111,7 @@ def deduplicate_picks(items):
 def clean_score_text(raw_score):
     if not raw_score:
         return ""
-    cleaned = re.sub(r"\s*\([^)]*\)", "", raw_score).strip()
-    return cleaned
+    return re.sub(r"\s*\([^)]*\)", "", raw_score).strip()
 
 def clean_info_sentence(info):
     if not info:
@@ -142,22 +161,22 @@ def settle_pending_picks(history):
 
     for item in pending:
         prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis fuer folgendes Spiel:
+Recherchiere via Google Search das offizielle Endergebnis für folgendes Spiel:
 Match: {item.get('match')}
 Wettbewerb: {item.get('sport')}
 Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Pruefe, ob das Match bereits regulaer beendet ist (FINAL, inkl. OT falls relevant). Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Prüfe, ob das Match bereits beendet ist (FINAL, inkl. OT falls relevant). Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
-3. Bei Push (z.B. Handicap Unentschieden oder exakte Line) gib 'VOID' aus.
-4. Gib nur EINEN kurzen, praezisen Satz Begruendung an (max. 15 Woerter).
+3. Bei Push (z. B. Handicap Unentschieden oder exakte Line) gib 'VOID' aus.
+4. Gib nur EINEN kurzen Satz Begründung an (max. 15 Wörter).
 
 Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
 SCORE: [Nur Zahlen/Ergebnis, z.B. 84:78 oder 3:2 OT]
-INFO: [Maximal 1 praegnanter Satz]
+INFO: [Maximal 1 prägnanter Satz]
 """
         payload = {
             "contents": [{"parts": [{"text": prompt_settle}]}],
@@ -227,10 +246,6 @@ INFO: [Maximal 1 praegnanter Satz]
         total_staked = 0.0
         total_returned = 0.0
 
-        today_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-        msg = f"🇪🇺 <b>JARVIS EURO-HOOPS & ICE ABRECHNUNG</b>\n"
-        msg += f"<i>Abrechnung der Partien vom {today_display}</i>\n"
-
         for p in settled_now:
             odds_val = float(p.get("odds", 1.0))
             stake = float(p.get("stake", 1.0))
@@ -238,49 +253,49 @@ INFO: [Maximal 1 praegnanter Satz]
 
             status = p["status"]
             if status == "WON":
-                icon = "✅"
-                ret = stake * odds_val
-                profit_leg = ret - stake
-                outcome_str = f"<b>WON (+{profit_leg:.2f}u)</b>"
-                total_returned += ret
+                total_returned += stake * odds_val
             elif status == "VOID":
-                icon = "🟡"
-                ret = stake
-                outcome_str = "<b>PUSH (0.0u)</b>"
-                total_returned += ret
-            else:
-                icon = "❌"
-                outcome_str = f"<b>LOST (-{stake:.2f}u)</b>"
-
-            clean_score = clean_score_text(p.get("score", ""))
-            score_display = f" | <b>{clean_score}</b>" if clean_score else ""
-
-            msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-            msg += f"{icon} <b>{p['match']}</b>{score_display}\n"
-            msg += f"   ↳ <i>{p['pick']}</i> (@{odds_val:.2f}) ➔ {icon} {outcome_str}\n"
-
-            clean_info = clean_info_sentence(p.get("info", ""))
-            if clean_info:
-                msg += f"   • {clean_info}\n"
+                total_returned += stake
 
         net_profit = total_returned - total_staked
         roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
         valid_tickets = total_tickets - void_tickets
         hit_rate = (won_tickets / valid_tickets * 100) if valid_tickets > 0 else 0.0
         sign = "+" if net_profit >= 0 else ""
+        profit_color = "🟢" if net_profit >= 0 else "🔴"
 
-        msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-        msg += "📊 <b>PERFORMANCE METRIKEN</b>\n"
-        msg += f"• <b>Bilanz:</b>       <b>{won_tickets}W - {total_tickets - won_tickets - void_tickets}L</b>"
-        if void_tickets > 0:
-            msg += f" - <b>{void_tickets}P</b>"
-        msg += f" ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
-        msg += f"• <b>Umsatz:</b>       {total_staked:.2f}u ➔ {total_returned:.2f}u\n"
-        msg += f"• <b>Netto-Profit:</b> <b>{sign}{net_profit:.2f} Units</b>\n"
-        msg += f"• <b>Tages-ROI:</b>    <b>{sign}{roi:.1f}%</b>\n"
-        msg += "━━━━━━━━━━━━━━━━━━━━"
+        lines = [
+            "🏁 <b>JARVIS EURO-HOOPS & ICE — TAGESABSCHLUSS & BILANZ</b>",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "📋 <b>ERGEBNISSE:</b>\n"
+        ]
 
-        send_telegram(msg)
+        for p in settled_now:
+            status = p["status"]
+            odds_val = float(p.get("odds", 1.0))
+            icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
+            clean_score = clean_score_text(p.get("score", ""))
+            score_disp = f" ({clean_score})" if clean_score else ""
+            pnl_val = p.get("pnl", 0.0)
+            pnl_str = f"+{pnl_val:.2f}u" if pnl_val >= 0 else f"{pnl_val:.2f}u"
+
+            lines.append(f"{icon} <b>{p['match']}</b>{score_disp}")
+            lines.append(f"• <b>Tipp:</b> {p['pick']} (<code>@{odds_val:.2f}</code>) ➔ <b>{status}</b> (<code>{pnl_str}</code>)")
+            clean_info = clean_info_sentence(p.get("info", ""))
+            if clean_info:
+                lines.append(f"• <i>{clean_info}</i>")
+            lines.append("")
+
+        push_str = f" - {void_tickets}P" if void_tickets > 0 else ""
+        lines.append("━━━━━━━━━━━━━━━━━━━━")
+        lines.append("📊 <b>BILANZ & KENNZAHLEN</b>")
+        lines.append(f"• <b>Trefferquote:</b> {won_tickets}/{total_tickets - void_tickets} ({hit_rate:.1f}%){push_str}")
+        lines.append(f"• <b>Einsatz / Rücklauf:</b> {total_staked:.2f}u ➔ {total_returned:.2f}u")
+        lines.append(f"• {profit_color} <b>Netto-Ertrag:</b> <b>{sign}{net_profit:.2f} Units</b>")
+        lines.append(f"• <b>ROI:</b> <b>{sign}{roi:.1f}%</b>")
+        lines.append("\n📁 <i>Alle Tickets wurden in euro_history.json archiviert.</i>")
+
+        send_telegram("\n".join(lines).strip())
 
     return history
 
@@ -324,83 +339,89 @@ def run_euro_report():
 
     now_hour = datetime.now(LOCAL_TZ).hour
     if now_hour < 12:
-        print("Morgen-Run: Nur Abrechnung durchgefuehrt.")
+        print("Morgen-Run: Nur Abrechnung durchgeführt.")
         return
 
     odds_data = fetch_euro_odds()
     if not odds_data:
-        print("Keine europaeischen Basketball- oder Eishockeyspiele heute.")
+        print("Keine europäischen Basketball- oder Eishockeyspiele heute.")
         return
 
     today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS EURO INTEL' – Experte fuer EuroLeague Basketball sowie deutsches (DEL) und schwedisches (SHL) Eishockey.
-Erstelle fuer heute ({today_str}) ein quantitatives Value-Dossier.
+Du bist 'JARVIS EURO INTEL ARCHITECT' – Experte für EuroLeague Basketball sowie deutsches (DEL) und schwedisches (SHL) Eishockey.
+Erstelle für heute ({today_str}) das quantitative Value-Dossier.
 
-VERFUEGBARE PARTIEN & QUOTEN:
+VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
 
-RICHTLINIEN & MAERKTE:
-- Waehle ausschliesslich Partien aus der obigen Liste.
-- Bei Eishockey klar deklarieren: Regulaere Spielzeit (3-Weg) oder inkl. Overtime.
-- DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 4 Spiele mit rechnerischem Vorteil (+EV). Kein starres 2-Spiele-Limit.
-- BUCHMACHER-ALTERNATIVE: Gib fuer jeden Haupttipp immer eine Standard-Alternative an.
-- VALUE-GRENZE: Weise fuer jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
-- UNITS:
-  • Pick of the Day: 1.0 bis 2.0 Units
-  • Value Acca: 0.5 bis 1.0 Units
-  • Special Matchup Spotlight: 0.5 bis 1.0 Units
+================================================================================
+STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
+================================================================================
+1. PICKS FIRST:
+   - Alle spielfertigen Wettscheine stehen ZWINGEND GANZ OBEN direkt unter dem Header!
+   - Erst DANACH folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und der Abschnitt 'ANALYSEN & MODELL-LOGIK (DEEP DIVE)'.
+2. LÄNGEN-LIMIT:
+   - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen.
+3. FORMATIERUNG:
+   - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.75</code>, <code>1.50u</code>).
+   - Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
+   - Begründungen im Deep Dive kurz und schlüssig in maximal 2 Sätzen halten.
 
-FORMATIERUNGS-REGELN FUER TELEGRAM:
-- Keine doppelten Leerzeilen.
-- Beginne jede Aufzaehlung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
-- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Trennlinien exakt: '━━━━━━━━━━━━━━━━━━━━'
-- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+⛔ STRIKTE QUANT- & VETO-REGELN:
+1. Keine Quoten unter 1.40 bei Einzel-Tipps.
+2. Bei Eishockey klar deklarieren: Reguläre Spielzeit (3-Weg) oder inkl. Overtime/Shootout (2-Weg).
+3. DYNAMISCHE ACCA: Kombiniere 2 bis 3 Spiele mit klarem mathematischem Vorteil (+EV).
 
-REPORT-HTML:
-🇪🇺 <b>JARVIS EURO-HOOPS & ICE DOSSIER</b>
-<i>EuroLeague • DEL • SHL Advanced Quant-Models</i>
+EXAKTES HTML-AUSGABEFORMAT:
+🇪🇺 <b>JARVIS EURO-HOOPS & ICE — TAGESEMPFEHLUNGEN ({today_str})</b>
+━━━━━━━━━━━━━━━━━━━━
+📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
+
+⭐ <b>EURO PICK OF THE DAY (<code>1.50u</code> | <code>@[Quote]</code>)</b>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Markt & Tipp]</i>
+
+🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+
+🎯 <b>SPECIAL MATCHUP SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under / Handicap / Team Total]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>EURO PICK OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Liga] [Heimteam] vs. [Auswaertsteam]
-➔ <b>Haupt-Pick:</b> <b>[Markt & Tipp]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Klassische Standard-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
-📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [Defensiv-Ratings, Formkurve, Heimstaerke in europaeischen Hallen]
+📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 ergaenzen falls Value vorhanden ...]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
-⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
-💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhaengig starken Value bietet]
+🔎 <b>POTD: [Heim] vs. [Gast]</b>
+• <b>Edge:</b> [Defensiv-Rating Differenz / Fair-Quote]
+• <b>Logik:</b> [Maximal 2 präzise Sätze zu Pace, Heimstärke und Matchup-Vorteilen]
 
-━━━━━━━━━━━━━━━━━━━━
-🎯 <b>SPECIAL MATCHUP SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswaertsteam]
-➔ <b>Pick:</b> <b>[Over/Under / Handicap / Team Total]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Standard-Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Rationale:</b> [Taktische Besonderheit, Matchup-Vorteile, Quoten-Diskrepanz]
+🔎 <b>Acca & Spotlight Begründung:</b>
+• [Pick 1]: [1-2 Sätze Begründung]
+• [Special Spotlight]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
   {{
     "match": "Team A vs Team B",
     "sport": "Euro-Hoops & Ice",
+    "category": "POTD",
     "pick": "Team A Sieg",
     "odds": 1.75,
+    "stake": 1.5,
+    "date": "{today_iso}",
+    "is_kombi": false
+  }},
+  {{
+    "match": "Team A vs Team B // Team C vs Team D",
+    "sport": "Euro-Hoops & Ice",
+    "category": "ACCA",
+    "pick": "Team A ML + Team C ML",
+    "odds": 2.45,
     "stake": 1.0,
-    "date": "{today_iso}"
+    "date": "{today_iso}",
+    "is_kombi": true
   }}
 ]
 """
@@ -440,7 +461,7 @@ REPORT-HTML:
                         combined_pending = history.get("pending", []) + new_picks
                         history["pending"] = deduplicate_picks(combined_pending)
                         save_history(history)
-                        print(f"Euro-Picks aktualisiert (jetzt {len(history['pending'])} offen).")
+                        print(f"Euro-Picks in {HISTORY_FILE} gesichert.")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
