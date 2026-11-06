@@ -8,6 +8,21 @@ import requests
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+try:
+    from telegram_formatter import (
+        send_to_sport_channel,
+        edit_sport_channel_message,
+        format_standalone_live_ticker,
+        format_daily_settlement,
+        shorten_tag
+    )
+except ImportError:
+    send_to_sport_channel = None
+    edit_sport_channel_message = None
+    format_standalone_live_ticker = None
+    format_daily_settlement = None
+    def shorten_tag(t): return str(t)
+
 RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -19,7 +34,8 @@ TELEGRAM_THREAD_ID = (
 )
 
 STATE_FILE = "pending_soccer.json"
-HISTORY_FILE = "history_soccer.csv"
+HISTORY_CSV = "history_soccer.csv"
+HISTORY_JSON = "soccer_history.json"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
 def clean_team_name(name):
@@ -27,25 +43,6 @@ def clean_team_name(name):
     clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|lisbon|lissabon|donetsk|u19|u21|u23|youth|frauen|women|tsg|1899|fk|sk)\b", " ", clean)
     clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
-
-def shorten_tag(tag):
-    tag_clean = str(tag).strip()
-    mapping = {
-        "CONSERVATIVE 2-LEG BANKER": "BANKER",
-        "BALANCED VALUE ACCA": "BALANCED",
-        "HYBRID QUANT MULTI": "HYBRID",
-        "GOALS & BTTS VALUE ACCA": "GOALS",
-        "PLAYER PROP SPOTLIGHT / MULTI-TICKET": "PROPS",
-        "PLAYER PROPS MULTI": "PROPS",
-        "⭐ POTD": "POTD",
-        "POTD": "POTD",
-        "BANKER": "BANKER",
-        "BALANCED": "BALANCED",
-        "GOALS": "GOALS",
-        "HYBRID": "HYBRID",
-        "PROPS": "PROPS"
-    }
-    return mapping.get(tag_clean, tag_clean)
 
 def get_match_minute(ev):
     status = ev.get("status", {})
@@ -194,10 +191,11 @@ def fallback_gemini_match(match_str):
         print(f"[SoccerLive] Fallback Gemini Fehler: {e}")
     return None
 
-def append_to_history(records):
-    file_exists = os.path.exists(HISTORY_FILE)
+def append_to_history(records, json_settled_items=None):
+    # 1. In CSV speichern
+    file_exists = os.path.exists(HISTORY_CSV)
     try:
-        with open(HISTORY_FILE, "a", newline="", encoding="utf-8") as f:
+        with open(HISTORY_CSV, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if not file_exists:
                 writer.writerow(["Date", "Ticket", "Picks", "Odds", "Result", "Profit_Units"])
@@ -210,10 +208,35 @@ def append_to_history(records):
                     r.get("result", "FINISHED"),
                     r.get("profit", 0.0)
                 ])
+        print(f"[SoccerLive] {len(records)} Datensätze in {HISTORY_CSV} archiviert.")
     except Exception as e:
-        print(f"[SoccerLive] Fehler beim Schreiben in {HISTORY_FILE}: {e}")
+        print(f"[SoccerLive] Fehler beim Schreiben in {HISTORY_CSV}: {e}")
+
+    # 2. In soccer_history.json für analytics_engine.py spiegeln
+    if json_settled_items:
+        history_list = []
+        if os.path.exists(HISTORY_JSON):
+            try:
+                with open(HISTORY_JSON, "r", encoding="utf-8") as f:
+                    content = json.load(f)
+                    if isinstance(content, list):
+                        history_list = content
+                    elif isinstance(content, dict) and "settled" in content:
+                        history_list = content["settled"]
+            except Exception:
+                history_list = []
+        history_list.extend(json_settled_items)
+        try:
+            with open(HISTORY_JSON, "w", encoding="utf-8") as f:
+                json.dump(history_list, f, ensure_ascii=False, indent=2)
+            print(f"[SoccerLive] {len(json_settled_items)} Picks in {HISTORY_JSON} archiviert.")
+        except Exception as e:
+            print(f"[SoccerLive] Fehler beim Schreiben in {HISTORY_JSON}: {e}")
 
 def send_telegram_msg(text, reply_to=None):
+    if send_to_sport_channel:
+        return send_to_sport_channel(text, sport="soccer", reply_to=reply_to)
+
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         return None
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -238,8 +261,10 @@ def send_telegram_msg(text, reply_to=None):
     return None
 
 def edit_telegram(message_id, text):
+    if edit_sport_channel_message:
+        return edit_sport_channel_message(message_id, text)
+
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not message_id:
-        print("[SoccerLive] Telegram Credentials oder message_id fehlen für Edit.")
         return False
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageText"
@@ -254,7 +279,6 @@ def edit_telegram(message_id, text):
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code == 200 or "message is not modified" in res.text:
             return True
-        print(f"[SoccerLive] Edit mit HTML fehlgeschlagen ({res.text}), versuche ohne parse_mode...")
         payload.pop("parse_mode", None)
         res2 = requests.post(url, json=payload, timeout=20)
         return res2.status_code == 200 or "message is not modified" in res2.text
@@ -267,7 +291,8 @@ def load_state():
         return None
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            return data if isinstance(data, dict) else None
     except Exception as e:
         print(f"[SoccerLive] Fehler beim Laden von {STATE_FILE}: {e}")
         return None
@@ -352,8 +377,8 @@ def match_teams(search_str, home_name, away_name):
 def run_soccer_live():
     print(f"[{datetime.now(LOCAL_TZ).strftime('%H:%M:%S')}] Starte JARVIS Soccer Live Ticker...")
     state = load_state()
-    if not state:
-        print("[SoccerLive] Keine pending_soccer.json vorhanden. Beende.")
+    if not state or not isinstance(state, dict) or not state.get("potd") and not state.get("tickets"):
+        print("[SoccerLive] Keine aktiven Wetten in pending_soccer.json vorhanden. Beende geräuschlos.")
         return
 
     main_msg_id = state.get("message_id")
@@ -519,20 +544,21 @@ def run_soccer_live():
                 p_joined = " • ".join(pick_summaries)
                 pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
 
-    # Zusammenbau des reinen Ticker-Posts
-    ticker_lines = ["⏱️ <b>JARVIS SOCCER • LIVE-TRACKER & FORTSCHRITT</b>\n"]
-    if active_cards:
-        ticker_lines.append("\n".join(active_cards))
-    if pending_list:
+    # Ticker zusammenbauen
+    if format_standalone_live_ticker:
+        ticker_text = format_standalone_live_ticker("soccer", active_cards, pending_list)
+    else:
+        ticker_lines = ["⏱️ <b>JARVIS SOCCER • LIVE-TRACKER & FORTSCHRITT</b>\n"]
         if active_cards:
-            ticker_lines.append("\n━━━━━━━━━━━━━━━━━━━━\n⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
-        else:
-            ticker_lines.append("⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
+            ticker_lines.append("\n".join(active_cards))
+        if pending_list:
+            sep = "\n━━━━━━━━━━━━━━━━━━━━\n" if active_cards else ""
+            ticker_lines.append(f"{sep}⏳ <b>AUSSTEHEND (Startet in Kürze)</b>\n" + "\n".join(pending_list))
+        ticker_text = "\n".join(ticker_lines).strip()
 
-    ticker_text = "\n".join(ticker_lines).strip()
     last_ticker_text = state.get("last_ticker_text", "")
 
-    # Neuer separater Post oder Editieren des bestehenden Tickers
+    # Senden oder Editieren
     if not ticker_msg_id:
         print("[SoccerLive] Erstelle ersten eigenständigen Ticker-Post in Telegram...")
         new_id = send_telegram_msg(ticker_text, reply_to=main_msg_id)
@@ -559,6 +585,7 @@ def run_soccer_live():
         print("[SoccerLive] Alle Spiele beendet! Starte Tagesabschluss und Settlement...")
         ticket_results = []
         history_records = []
+        json_history_records = []
         tickets_won = 0
         tickets_lost = 0
         tickets_push = 0
@@ -569,30 +596,25 @@ def run_soccer_live():
 
         if "potd" in state and isinstance(state["potd"], dict):
             potd_odds = float(state["potd"].get("odds", 1.60))
+            potd_stake = float(state["potd"].get("stake", 1.50))
             all_tickets_to_eval.append({
                 "ticket_name": "⭐ SOCCER POTD",
                 "odds": potd_odds,
-                "stake": 1.5,
+                "stake": potd_stake,
                 "picks": [{"match": state["potd"].get("match"), "pick": state["potd"].get("pick")}]
             })
 
         for t in tickets_normalized:
             t_odds = float(t.get("odds", 2.0))
-            stake = 1.0
-            t_name_upper = t.get("ticket_name", "").upper()
-            if "BANKER" in t_name_upper:
-                stake = 1.25
-            elif "VALUE" in t_name_upper:
-                stake = 0.75
-            elif "HYBRID" in t_name_upper or "PROPS" in t_name_upper:
-                stake = 0.5
-
+            stake = float(t.get("stake", 1.0))
             all_tickets_to_eval.append({
                 "ticket_name": t.get("ticket_name", "Kombi"),
                 "odds": t_odds,
                 "stake": stake,
                 "picks": t.get("picks", [])
             })
+
+        today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
         for t in all_tickets_to_eval:
             t_name = t["ticket_name"]
@@ -635,20 +657,24 @@ def run_soccer_live():
                 t_status = "❌ LOSS"
                 profit = -stake
                 tickets_lost += 1
+                status_raw = "LOST"
             elif has_manual:
                 t_status = "❓ MANUAL"
                 profit = 0.0
                 tickets_manual += 1
+                status_raw = "PENDING"
             else:
                 all_pushes = all("🟡" in ps for ps in pick_summaries)
                 if all_pushes:
                     t_status = "🟡 PUSH"
                     profit = 0.0
                     tickets_push += 1
+                    status_raw = "PUSH"
                 else:
                     t_status = "✅ WIN"
                     profit = round(stake * (t_odds - 1.0), 2)
                     tickets_won += 1
+                    status_raw = "WON"
 
             total_profit += profit
 
@@ -656,32 +682,53 @@ def run_soccer_live():
             profit_str = f"{sign}{profit:.2f}u" if profit != 0 else "0.0u"
             ticket_results.append(f"• <b>{shorten_tag(t_name)}</b> (@{t_odds:.2f}) ➔ {t_status} (<i>{profit_str}</i>)")
 
+            # CSV Eintrag
             history_records.append({
-                "date": datetime.now().strftime("%Y-%m-%d"),
+                "date": today_iso,
                 "ticket": t_name,
                 "picks": " // ".join(pick_summaries),
                 "odds": t_odds,
-                "result": t_status.replace("✅ ", "").replace("❌ ", "").replace("🟡 ", "").replace("❓ ", ""),
+                "result": status_raw,
                 "profit": profit
             })
 
-        append_to_history(history_records)
+            # JSON Eintrag für analytics_engine
+            json_history_records.append({
+                "date": today_iso,
+                "sport": "Soccer",
+                "ticket": t_name,
+                "picks": pick_summaries,
+                "odds": t_odds,
+                "stake": stake,
+                "pnl": profit,
+                "status": status_raw
+            })
+
+        append_to_history(history_records, json_settled_items=json_history_records)
         state["settled"] = True
         save_state(state)
 
-        net_sign = "+" if total_profit > 0 else ""
-        tickets_summary = "\n".join(ticket_results)
+        if format_daily_settlement:
+            summary_msg = format_daily_settlement(
+                sport="soccer",
+                ticket_results=ticket_results,
+                tickets_won=tickets_won,
+                tickets_lost=tickets_lost,
+                tickets_push=tickets_push,
+                tickets_manual=tickets_manual,
+                total_profit=total_profit,
+                history_file_name="history_soccer.csv & soccer_history.json"
+            )
+        else:
+            net_sign = "+" if total_profit > 0 else ""
+            summary_msg = (
+                f"🏁 <b>JARVIS SOCCER — TAGESABSCHLUSS</b>\n\n"
+                f"<b>Ticket-Auswertung:</b>\n" + "\n".join(ticket_results) + f"\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"📊 <b>Bilanz Tickets:</b> <b>{tickets_won}W - {tickets_lost}L</b>\n"
+                f"💰 <b>Netto-Ergebnis:</b> <b>{net_sign}{total_profit:.2f} Units</b>"
+            )
 
-        summary_msg = (
-            f"🏁 <b>JARVIS SOCCER — TAGESABSCHLUSS</b>\n\n"
-            f"<b>Ticket-Auswertung (Kombis & POTD):</b>\n"
-            f"{tickets_summary}\n\n"
-            f"📊 <b>Bilanz Tickets:</b> <b>{tickets_won}W - {tickets_lost}L</b>"
-            f"{f' - {tickets_push}P' if tickets_push > 0 else ''}"
-            f"{f' ({tickets_manual} offen/Props)' if tickets_manual > 0 else ''}\n"
-            f"💰 <b>Netto-Ergebnis:</b> <b>{net_sign}{total_profit:.2f} Units</b>\n\n"
-            f"📁 <i>Alle Tickets wurden in history_soccer.csv archiviert.</i>"
-        )
         send_telegram_msg(summary_msg, reply_to=ticker_msg_id or main_msg_id)
         print("[SoccerLive] ✅ Tagesabschluss mit Ticket-Abrechnung gesendet.")
 
