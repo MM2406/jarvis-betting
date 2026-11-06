@@ -2,75 +2,90 @@ import os
 import sys
 import json
 import time
-import re
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+try:
+    from telegram_formatter import send_to_sport_channel
+except ImportError:
+    send_to_sport_channel = None
+
+# ==========================================
+# KONFIGURATION & CREDENTIALS
+# ==========================================
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Sicheres Routing ins NFL-Thema
+# Sicheres Routing ins NHL-Thema
 TELEGRAM_THREAD_ID = (
-    os.environ.get("TELEGRAM_NFL_THREAD_ID", "").strip()
-    or os.environ.get("TELEGRAM_THREAD_NFL", "").strip()
+    os.environ.get("TELEGRAM_THREAD_NHL", "").strip()
+    or os.environ.get("TELEGRAM_NHL_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_ID", "").strip()
 )
 
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
-PENDING_FILE = "pending_nfl.json"
-HISTORY_FILE = "nfl_history.json"
+PENDING_FILE = "pending_nhl.json"
+HISTORY_FILE = "nhl_history.json"
 
-def make_progress_bar(percentage, segments=10):
-    clamped = max(0.0, min(100.0, float(percentage)))
-    filled = int(round((clamped / 100.0) * segments))
-    empty = segments - filled
-    return f"[{'🟩' * filled}{'⬜' * empty}]"
+# ==========================================
+# STATE & TELEGRAM HILFSFUNKTIONEN
+# ==========================================
+def send_telegram(text, reply_to=None):
+    if send_to_sport_channel:
+        msg_id = send_to_sport_channel(text, sport="nhl", reply_to=reply_to)
+        if msg_id:
+            return msg_id
 
-def send_telegram(text):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("[Telegram] Credentials fehlen.")
-        return None
-
-    if not TELEGRAM_THREAD_ID:
-        print("[Telegram] ABBRUCH: Keine NFL Thread-ID konfiguriert.")
+        print("[Telegram] FEHLER: Credentials fehlen.")
         return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-        "message_thread_id": int(TELEGRAM_THREAD_ID)
-    }
+    max_len = 3900
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
 
-    try:
-        res = requests.post(url, json=payload, timeout=25)
-        if res.status_code != 200:
-            payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=25)
-            return res2.json().get("result", {}).get("message_id") if res2.status_code == 200 else None
-        return res.json().get("result", {}).get("message_id")
-    except Exception as e:
-        print(f"[Telegram] Sende-Fehler: {e}")
-        return None
+    last_msg_id = None
+    for chunk in chunks:
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        if TELEGRAM_THREAD_ID:
+            try:
+                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+            except ValueError:
+                pass
+        if reply_to:
+            payload["reply_to_message_id"] = int(reply_to)
 
-def deduplicate_picks(items):
-    seen = set()
-    unique = []
-    for item in items:
-        key = (
-            str(item.get("date", "")).strip().lower(),
-            str(item.get("match", "")).strip().lower(),
-            str(item.get("pick", "")).strip().lower()
-        )
-        if key not in seen:
-            seen.add(key)
-            unique.append(item)
-    return unique
+        try:
+            res = requests.post(url, json=payload, timeout=25)
+            if res.status_code != 200:
+                payload.pop("parse_mode", None)
+                res2 = requests.post(url, json=payload, timeout=25)
+                if res2.status_code == 200:
+                    last_msg_id = res2.json().get("result", {}).get("message_id")
+            else:
+                last_msg_id = res.json().get("result", {}).get("message_id")
+        except Exception as e:
+            print(f"[Telegram] Netzwerkfehler: {e}")
+
+    return last_msg_id
 
 def load_pending():
     if not os.path.exists(PENDING_FILE):
@@ -78,207 +93,242 @@ def load_pending():
     try:
         with open(PENDING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            raw = data if isinstance(data, list) else data.get("pending", [])
-            return deduplicate_picks(raw)
+            return data if isinstance(data, list) else []
     except Exception as e:
         print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
         return []
 
 def save_pending(pending_list):
     try:
-        unique_list = deduplicate_picks(pending_list)
         with open(PENDING_FILE, "w", encoding="utf-8") as f:
-            json.dump(unique_list, f, ensure_ascii=False, indent=2)
+            json.dump(pending_list, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Fehler beim Speichern von {PENDING_FILE}: {e}")
 
-def load_history():
-    if not os.path.exists(HISTORY_FILE):
-        return []
-    try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data if isinstance(data, list) else []
-    except Exception as e:
-        print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
-        return []
+def save_to_history(settled_list):
+    if not settled_list:
+        return
+    history = []
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    history = data
+        except Exception as e:
+            print(f"Fehler beim Laden von {HISTORY_FILE}: {e}")
 
-def save_history(history_list):
+    history.extend(settled_list)
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history_list, f, ensure_ascii=False, indent=2)
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"{len(settled_list)} Wetten in {HISTORY_FILE} archiviert.")
     except Exception as e:
-        print(f"Fehler beim Speichern von {HISTORY_FILE}: {e}")
+        print(f"Fehler beim Speichern in {HISTORY_FILE}: {e}")
 
-def settle_pending_picks():
+# ==========================================
+# 1. MORGEN-SETTLEMENT (ABRECHNUNG & BILANZ)
+# ==========================================
+def settle_pending_bets():
     pending = load_pending()
     if not pending:
-        print("Keine offenen NFL-Picks zur Abrechnung.")
+        print("Keine offenen Wetten in pending_nhl.json gefunden.")
         return
 
-    history = load_history()
-    still_pending = []
-    settled_now = []
+    print(f"Prüfe Abrechnung für {len(pending)} offene NHL-Picks...")
+    remaining_pending = []
+    settled_results = []
 
-    host = "generativelanguage.googleapis.com"
-    path = "v1beta/models/gemini-3.8-flash:generateContent"
-    api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
+    for bet in pending:
+        match = bet.get("match", "")
+        pick = bet.get("pick", "")
+        odds = bet.get("odds", "-")
+        date_str = bet.get("date", "")
+        is_kombi = bet.get("is_kombi", False) or "kombi" in bet.get("category", "").lower() or "+" in pick
 
-    for item in pending:
-        match = item.get("match", "")
-        pick = item.get("pick", "")
-        date_str = item.get("date", "")
-        is_kombi = item.get("is_kombi", False) or "+" in pick
+        prompt = f"""
+Du bist ein Sport-Abrechnungssystem für Eishockey (NHL).
+Ermittle via Google Search die offiziellen Endergebnisse für folgende NHL-Wette:
+- Spiel / Begegnungen: {match}
+- Datum: {date_str}
+- Wette: {pick}
+- Ist Kombiwette: {is_kombi}
 
-        prompt_settle = f"""
-Du bist 'JARVIS NFL SETTLEMENT AGENT'.
-Recherchiere via Google Search das offizielle Endergebnis des folgenden NFL-Matches bzw. der Wette:
-Match: {match}
-Tipp: {pick}
-Datum: {date_str}
-Ist Kombi: {is_kombi}
+REGELN FÜR NHL:
+- Alle Torwetten und Sieger gelten inklusive Overtime (OT) und Shootout (SO), sofern nicht anders angegeben.
+- Tore und Assists ergeben Scorerpunkte.
 
-REGELN FÜR NFL:
-1. Prüfe, ob das Spiel beendet ist (FINAL). Falls noch live oder nicht begonnen -> PENDING.
-2. Bei Spielerwetten (Player Props wie Passing/Rushing Yards, Touchdowns): Prüfe den exakten Boxscore.
-3. Bei Spreads & Over/Under: Exaktes Endergebnis inklusive Overtime berücksichtigen.
-4. Bei Push / Line genau getroffen -> VOID.
-5. Bei Kombiwetten: Alle Beine müssen gewinnen -> WON. Sobald ein Bein verliert -> LOST.
-6. Gib genau 1 kurzen Satz als Begründung an (max. 15 Wörter).
+AUFGABE:
+1. Prüfe, ob alle relevanten Spiele offiziell beendet sind (FINAL).
+2. Falls eine Kombiwette vorliegt:
+   - Werte jedes einzelne Bein (Leg) separat aus.
+   - Wenn alle Beine gewonnen sind -> RESULT: WON
+   - Wenn mindestens ein Bein verloren ist -> RESULT: LOST
+   - Gib für jedes Bein das exakte Ergebnis und den Status an.
+3. Falls Einzelwette: Ermittle Endstand und bewerte WON oder LOST.
+4. Falls Spiele noch laufen oder ausstehen -> STATUS: PENDING
 
-Antworte strikt in diesem Format:
-RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: [Endergebnis, z.B. 24:17 oder Spieler-Stats]
-INFO: [Maximal 1 kurzer Satz Begründung]
+Antworte STRIKT in diesem Format:
+STATUS: FINISHED oder PENDING
+RESULT: WON oder LOST oder PENDING
+LEGS_WON: Anzahl der gewonnenen Beine
+LEGS_TOTAL: Gesamtanzahl der Beine
+DETAILS:
+- Bein 1: Team A vs Team B | Ergebnis: X:Y | WON oder LOST
+- Bein 2: ...
 """
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
-            "contents": [{"parts": [{"text": prompt_settle}]}],
+            "contents": [{"parts": [{"text": prompt}]}],
             "tools": [{"googleSearch": {}}],
             "generationConfig": {"temperature": 0.1}
         }
 
         try:
-            res = requests.post(api_url, json=payload, timeout=60)
+            res = requests.post(url, json=payload, timeout=60)
             if res.status_code == 200:
-                text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-                score_val = ""
-                info_val = ""
-                result_val = "PENDING"
-                for line in text.splitlines():
-                    if line.startswith("SCORE:"):
-                        score_val = line.replace("SCORE:", "").strip()
-                    elif line.startswith("INFO:"):
-                        info_val = line.replace("INFO:", "").strip()
-                    elif line.startswith("RESULT:"):
-                        result_val = line.replace("RESULT:", "").strip().upper()
+                ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                status = "PENDING"
+                result = "PENDING"
+                legs_won = 0
+                legs_total = 1
+                details_lines = []
+                in_details = False
 
-                item["score"] = score_val
-                item["info"] = info_val
+                for line in ans.split("\n"):
+                    line_s = line.strip()
+                    if line_s.startswith("STATUS:"):
+                        status = line_s.replace("STATUS:", "").strip().upper()
+                    elif line_s.startswith("RESULT:"):
+                        result = line_s.replace("RESULT:", "").strip().upper()
+                    elif line_s.startswith("LEGS_WON:"):
+                        try:
+                            legs_won = int(line_s.replace("LEGS_WON:", "").strip())
+                        except ValueError:
+                            pass
+                    elif line_s.startswith("LEGS_TOTAL:"):
+                        try:
+                            legs_total = int(line_s.replace("LEGS_TOTAL:", "").strip())
+                        except ValueError:
+                            pass
+                    elif line_s.startswith("DETAILS:"):
+                        in_details = True
+                    elif in_details and line_s:
+                        details_lines.append(line_s)
 
-                if result_val in ["WON", "LOST", "VOID"]:
-                    item["status"] = result_val
-                    item["sport"] = "NFL"
-
+                if status == "FINISHED" and result in ["WON", "LOST"]:
                     try:
-                        odds_val = float(str(item.get("odds", "1.90")).replace(",", "."))
+                        odds_val = float(str(odds).replace(",", "."))
                     except ValueError:
-                        odds_val = 1.90
-                    try:
-                        stake_val = float(str(item.get("stake", "1.0")).replace(",", "."))
-                    except ValueError:
-                        stake_val = 1.0
+                        odds_val = 1.0
 
-                    item["stake"] = stake_val
-                    item["odds"] = odds_val
+                    stake = 1.0
+                    pnl = (stake * odds_val - stake) if result == "WON" else -stake
 
-                    if result_val == "WON":
-                        item["pnl"] = round((odds_val - 1.0) * stake_val, 2)
-                    elif result_val == "LOST":
-                        item["pnl"] = round(-stake_val, 2)
-                    else:
-                        item["pnl"] = 0.0
+                    if not is_kombi:
+                        legs_total = 1
+                        legs_won = 1 if result == "WON" else 0
 
-                    settled_now.append(item)
+                    settled_results.append({
+                        "match": match,
+                        "pick": pick,
+                        "odds": odds,
+                        "odds_val": odds_val,
+                        "stake": stake,
+                        "pnl": pnl,
+                        "result": result,
+                        "status": result,
+                        "date": date_str,
+                        "is_kombi": is_kombi,
+                        "legs_won": legs_won,
+                        "legs_total": legs_total,
+                        "details": details_lines,
+                        "sport": "NHL"
+                    })
                 else:
-                    still_pending.append(item)
+                    remaining_pending.append(bet)
             else:
-                still_pending.append(item)
+                remaining_pending.append(bet)
         except Exception as e:
-            print(f"Fehler bei NFL-Settle {match}: {e}")
-            still_pending.append(item)
+            print(f"Fehler bei NHL-Settlement für {match}: {e}")
+            remaining_pending.append(bet)
 
-    if settled_now:
-        history.extend(settled_now)
-        save_history(history)
-        save_pending(still_pending)
+    save_pending(remaining_pending)
 
-        total_tickets = len(settled_now)
-        won_tickets = sum(1 for p in settled_now if p["status"] == "WON")
-        void_tickets = sum(1 for p in settled_now if p["status"] == "VOID")
+    if settled_results:
+        save_to_history(settled_results)
 
-        total_staked = 0.0
-        total_returned = 0.0
+        singles = [b for b in settled_results if not b["is_kombi"]]
+        kombis = [b for b in settled_results if b["is_kombi"]]
 
-        today_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-        msg = f"🏈 <b>JARVIS NFL ABRECHNUNG</b>\n"
-        msg += f"<i>Offizielle Auswertung der NFL-Slates ({today_display})</i>\n"
+        singles_won = sum(1 for b in singles if b["result"] == "WON")
+        kombis_won = sum(1 for b in kombis if b["result"] == "WON")
 
-        for p in settled_now:
-            odds_val = float(p.get("odds", 1.90))
-            stake = float(p.get("stake", 1.0))
-            total_staked += stake
+        total_staked = sum(b["stake"] for b in settled_results)
+        total_pnl = sum(b["pnl"] for b in settled_results)
+        roi = (total_pnl / total_staked * 100) if total_staked > 0 else 0
+        pnl_sign = "+" if total_pnl >= 0 else ""
+        profit_color = "🟢" if total_pnl >= 0 else "🔴"
 
-            status = p["status"]
-            if status == "WON":
-                icon = "✅"
-                ret = stake * odds_val
-                profit_leg = ret - stake
-                outcome_str = f"<b>WON (+{profit_leg:.2f}u)</b>"
-                total_returned += ret
-            elif status == "VOID":
-                icon = "🟡"
-                ret = stake
-                outcome_str = "<b>PUSH / VOID (0.0u)</b>"
-                total_returned += ret
+        kombi_legs_won = sum(b["legs_won"] for b in kombis)
+        kombi_legs_total = sum(b["legs_total"] for b in kombis)
+
+        total_picks_count = len(singles) + kombi_legs_total
+        total_picks_won = singles_won + kombi_legs_won
+        overall_accuracy = (total_picks_won / total_picks_count * 100) if total_picks_count > 0 else 0
+
+        lines = [
+            "🏁 <b>JARVIS NHL — TAGESABSCHLUSS & BILANZ</b>",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "📋 <b>ERGEBNISSE:</b>\n"
+        ]
+
+        for b in settled_results:
+            icon = "✅" if b["result"] == "WON" else "❌"
+            pnl_str = f"+{b['pnl']:.2f}u" if b["pnl"] >= 0 else f"{b['pnl']:.2f}u"
+
+            if b["is_kombi"]:
+                lines.append(f"{icon} <b>Kombi: {b['pick']}</b> (<code>@{b['odds']}</code>)")
+                lines.append(f"• <b>Status:</b> {b['result']} (<code>{pnl_str}</code>)")
+                lines.append(f"• <b>Beine getroffen:</b> {b['legs_won']}/{b['legs_total']}")
+                for d in b.get("details", []):
+                    lines.append(f"  {d}")
             else:
-                icon = "❌"
-                outcome_str = f"<b>LOST (-{stake:.2f}u)</b>"
+                lines.append(f"{icon} <b>{b['pick']}</b> (<code>@{b['odds']}</code>)")
+                lines.append(f"• <b>Match:</b> {b['match']}")
+                lines.append(f"• <b>Status:</b> {b['result']} (<code>{pnl_str}</code>)")
+                for d in b.get("details", []):
+                    lines.append(f"• <i>{d}</i>")
+            lines.append("")
 
-            score_display = f" | <b>{p.get('score')}</b>" if p.get('score') else ""
+        lines.append("━━━━━━━━━━━━━━━━━━━━")
+        lines.append("📊 <b>BILANZ & STATISTIK</b>")
+        if singles:
+            s_pnl = sum(b["pnl"] for b in singles)
+            s_sign = "+" if s_pnl >= 0 else ""
+            lines.append(f"• <b>Singles:</b> {singles_won}/{len(singles)} | {s_sign}{s_pnl:.2f}u")
+        if kombis:
+            k_pnl = sum(b["pnl"] for b in kombis)
+            k_sign = "+" if k_pnl >= 0 else ""
+            lines.append(f"• <b>Kombis:</b> {kombis_won}/{len(kombis)} | {k_sign}{k_pnl:.2f}u")
 
-            msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-            msg += f"{icon} <b>{p['match']}</b>{score_display}\n"
-            msg += f"   ↳ <i>{p['pick']}</i> (@{odds_val:.2f}) ➔ {icon} {outcome_str}\n"
-            if p.get("info"):
-                msg += f"   • {p['info']}\n"
+        lines.append(f"• <b>Trefferquote (inkl. Legs):</b> {total_picks_won}/{total_picks_count} ({overall_accuracy:.1f}%)")
+        lines.append(f"• {profit_color} <b>Netto-Ertrag:</b> <b>{pnl_sign}{total_pnl:.2f} Units</b>")
+        lines.append(f"• <b>ROI:</b> <b>{pnl_sign}{roi:.1f}%</b>")
+        lines.append("\n📁 <i>Alle Tickets wurden in nhl_history.json archiviert.</i>")
 
-        net_profit = total_returned - total_staked
-        roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
-        valid_tickets = total_tickets - void_tickets
-        hit_rate = (won_tickets / valid_tickets * 100) if valid_tickets > 0 else 0.0
-        sign = "+" if net_profit >= 0 else ""
+        send_telegram("\n".join(lines).strip())
+        print("NHL-Settlement erfolgreich gesendet.")
 
-        msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-        msg += "📊 <b>PERFORMANCE METRIKEN</b>\n"
-        msg += f"• <b>Bilanz:</b>       <b>{won_tickets}W - {total_tickets - won_tickets - void_tickets}L</b>"
-        if void_tickets > 0:
-            msg += f" - <b>{void_tickets}P</b>"
-        msg += f" ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
-        msg += f"• <b>Umsatz:</b>       {total_staked:.2f}u ➔ {total_returned:.2f}u\n"
-        msg += f"• <b>Netto-Profit:</b> <b>{sign}{net_profit:.2f} Units</b>\n"
-        msg += f"• <b>Tages-ROI:</b>    <b>{sign}{roi:.1f}%</b>\n"
-        msg += "━━━━━━━━━━━━━━━━━━━━"
-
-        send_telegram(msg)
-    else:
-        save_pending(still_pending)
-
-def fetch_nfl_odds():
-    url = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/"
+# ==========================================
+# 2. ODDS API & PICKS GENERIERUNG
+# ==========================================
+def fetch_nhl_odds():
+    url = "https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/"
     params = {
         "apiKey": ODDS_API_KEY,
         "regions": "eu,us",
-        "markets": "h2h,spreads,totals",
+        "markets": "h2h,totals",
         "oddsFormat": "decimal"
     }
     try:
@@ -286,11 +336,11 @@ def fetch_nfl_odds():
         if res.status_code == 200:
             events = []
             now_utc = datetime.now(timezone.utc)
-            cutoff = now_utc + timedelta(hours=36)
+            cutoff = now_utc + timedelta(hours=18)
             for m in res.json():
                 commence = datetime.fromisoformat(m["commence_time"].replace("Z", "+00:00"))
                 if now_utc <= commence <= cutoff:
-                    time_str = commence.astimezone(LOCAL_TZ).strftime("%a %H:%M Uhr")
+                    time_str = commence.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
                     bookies = m.get("bookmakers", [])
                     if not bookies:
                         continue
@@ -299,93 +349,95 @@ def fetch_nfl_odds():
                         outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in mk.get("outcomes", [])]
                         m_details.append(f"{mk.get('key')}: {', '.join(outcomes)}")
                     events.append(f"{m['home_team']} vs. {m['away_team']} ({time_str}) | {' // '.join(m_details)}")
-            return "\n".join(events[:35])
+            return "\n".join(events[:40])
     except Exception as e:
-        print(f"Fehler bei NFL Odds: {e}")
+        print(f"Fehler bei NHL Odds: {e}")
     return ""
 
-def run_nfl_intel():
-    odds_data = fetch_nfl_odds()
+def run_nhl_intel():
+    odds_data = fetch_nhl_odds()
     if not odds_data:
-        print("Keine anstehenden NFL-Spiele im Zeitfenster gefunden.")
+        print("Keine NHL-Spiele im Zeitfenster gefunden.")
         return
 
-    today_str = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-    today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
+    now_dt = datetime.now(LOCAL_TZ)
+    today_str = now_dt.strftime("%d.%m.%Y")
+    today_iso = now_dt.strftime("%Y-%m-%d")
+    current_year = now_dt.strftime("%Y")
 
     prompt = f"""
-Du bist 'JARVIS NFL QUANT' – Spezialist für quantitative NFL-Modellierung (EPA/Play, Dropback Success Rate, Neutral Pace, DVOA, Injury-Impact).
-Erstelle für den anstehenden NFL-Spieltag ({today_str}) ein fundiertes Value-Dossier.
+Du bist 'JARVIS NHL QUANT ARCHITECT'.
+Erstelle für heute ({today_str}, Jahr: {current_year}) das NHL-Value-Dossier.
 
-VERFÜGBARE PARTIEN & QUOTEN:
+VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
 
-RICHTLINIEN & MÄRKTE:
-- Wähle ausschließlich Partien aus der obigen Liste.
-- Analysiere Trench-Matchups (Pass Rush vs. Pass Block Win Rate), Key Numbers (3, 7, 6, 10, 4) und Wetter/Injuries via Google Search.
-- DYNAMISCHE ACCA: Begrenze dich beim Kombi-Ticket NICHT künstlich auf 2 Spiele. Kombiniere 2 bis 3 Partien, sofern sie mathematischen Vorteil (+EV) bieten.
-- BUCHMACHER-ALTERNATIVE: Gib für jeden Spread/Total-Pick immer eine Standard-Alternative für europäische Bookies an.
-- VALUE-GRENZE: Weise für jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
-- Mindestquote beachten: Keine Quoten unter 1.35!
-
 ================================================================================
-STRIKTE TELEGRAM-FORMATIERUNG (CARD-DESIGN):
+STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
 ================================================================================
-- KEINE doppelten Leerzeilen zwischen Absätzen!
-- Aufzählungen beginnen IMMER direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch danach.
-- Sub-Punkte und Auswahlen rücken sauber mit '   ↳ ' ein (z. B. '   ↳ <b>Haupt-Pick:</b> ...').
-- Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'
-- Halte die Begründungen präzise und fundiert in 2-3 Sätzen.
-- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+1. PICKS FIRST:
+   - Alle spielfertigen Wettscheine stehen ZWINGEND GANZ OBEN direkt unter dem Header!
+   - Erst DANACH folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und der Abschnitt 'ANALYSEN & MODELL-LOGIK (DEEP DIVE)'.
+2. LÄNGEN-LIMIT:
+   - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen.
+3. FORMATIERUNG:
+   - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.85</code>, <code>1.50u</code>).
+   - Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
+   - Begründungen im Deep Dive präzise und fundiert in maximal 2 Sätzen halten.
 
-REPORT-HTML:
-🏈 <b>JARVIS NFL INTEL DOSSIER</b>
-<i>Advanced Analytics • EPA/Play Edge • Key-Number Modeling</i>
+⛔ STRIKTE QUANT- & VETO-REGELN:
+1. Keine Quoten unter 1.40 bei Einzel-Tipps.
+2. Form- & Starting-Goalie-Check via Google Search (Confirmed/Expected Goalies, Back-to-Back, Special Teams PP/PK).
+3. Bei Player Props: Nur Over-Märkte (Tore/Assists/Punkte/Schüsse), KEINE Under-Props!
+
+EXAKTES HTML-AUSGABEFORMAT:
+🏒 <b>JARVIS NHL — TAGESEMPFEHLUNGEN ({today_str})</b>
+━━━━━━━━━━━━━━━━━━━━
+📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
+
+⭐ <b>POTD (<code>1.50u</code> | <code>@[Quote]</code>)</b>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Tipp inkl. OT/SO]</i>
+
+🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
+• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+
+🎯 <b>TOTALS SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
+• <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under Tore]</i>
+
+👟 <b>PLAYER PROP SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
+• [Spieler] ([Team]) ➔ <i>[1+ Punkt / 3+ Schüsse]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>NFL PICK OF THE DAY (Single Bet)</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-   ↳ <b>Haupt-Pick:</b> <b>[Spread / Total / Moneyline]</b> @ [Quote]
-   ↳ <i>Buchmacher-Alternative:</i> [Klassische Standard-Linie] @ [Quote]
-• <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.5 Units
-• <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-• <b>Edge:</b> [EPA/Play Differenz, Success Rate, Trench-Matchup, Roster-Status kompakt in 2-3 Sätzen]
+📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• [Uhrzeit] Uhr | [Heim] vs. [Gast] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-• <b>Gesamtquote:</b> <b>@[Quote]</b>
-• <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 0.75 Units
-• <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder starken Value bietet]
+🔎 <b>POTD: [Heim] vs. [Gast]</b>
+• <b>Edge:</b> [Goalie Save-% Differenz / Fair-Quote]
+• <b>Logik:</b> [Maximal 2 Sätze zu Starting Goalie Matchup, 5v5 Expected Goals & Special Teams]
 
-━━━━━━━━━━━━━━━━━━━━
-🎯 <b>TOTALS & PACE SPOTLIGHT</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-   ↳ <b>Pick:</b> <b>[Over/Under Wette / Team-Total]</b> @ [Quote]
-   ↳ <i>Alternative:</i> [Standard-Linie] @ [Quote]
-• <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 1.0 Units
-• <b>Rationale:</b> [Neutral Pace, Red-Zone Conversion Efficiency, Passing-Downs Explosiveness]
-
-━━━━━━━━━━━━━━━━━━━━
-👟 <b>NFL PLAYER PROP SPOTLIGHT</b>
-• <b>Match:</b> [Uhrzeit] Uhr | [Heimteam] vs. [Auswärtsteam]
-   ↳ <b>Pick:</b> <b>[Spielername: Passing / Rushing / Receiving Yards / Anytime TD]</b> @ [Quote]
-   ↳ <i>Alternative:</i> [Alternative Linie] @ [Quote]
-• <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> 0.75 Units
-• <b>Rationale:</b> [Target Share, aDOT, Coverage-Schwächen des Gegners]
+🔎 <b>Acca & Spotlights Begründung:</b>
+• [Pick 1 / Team]: [1-2 Sätze Begründung]
+• [Totals / Prop]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
   {{
     "match": "Team A vs Team B",
-    "sport": "NFL",
-    "category": "POTD",
-    "pick": "Team A -2.5",
-    "odds": 1.90,
-    "stake": 1.5,
+    "sport": "NHL",
+    "category": "PICK OF THE DAY",
+    "pick": "Team A Sieg (inkl. OT)",
+    "odds": "1.85",
     "date": "{today_iso}",
     "is_kombi": false
+  }},
+  {{
+    "match": "Team C vs Team D / Team E vs Team F",
+    "sport": "NHL",
+    "category": "QUANT VALUE ACCA",
+    "pick": "Team C ML + Team E ML",
+    "odds": "2.80",
+    "date": "{today_iso}",
+    "is_kombi": true
   }}
 ]
 """
@@ -411,20 +463,11 @@ REPORT-HTML:
                         pending = load_pending()
                         for np in new_picks:
                             np["status"] = "PENDING"
-                            np["sport"] = "NFL"
-                            try:
-                                np["odds"] = float(str(np.get("odds", 1.90)).replace(",", "."))
-                            except ValueError:
-                                np["odds"] = 1.90
-                            try:
-                                np["stake"] = float(str(np.get("stake", 1.0)).replace(",", "."))
-                            except ValueError:
-                                np["stake"] = 1.0
                         pending.extend(new_picks)
                         save_pending(pending)
-                        print(f"{len(new_picks)} NFL-Picks getrackt.")
+                        print(f"{len(new_picks)} NHL-Picks in {PENDING_FILE} gesichert.")
                     except Exception as je:
-                        print(f"Fehler beim Parsen der Tracking-Picks: {je}")
+                        print(f"Fehler beim Parsen der NHL-Picks: {je}")
 
                 report = report.replace("```html", "").replace("```", "").strip()
                 send_telegram(report)
@@ -440,17 +483,24 @@ REPORT-HTML:
             else:
                 sys.exit(1)
 
+# ==========================================
+# 3. HAUPTSTEUERUNG MIT ZEIT-WEICHE
+# ==========================================
+def main():
+    now_berlin = datetime.now(LOCAL_TZ)
+    current_hour = now_berlin.hour
+
+    print(f"=== JARVIS NHL ENGINE START [{now_berlin.strftime('%Y-%m-%d %H:%M:%S %Z')}] ===")
+
+    # 1. Abrechnung läuft morgens wie abends immer
+    settle_pending_bets()
+
+    # 2. Picks nur im Abendfenster (ab 16:00 Uhr MEZ) generieren
+    if current_hour >= 16:
+        print(f"Abend-Fenster aktiv ({current_hour} Uhr MEZ): Generiere neues NHL-Dossier...")
+        run_nhl_intel()
+    else:
+        print(f"Morgen-Fenster aktiv ({current_hour} Uhr MEZ): Nur Abrechnung ausgeführt. Picks folgen abends.")
+
 if __name__ == "__main__":
-    # 1. Abrechnung IMMER zuerst prüfen und ausführen
-    settle_pending_picks()
-
-    # 2. Prüfen, ob es ein reiner Settle-Run ist oder die Uhrzeit vor 16:00 Uhr MEZ liegt
-    is_settle_only = "--settle-only" in sys.argv
-    now_hour = datetime.now(LOCAL_TZ).hour
-
-    if is_settle_only or now_hour < 16:
-        print(f"Morgen-/Settle-Lauf abgeschlossen (Uhrzeit: {now_hour}:00 Uhr MEZ, settle_only={is_settle_only}). Keine Picks generiert.")
-        sys.exit(0)
-
-    # 3. Dossier wird ausschließlich ab 16:00 Uhr MEZ generiert
-    run_nfl_intel()
+    main()
