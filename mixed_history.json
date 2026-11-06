@@ -1,4 +1,32 @@
 {
   "settled": [],
-  "pending": []
+  "pending": [
+    {
+      "tier": "🛡️ SAFE HARBOR ACCA",
+      "sport": "Mixed",
+      "pick": "Arsenal vs. Chelsea Über 2.5 Tore (Soccer) + Luke Littler Sieg (Darts)",
+      "odds": 2.89,
+      "stake": 1.5,
+      "date": "2026-11-06",
+      "status": "PENDING"
+    },
+    {
+      "tier": "⚖️ BALANCED VALUE ACCA",
+      "sport": "Mixed",
+      "pick": "Celtics -5.5 (NBA) + Oilers ML (NHL) + Luke Littler Sieg (Darts)",
+      "odds": 5.33,
+      "stake": 0.75,
+      "date": "2026-11-06",
+      "status": "PENDING"
+    },
+    {
+      "tier": "🚀 MOONSHOT MULTI",
+      "sport": "Mixed",
+      "pick": "Arsenal Über 2.5 (Soccer) + Celtics -5.5 (NBA) + Littler Sieg (Darts) + Oilers ML (NHL)",
+      "odds": 9.33,
+      "stake": 0.35,
+      "date": "2026-11-06",
+      "status": "PENDING"
+    }
+  ]
 }
