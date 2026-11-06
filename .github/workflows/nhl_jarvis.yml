@@ -1,27 +1,32 @@
-name: JARVIS NHL Intel & Daily Picks
+name: JARVIS NFL Intel & Daily Picks
 
 on:
   schedule:
-    # 1. MORGEN-SETTLE (Täglich um 06:45 UTC = 07:45 MEZ): Nachtspiele abrechnen
+    # 1. MORGEN-SETTLE (Täglich um 06:45 UTC = 07:45 MEZ)
     - cron: '45 6 * * *'
-
-    # 2. WOCHENENDE-PICKS (Sa & So um 15:00 UTC = 16:00 MEZ): Vorlauf für frühe Matinee-Spiele
-    - cron: '0 15 * * 6,0'
-
-    # 3. WOCHENTAGS-PICKS (Mo - Fr um 20:15 UTC = 21:15 MEZ): Bestätigte Goalies & Nacht-Slate
-    - cron: '15 20 * * 1-5'
+    # 2. DONNERSTAG (Thursday Night Football um 16:00 UTC = 17:00 MEZ)
+    - cron: '0 16 * * 4'
+    # 3. SONNTAG (Haupt-Spieltag um 15:30 UTC = 16:30 MEZ)
+    - cron: '30 15 * * 0'
+    # 4. MONTAG (Monday Night Football um 17:00 UTC = 18:00 MEZ)
+    - cron: '0 17 * * 1'
 
   workflow_dispatch:
+    inputs:
+      settle_only:
+        description: 'Nur Abrechnung durchfuehren (true/false)'
+        required: false
+        default: 'false'
 
 concurrency:
-  group: nhl-pipeline
+  group: nfl-pipeline
   cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  run-nhl:
+  run-nfl:
     runs-on: ubuntu-latest
     steps:
       - name: Code auschecken
@@ -39,26 +44,33 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: JARVIS NHL Engine ausfuehren
+      - name: JARVIS NFL Engine ausfuehren
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_NHL: ${{ secrets.TELEGRAM_THREAD_NHL }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NHL }}
-        run: python jarvis_nhl.py
+          TELEGRAM_THREAD_NFL: ${{ secrets.TELEGRAM_THREAD_NFL }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_NFL }}
+        run: |
+          if [ "${{ github.event.schedule }}" = "45 6 * * *" ] || [ "${{ github.event.inputs.settle_only }}" = "true" ]; then
+            echo "Führe reinen Morgen-Settlement-Lauf aus..."
+            python jarvis_nfl.py --settle-only
+          else
+            echo "Führe regulären NFL-Lauf (Settlement + Dossier) aus..."
+            python jarvis_nfl.py
+          fi
 
       - name: State & History committen und pushen
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add pending_nhl.json 2>/dev/null || true
-          git add nhl_history.json 2>/dev/null || true
+          git add pending_nfl.json 2>/dev/null || true
+          git add nfl_history.json 2>/dev/null || true
           if git diff --staged --quiet; then
-            echo "Keine Aenderungen an den NHL-Dateien vorhanden."
+            echo "Keine Aenderungen an den NFL-Dateien vorhanden."
           else
-            git commit -m "Update NHL pending and history [skip ci]"
+            git commit -m "Update NFL pending and history [skip ci]"
             git checkout -- . 2>/dev/null || true
             git clean -fd 2>/dev/null || true
             git pull --rebase origin main
