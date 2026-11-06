@@ -1,0 +1,80 @@
+[
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "pick": "Jacksonville Jaguars -10.0",
+    "odds": 1.95,
+    "stake": 1.5,
+    "date": "2026-11-05",
+    "status": "WON",
+    "score": "10:33",
+    "info": "Die Jaguars gewinnen mit 23 Punkten Vorsprung und decken das Handicap souverän ab.",
+    "pnl": 1.42
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "pick": "Under 39.5",
+    "odds": 1.93,
+    "stake": 1.0,
+    "date": "2026-11-05",
+    "status": "LOST",
+    "score": "10:33",
+    "info": "Mit 43 Gesamtpunkten wurde die Linie von 39,5 Punkten überschritten.",
+    "pnl": -1.0
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "pick": "Trevor Lawrence Over 1.5 Passing TDs",
+    "odds": 1.78,
+    "stake": 0.75,
+    "date": "2026-11-05",
+    "status": "LOST",
+    "score": "10:33",
+    "info": "Trevor Lawrence warf im gesamten Spiel lediglich einen Passing-Touchdown.",
+    "pnl": -0.75
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "category": "POTD",
+    "pick": "Baltimore Ravens +10.0",
+    "odds": 1.89,
+    "stake": 1.5,
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "status": "LOST",
+    "score": "10:33",
+    "info": "Mit dem Handicap von +10 unterliegen die Ravens den Jaguars mit 20:33.",
+    "pnl": -1.5
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "category": "ACCA",
+    "pick": "Baltimore Ravens +10.0 & Under 39.5",
+    "odds": 3.61,
+    "stake": 0.75,
+    "date": "2026-11-05",
+    "is_kombi": true,
+    "status": "LOST",
+    "score": "10:33",
+    "info": "Die Ravens verloren mit 10:33, wodurch Spread und Under-Wette deutlich verfehlt wurden.",
+    "pnl": -0.75
+  },
+  {
+    "match": "Baltimore Ravens vs. Jacksonville Jaguars",
+    "sport": "NFL",
+    "category": "PROP",
+    "pick": "Travis Etienne Jr. Over 62.5 Rushing Yards",
+    "odds": 1.85,
+    "stake": 0.75,
+    "date": "2026-11-05",
+    "is_kombi": false,
+    "status": "VOID",
+    "score": "10:33",
+    "info": "Travis Etienne spielt für die Saints und kam in der Partie nicht zum Einsatz.",
+    "pnl": 0.0
+  }
+]
