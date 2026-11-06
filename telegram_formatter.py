@@ -2,57 +2,73 @@ import os
 import requests
 from typing import Dict, List, Optional, Any
 
-# Exaktes Mapping passend zu deinen GitHub Repository Secrets
+# Exaktes Mapping passend zu deinen GitHub Repository Secrets inklusive Mixed-Acca
 SPORT_CONFIG = {
     "soccer": {
         "name": "SOCCER",
         "icon": "⚽",
-        "secret_key": "TELEGRAM_THREAD_SOCCER"
+        "secret_key": "TELEGRAM_THREAD_SOCCER",
+        "fallbacks": ["TELEGRAM_SOCCER_THREAD_ID", "TELEGRAM_THREAD_ID"]
     },
     "nba": {
         "name": "BASKETBALL (NBA)",
         "icon": "🏀",
-        "secret_key": "TELEGRAM_THREAD_NBA"
+        "secret_key": "TELEGRAM_THREAD_NBA",
+        "fallbacks": ["TELEGRAM_NBA_THREAD_ID", "TELEGRAM_THREAD_ID"]
     },
     "nhl": {
         "name": "ICE HOCKEY (NHL)",
         "icon": "🏒",
-        "secret_key": "TELEGRAM_THREAD_NHL"
+        "secret_key": "TELEGRAM_THREAD_NHL",
+        "fallbacks": ["TELEGRAM_NHL_THREAD_ID", "TELEGRAM_THREAD_ID"]
     },
     "nfl": {
         "name": "AMERICAN FOOTBALL (NFL)",
         "icon": "🏈",
-        "secret_key": "TELEGRAM_THREAD_NFL"
+        "secret_key": "TELEGRAM_THREAD_NFL",
+        "fallbacks": ["TELEGRAM_NFL_THREAD_ID", "TELEGRAM_THREAD_ID"]
     },
     "tennis": {
         "name": "TENNIS",
         "icon": "🎾",
-        "secret_key": "TELEGRAM_TENNIS_THREAD_ID"
+        "secret_key": "TELEGRAM_TENNIS_THREAD_ID",
+        "fallbacks": ["TELEGRAM_THREAD_TENNIS", "TELEGRAM_THREAD_ID"]
     },
     "darts": {
         "name": "DARTS",
         "icon": "🎯",
-        "secret_key": "TELEGRAM_DARTS_THREAD_ID"
+        "secret_key": "TELEGRAM_DARTS_THREAD_ID",
+        "fallbacks": ["TELEGRAM_THREAD_DARTS", "TELEGRAM_THREAD_ID"]
     },
     "euro": {
         "name": "EURO LEAGUES",
         "icon": "🏆",
-        "secret_key": "TELEGRAM_EURO_THREAD_ID"
+        "secret_key": "TELEGRAM_EURO_THREAD_ID",
+        "fallbacks": ["TELEGRAM_THREAD_EUROPA", "TELEGRAM_THREAD_EURO", "TELEGRAM_THREAD_ID"]
     },
     "college": {
         "name": "COLLEGE SPORTS (NCAA)",
         "icon": "🎓",
-        "secret_key": "TELEGRAM_COLLEGE_THREAD_ID"
+        "secret_key": "TELEGRAM_COLLEGE_THREAD_ID",
+        "fallbacks": ["TELEGRAM_THREAD_COLLEGE", "TELEGRAM_THREAD_ID"]
     },
     "moneyrace": {
         "name": "MONEYRACE",
         "icon": "🚀",
-        "secret_key": "TELEGRAM_MONEYRACE_THREAD_ID"
+        "secret_key": "TELEGRAM_MONEYRACE_THREAD_ID",
+        "fallbacks": ["TELEGRAM_THREAD_MONEYRACE", "TELEGRAM_THREAD_ID"]
+    },
+    "mixed": {
+        "name": "CROSS-SPORT & MULTI-ACCA",
+        "icon": "🎯",
+        "secret_key": "TELEGRAM_MIXED_THREAD_ID",
+        "fallbacks": ["TELEGRAM_THREAD_MIXED", "TELEGRAM_THREAD_ID"]
     },
     "analytics": {
         "name": "ANALYTICS",
         "icon": "📈",
-        "secret_key": "TELEGRAM_ANALYTICS_THREAD_ID"
+        "secret_key": "TELEGRAM_ANALYTICS_THREAD_ID",
+        "fallbacks": ["TELEGRAM_THREAD_ANALYTICS", "TELEGRAM_THREAD_ID"]
     }
 }
 
@@ -68,7 +84,9 @@ def shorten_tag(tag: str) -> str:
         "PLAYER PROP MULTI": "PROPS",
         "HIGH VALUE ACCA": "VALUE",
         "POTD": "POTD",
-        "⭐ POTD": "POTD"
+        "⭐ POTD": "POTD",
+        "SAFE HARBOR ACCA": "SAFE HARBOR",
+        "MOONSHOT MULTI": "MOONSHOT"
     }
     return mapping.get(t, t)
 
@@ -76,7 +94,7 @@ def get_ticket_icon(ticket_name: str) -> str:
     name = ticket_name.upper()
     if "POTD" in name:
         return "⭐"
-    if "BANKER" in name:
+    if "BANKER" in name or "SAFE" in name:
         return "🔥"
     if "BALANCED" in name or "VALUE" in name:
         return "⚖️"
@@ -86,6 +104,8 @@ def get_ticket_icon(ticket_name: str) -> str:
         return "⚽"
     if "HYBRID" in name:
         return "⚡"
+    if "MOONSHOT" in name:
+        return "🚀"
     return "📌"
 
 def format_picks_first_post(
@@ -99,7 +119,8 @@ def format_picks_first_post(
     cfg = SPORT_CONFIG.get(sport.lower(), {
         "name": sport.upper(),
         "icon": "🎯",
-        "secret_key": "TELEGRAM_THREAD_ID"
+        "secret_key": "TELEGRAM_THREAD_ID",
+        "fallbacks": []
     })
 
     header = (
@@ -174,7 +195,6 @@ def format_picks_first_post(
         analysis_block_lines.append(analyses.strip())
 
     analysis_block = "\n".join(analysis_block_lines).strip()
-
     full_post = f"{header}\n{picks_block}\n\n{analysis_block}".strip()
 
     # Absicherung Telegram-Limit (4.096 Zeichen)
@@ -240,6 +260,21 @@ def format_daily_settlement(
     )
     return summary_msg
 
+def resolve_thread_id(sport: str) -> Optional[int]:
+    cfg = SPORT_CONFIG.get(sport.lower(), {})
+    keys = [cfg.get("secret_key")] + cfg.get("fallbacks", [])
+    
+    for key in keys:
+        if not key:
+            continue
+        val = os.environ.get(key, "").strip()
+        if val:
+            try:
+                return int(val)
+            except ValueError:
+                pass
+    return None
+
 def send_to_sport_channel(text: str, sport: str, reply_to: Optional[int] = None) -> Optional[int]:
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
@@ -248,32 +283,51 @@ def send_to_sport_channel(text: str, sport: str, reply_to: Optional[int] = None)
         print(f"[{sport.upper()}] Fehler: TELEGRAM_BOT_TOKEN oder TELEGRAM_CHAT_ID fehlt.")
         return None
 
-    cfg = SPORT_CONFIG.get(sport.lower(), {})
-    secret_key = cfg.get("secret_key", "TELEGRAM_THREAD_ID")
-    thread_id = os.environ.get(secret_key, "").strip()
-
+    thread_id = resolve_thread_id(sport)
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True
-    }
 
-    if thread_id:
-        payload["message_thread_id"] = int(thread_id)
-    if reply_to:
-        payload["reply_to_message_id"] = int(reply_to)
+    max_len = 3900
+    chunks = []
+    rem_text = text.strip()
+    while len(rem_text) > max_len:
+        split_idx = rem_text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = rem_text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(rem_text[:split_idx].strip())
+        rem_text = rem_text[split_idx:].strip()
+    if rem_text:
+        chunks.append(rem_text)
 
-    try:
-        res = requests.post(url, json=payload, timeout=15)
-        if res.status_code == 200:
-            return res.json().get("result", {}).get("message_id")
-        print(f"[{sport.upper()}] Telegram Send-Fehler ({res.status_code}): {res.text}")
-    except Exception as e:
-        print(f"[{sport.upper()}] Telegram Send Exception: {e}")
+    last_msg_id = None
+    for chunk in chunks:
+        payload = {
+            "chat_id": chat_id,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        if thread_id:
+            payload["message_thread_id"] = thread_id
+        if reply_to:
+            payload["reply_to_message_id"] = int(reply_to)
 
-    return None
+        try:
+            res = requests.post(url, json=payload, timeout=20)
+            if res.status_code == 200:
+                last_msg_id = res.json().get("result", {}).get("message_id")
+            else:
+                payload.pop("parse_mode", None)
+                res2 = requests.post(url, json=payload, timeout=20)
+                if res2.status_code == 200:
+                    last_msg_id = res2.json().get("result", {}).get("message_id")
+                else:
+                    print(f"[{sport.upper()}] Telegram Send-Fehler ({res.status_code}): {res.text}")
+        except Exception as e:
+            print(f"[{sport.upper()}] Telegram Send Exception: {e}")
+
+    return last_msg_id
 
 def edit_sport_channel_message(message_id: int, text: str) -> bool:
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -292,11 +346,11 @@ def edit_sport_channel_message(message_id: int, text: str) -> bool:
     }
 
     try:
-        res = requests.post(url, json=payload, timeout=15)
+        res = requests.post(url, json=payload, timeout=20)
         if res.status_code == 200 or "message is not modified" in res.text:
             return True
         payload.pop("parse_mode", None)
-        res2 = requests.post(url, json=payload, timeout=15)
+        res2 = requests.post(url, json=payload, timeout=20)
         return res2.status_code == 200 or "message is not modified" in res2.text
     except Exception as e:
         print(f"[Telegram Edit Exception]: {e}")
