@@ -6,18 +6,16 @@ import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
-# Sichere Anbindung der Telegram-Hilfsfunktion
 try:
-    from telegram_sender import send_to_telegram
+    from telegram_formatter import send_to_sport_channel
 except ImportError:
-    send_to_telegram = None
+    send_to_sport_channel = None
 
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
-# Sichere Fallback-Kette für das Darts-Topic
 TELEGRAM_THREAD_ID = (
     os.environ.get("TELEGRAM_DARTS_THREAD_ID", "").strip()
     or os.environ.get("TELEGRAM_THREAD_DARTS", "").strip()
@@ -38,37 +36,73 @@ def make_progress_bar(percentage, segments=10):
     empty = segments - filled
     return f"[{'🟩' * filled}{'⬜' * empty}]"
 
-def send_telegram(text):
-    if send_to_telegram:
-        return send_to_telegram(text, thread_env_var="TELEGRAM_DARTS_THREAD_ID")
+def send_telegram(text, reply_to=None):
+    if send_to_sport_channel:
+        msg_id = send_to_sport_channel(text, sport="darts", reply_to=reply_to)
+        if msg_id:
+            return msg_id
 
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram Credentials fehlen.")
-        return None
-
-    if not TELEGRAM_THREAD_ID:
-        print("[Telegram] ABBRUCH: Keine Darts Thread-ID vorhanden. Senden in den Hauptchat blockiert.")
+        print("[Telegram] FEHLER: Credentials fehlen.")
         return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-        "message_thread_id": int(TELEGRAM_THREAD_ID)
-    }
+    max_len = 3900
+    chunks = []
+    while len(text) > max_len:
+        split_idx = text.rfind("\n\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = text.rfind("\n", 0, max_len)
+        if split_idx == -1:
+            split_idx = max_len
+        chunks.append(text[:split_idx].strip())
+        text = text[split_idx:].strip()
+    if text:
+        chunks.append(text)
 
-    try:
-        res = requests.post(url, json=payload, timeout=25)
-        if res.status_code != 200:
-            payload.pop("parse_mode", None)
-            res2 = requests.post(url, json=payload, timeout=25)
-            return res2.json().get("result", {}).get("message_id") if res2.status_code == 200 else None
-        return res.json().get("result", {}).get("message_id")
-    except Exception as e:
-        print(f"Telegram-Fehler: {e}")
-        return None
+    last_msg_id = None
+    for chunk in chunks:
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
+        if TELEGRAM_THREAD_ID:
+            try:
+                payload["message_thread_id"] = int(TELEGRAM_THREAD_ID)
+            except ValueError:
+                pass
+        if reply_to:
+            payload["reply_to_message_id"] = int(reply_to)
+
+        try:
+            res = requests.post(url, json=payload, timeout=25)
+            if res.status_code != 200:
+                payload.pop("parse_mode", None)
+                res2 = requests.post(url, json=payload, timeout=25)
+                if res2.status_code == 200:
+                    last_msg_id = res2.json().get("result", {}).get("message_id")
+            else:
+                last_msg_id = res.json().get("result", {}).get("message_id")
+        except Exception as e:
+            print(f"[Telegram] Netzwerkfehler: {e}")
+
+    return last_msg_id
+
+def deduplicate_picks(items):
+    seen = set()
+    unique = []
+    for item in items:
+        key = (
+            str(item.get("date", "")).strip().lower(),
+            str(item.get("match", "")).strip().lower(),
+            str(item.get("pick", "")).strip().lower()
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
 
 def load_history():
     if not os.path.exists(HISTORY_FILE):
@@ -79,6 +113,7 @@ def load_history():
             if isinstance(data, dict):
                 data.setdefault("settled", [])
                 data.setdefault("pending", [])
+                data["pending"] = deduplicate_picks(data["pending"])
                 return data
             elif isinstance(data, list):
                 return {"settled": data, "pending": []}
@@ -88,6 +123,8 @@ def load_history():
 
 def save_history(history):
     try:
+        if isinstance(history, dict) and "pending" in history:
+            history["pending"] = deduplicate_picks(history["pending"])
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
     except Exception as e:
@@ -108,22 +145,22 @@ def settle_pending_picks(history):
 
     for item in pending:
         prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis fuer folgendes Darts-Match:
+Recherchiere via Google Search das offizielle Endergebnis für folgendes Darts-Match:
 Match: {item.get('match')}
 Turnier: PDC Darts
 Tipp: {item.get('pick')}
 Datum: {item.get('date')}
 
 REGELN:
-1. Pruefe, ob das Match bereits beendet ist (FINAL). Falls noch nicht begonnen oder live, antworte mit PENDING.
+1. Prüfe, ob das Match bereits beendet ist (FINAL). Falls noch nicht begonnen oder live, antworte mit PENDING.
 2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
 3. Bei Spielabsage oder Push gib 'VOID' aus.
-4. Gib eine kurze Begruendung an (Averages, 180s-Quote, Checkout-Staerke).
+4. Gib eine kurze Begründung an (Averages, 180s, Legs).
 
 Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
 SCORE: [Offizielles Endergebnis, z.B. 6:4 Legs]
-INFO: [1-2 Saetze Erklaerung/Begruendung]
+INFO: [1-2 Sätze Erklärung]
 """
         payload = {
             "contents": [{"parts": [{"text": prompt_settle}]}],
@@ -193,10 +230,6 @@ INFO: [1-2 Saetze Erklaerung/Begruendung]
         total_staked = 0.0
         total_returned = 0.0
 
-        today_display = datetime.now(LOCAL_TZ).strftime("%d.%m.%Y")
-        msg = f"🎯 <b>JARVIS PDC DARTS ABRECHNUNG</b>\n"
-        msg += f"<i>Abrechnung der Matches vom {today_display}</i>\n"
-
         for p in settled_now:
             odds_val = float(p.get("odds", 1.0))
             stake = float(p.get("stake", 1.0))
@@ -204,44 +237,47 @@ INFO: [1-2 Saetze Erklaerung/Begruendung]
 
             status = p["status"]
             if status == "WON":
-                icon = "✅"
-                ret = stake * odds_val
-                profit_leg = ret - stake
-                status_txt = f"✅ WON (+{profit_leg:.2f} U)"
-                total_returned += ret
+                total_returned += stake * odds_val
             elif status == "VOID":
-                icon = "🟡"
-                ret = stake
-                status_txt = "🟡 PUSH/VOID (Quote 1.00)"
-                total_returned += ret
-            else:
-                icon = "❌"
-                status_txt = f"❌ LOST (-{stake:.2f} U)"
-
-            msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-            msg += f"{icon} <b>{p['match']}</b>\n"
-            msg += f"• <b>Tipp:</b> {p['pick']} (@ {odds_val:.2f})\n"
-            if p.get("score"):
-                msg += f"• <b>Ergebnis:</b> {p['score']}\n"
-            if p.get("info"):
-                msg += f"• <i>{p['info']}</i>\n"
-            msg += f"• <b>Status:</b> {status_txt}\n"
+                total_returned += stake
 
         net_profit = total_returned - total_staked
         roi = (net_profit / total_staked * 100) if total_staked > 0 else 0.0
         valid_tickets = total_tickets - void_tickets
         hit_rate = (won_tickets / valid_tickets * 100) if valid_tickets > 0 else 0.0
         sign = "+" if net_profit >= 0 else ""
+        profit_color = "🟢" if net_profit >= 0 else "🔴"
 
-        msg += "\n━━━━━━━━━━━━━━━━━━━━\n"
-        msg += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
-        msg += f"• <b>Ticket Win-Rate:</b> {won_tickets}/{total_tickets} ({hit_rate:.1f}%) {make_progress_bar(hit_rate)}\n"
-        msg += f"• <b>Einsatz / Return:</b> {total_staked:.2f}U ➔ {total_returned:.2f}U\n"
-        msg += f"• <b>Netto-Profit:</b>     <b>{sign}{net_profit:.2f} Units</b>\n"
-        msg += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
-        msg += "━━━━━━━━━━━━━━━━━━━━"
+        lines = [
+            "🏁 <b>JARVIS PDC DARTS — TAGESABSCHLUSS & BILANZ</b>",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "📋 <b>ERGEBNISSE:</b>\n"
+        ]
 
-        send_telegram(msg)
+        for p in settled_now:
+            status = p["status"]
+            odds_val = float(p.get("odds", 1.0))
+            icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
+            pnl_val = p.get("pnl", 0.0)
+            pnl_str = f"+{pnl_val:.2f}u" if pnl_val >= 0 else f"{pnl_val:.2f}u"
+            score_disp = f" ({p.get('score')})" if p.get('score') else ""
+
+            lines.append(f"{icon} <b>{p['match']}</b>{score_disp}")
+            lines.append(f"• <b>Tipp:</b> {p['pick']} (<code>@{odds_val:.2f}</code>) ➔ <b>{status}</b> (<code>{pnl_str}</code>)")
+            if p.get("info"):
+                lines.append(f"• <i>{p['info']}</i>")
+            lines.append("")
+
+        push_str = f" - {void_tickets}P" if void_tickets > 0 else ""
+        lines.append("━━━━━━━━━━━━━━━━━━━━")
+        lines.append("📊 <b>BILANZ & KENNZAHLEN</b>")
+        lines.append(f"• <b>Trefferquote:</b> {won_tickets}/{total_tickets - void_tickets} ({hit_rate:.1f}%){push_str}")
+        lines.append(f"• <b>Einsatz / Rücklauf:</b> {total_staked:.2f}u ➔ {total_returned:.2f}u")
+        lines.append(f"• {profit_color} <b>Netto-Ertrag:</b> <b>{sign}{net_profit:.2f} Units</b>")
+        lines.append(f"• <b>ROI:</b> <b>{sign}{roi:.1f}%</b>")
+        lines.append("\n📁 <i>Alle Tickets wurden in darts_history.json archiviert.</i>")
+
+        send_telegram("\n".join(lines).strip())
 
     return history
 
@@ -292,14 +328,14 @@ def run_darts_report():
 
     now_hour = datetime.now(LOCAL_TZ).hour
     if now_hour < 10:
-        print("Morgen-Run: Nur Abrechnung durchgefuehrt.")
+        print("Morgen-Run: Nur Abrechnung durchgeführt.")
         return
 
     tracked_matches = {p.get("match") for p in history.get("pending", [])}
     odds_data = fetch_darts_odds(tracked_matches)
 
     if not odds_data:
-        print(f"Keine relevanten Darts-Matches fuer dieses Zeitfenster ({now_hour} Uhr) gefunden.")
+        print(f"Keine relevanten Darts-Matches für dieses Zeitfenster ({now_hour} Uhr) gefunden.")
         return
 
     session_name = "AFTERNOON SESSION" if now_hour < 15 else "EVENING SESSION"
@@ -307,70 +343,78 @@ def run_darts_report():
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS DARTS QUANT' – Experte fuer PDC Darts (3-Dart-Averages, 180s-Statistiken, Checkout-Percentages).
-Erstelle fuer heute ({today_str}) die {session_name}.
+Du bist 'JARVIS DARTS QUANT ARCHITECT' – Experte für PDC Darts (3-Dart-Averages, 180s-Statistiken, Checkout-Percentages).
+Erstelle für heute ({today_str}) die {session_name}.
 
-VERFUEGBARE MATCHES & QUOTEN:
+VERFÜGBARE MATCHES & ECHTE BUCHMACHERQUOTEN:
 {odds_data}
 
-RICHTLINIEN & MAERKTE:
-- Waehle ausschliesslich Matches aus der obigen Liste.
-- Analysiere Scoring-Power, Leg-Handicaps, 180s-Maerkte und Quoten-Diskrepanzen via Google Search.
-- DYNAMISCHE ACCA: Kombiniere flexibel 2 bis 4 Matches mit rechnerischem Vorteil (+EV). Kein starres 2-Matches-Limit.
-- BUCHMACHER-ALTERNATIVE: Gib fuer jeden Tipp immer eine klassische Standard-Alternative an (z. B. Match-Sieg statt Leg-Handicap).
-- VALUE-GRENZE: Weise fuer jeden Tipp eine Mindestquote aus ('Spielbar bis @ X.XX').
-- UNITS:
-  • Match of the Day: 1.0 bis 2.0 Units
-  • Value Acca: 0.5 bis 1.0 Units
-  • 180s / Special Spotlight: 0.5 bis 1.0 Units
+================================================================================
+STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
+================================================================================
+1. PICKS FIRST:
+   - Alle spielfertigen Wettscheine stehen ZWINGEND GANZ OBEN direkt unter dem Header!
+   - Erst DANACH folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und der Abschnitt 'ANALYSEN & MODELL-LOGIK (DEEP DIVE)'.
+2. LÄNGEN-LIMIT:
+   - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen.
+3. FORMATIERUNG:
+   - Quoten und Stakes immer in <code>...</code> setzen (z. B. <code>@1.75</code>, <code>1.50u</code>).
+   - Trennlinie IMMER exakt 20 Zeichen: '━━━━━━━━━━━━━━━━━━━━'.
+   - Begründungen im Deep Dive kurz und schlüssig in maximal 2 Sätzen halten.
 
-FORMATIERUNGS-REGELN FUER TELEGRAM:
-- Keine doppelten Leerzeilen.
-- Beginne jede Aufzaehlung direkt mit '• ' (Unicode Bullet) OHNE Zeilenumbruch nach dem Bullet!
-- Schreibe Pfeile direkt vor den Text: '➔ <b>Haupt-Pick:</b> ...' OHNE Leerzeile davor.
-- Ganz am Ende MUSS der exakte Parser-Block '---JSON_TRACKING---' folgen.
+⛔ STRIKTE QUANT- & VETO-REGELN:
+1. Keine Quoten unter 1.40 bei Einzel-Tipps.
+2. Analysiere Scoring-Power, Leg-Handicaps, 180s-Märkte und Quoten-Diskrepanzen via Google Search.
+3. DYNAMISCHE ACCA: Kombiniere 2 bis 3 Matches mit klarem mathematischem Vorteil (+EV).
 
-REPORT-HTML:
-🎯 <b>JARVIS PDC DARTS INTEL • {session_name}</b>
-<i>3-Dart Average Edge • Checkout Efficiency • Value-Picks</i>
+EXAKTES HTML-AUSGABEFORMAT:
+🎯 <b>JARVIS PDC DARTS — TAGESEMPFEHLUNGEN ({today_str})</b>
+<i>{session_name}</i>
+━━━━━━━━━━━━━━━━━━━━
+📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
+
+⭐ <b>MATCH OF THE DAY (<code>1.50u</code> | <code>@[Quote]</code>)</b>
+• <b>[Spieler A] vs. [Spieler B]</b> ➔ <i>[Match-Sieg / Leg-Handicap]</i>
+
+🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
+• [Spieler A] vs. [Spieler B] ➔ <i>[Tipp 1]</i>
+• [Spieler C] vs. [Spieler D] ➔ <i>[Tipp 2]</i>
+
+🎯 <b>180s & SCORING SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
+• <b>[Spieler A] vs. [Spieler B]</b> ➔ <i>[Over/Under 180s / Höchstes Checkout]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
-⭐ <b>DARTS MATCH OF THE DAY (Single Bet)</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B]
-➔ <b>Haupt-Pick:</b> <b>[Match-Sieg / Leg-Handicap / 180s]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Klassischer 2-Weg Sieg] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [1.0 - 2.0] Units
-📊 <b>Quant-Daten:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-🔍 <b>Edge:</b> [Scoring-Konstanz, First 9 Average, Checkout-Quote unter Druck]
+📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
-━━━━━━━━━━━━━━━━━━━━
-🔥 <b>QUANT VALUE ACCA ([Anzahl]-er Kombi)</b>
-- [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B] ➔ <b>[Tipp 1]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Spieler C] vs. [Spieler D] ➔ <b>[Tipp 2]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-- [Uhrzeit] Uhr | [Spieler E] vs. [Spieler F] ➔ <b>[Tipp 3]</b> @ [Quote] (Alt: [Alternative] @ [Quote])
-[... ggf. Bein 4 ergaenzen falls Value vorhanden ...]
-📈 <b>Gesamtquote:</b> <b>@[Quote]</b>
-⚠️ <b>Value-Grenze:</b> Kombi spielbar bis @ [Quote]
-💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Kombi-Logik:</b> [Warum diese Kombination mathematisch korreliert oder unabhaengig starken Value bietet]
+🔎 <b>MOTD: [Spieler A] vs. [Spieler B]</b>
+• <b>Edge:</b> [3-Dart-Average Differenz / Checkout-Edge]
+• <b>Logik:</b> [Maximal 2 präzise Sätze zu Scoring-Power, Leg-Handicap und Head-to-Head]
 
-━━━━━━━━━━━━━━━━━━━━
-🎯 <b>180s & SCORING SPOTLIGHT</b>
-- <b>Match:</b> [Uhrzeit] Uhr | [Spieler A] vs. [Spieler B]
-➔ <b>Pick:</b> <b>[Over/Under 180s / Leg-Total / Hoechstes Checkout]</b> @ [Quote]
-🔄 <b>Buchmacher-Alternative:</b> [Alternative Linie] @ [Quote]
-⚠️ <b>Value-Grenze:</b> Spielbar bis @ [Quote] | 💰 <b>Einsatz:</b> [0.5 - 1.0] Units
-🔍 <b>Rationale:</b> [T19/T20 Praeferenzen, Pace des Spiels, Matchlaenge]
+🔎 <b>Acca & Spotlight Begründung:</b>
+• [Pick 1]: [1-2 Sätze Begründung]
+• [Scoring Spotlight]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
   {{
     "match": "Player A vs Player B",
     "sport": "Darts",
+    "category": "MOTD",
     "pick": "Player A Sieg",
     "odds": 1.70,
+    "stake": 1.5,
+    "date": "{today_iso}",
+    "is_kombi": false
+  }},
+  {{
+    "match": "Player A vs Player B // Player C vs Player D",
+    "sport": "Darts",
+    "category": "ACCA",
+    "pick": "Player A ML + Player C ML",
+    "odds": 2.45,
     "stake": 1.0,
-    "date": "{today_iso}"
+    "date": "{today_iso}",
+    "is_kombi": true
   }}
 ]
 """
@@ -399,9 +443,18 @@ REPORT-HTML:
                         for np in new_picks:
                             np["status"] = "PENDING"
                             np["sport"] = "Darts"
-                        history["pending"].extend(new_picks)
+                            try:
+                                np["odds"] = float(str(np.get("odds", 1.70)).replace(",", "."))
+                            except ValueError:
+                                np["odds"] = 1.70
+                            try:
+                                np["stake"] = float(str(np.get("stake", 1.0)).replace(",", "."))
+                            except ValueError:
+                                np["stake"] = 1.0
+                        combined_pending = history.get("pending", []) + new_picks
+                        history["pending"] = deduplicate_picks(combined_pending)
                         save_history(history)
-                        print(f"{len(new_picks)} Darts-Picks hinzugefuegt.")
+                        print(f"{len(new_picks)} Darts-Picks in {HISTORY_FILE} gesichert.")
                     except Exception as je:
                         print(f"Fehler beim Parsen der Tracking-Picks: {je}")
 
