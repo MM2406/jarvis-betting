@@ -105,5 +105,39 @@
       "pnl": 0.74
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "match": "Beşiktaş J.K. vs. Žalgiris",
+      "sport": "Euro-Hoops & Ice",
+      "category": "POTD",
+      "pick": "Žalgiris Sieg",
+      "odds": 1.8,
+      "stake": 1.5,
+      "date": "2026-11-06",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "Olympiacos vs. KK Crvena zvezda // KK Partizan NIS vs. Maccabi Tel Aviv",
+      "sport": "Euro-Hoops & Ice",
+      "category": "ACCA",
+      "pick": "Olympiacos ML + KK Partizan NIS ML",
+      "odds": 1.92,
+      "stake": 1.0,
+      "date": "2026-11-06",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "Beşiktaş J.K. vs. Žalgiris",
+      "sport": "Euro-Hoops & Ice",
+      "category": "SPOTLIGHT",
+      "pick": "Under 174.5",
+      "odds": 2.0,
+      "stake": 0.75,
+      "date": "2026-11-06",
+      "is_kombi": false,
+      "status": "PENDING"
+    }
+  ]
 }
