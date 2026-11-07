@@ -71,9 +71,7 @@
       "score": "66:68 (Kansas State Wildcats vs. South Dakota State Jackrabbits)",
       "info": "Die South Dakota State Jackrabbits gewannen das Spiel dank eines späten Laufs und 24 Punkten von Davis Kern überraschend als Außenseiter mit 68:66. Damit wurde das Handicap von +11,5 Punkten souverän abgedeckt.",
       "pnl": 0.71
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Michigan Wolverines vs UConn Huskies",
       "sport": "US College",
@@ -83,7 +81,10 @@
       "stake": 1.5,
       "date": "2026-11-06",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "77:85",
+      "info": "UConn gewinnt mit acht Punkten Vorsprung und deckt das Handicap von -7,5 ab.",
+      "pnl": 1.42
     },
     {
       "match": "Boston College Eagles vs Massachusetts Minutemen // Clemson Tigers vs American Eagles",
@@ -94,7 +95,10 @@
       "stake": 1.0,
       "date": "2026-11-06",
       "is_kombi": true,
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "71:55 / 82:73",
+      "info": "Clemson verfehlte mit dem 82:73-Sieg das geforderte Handicap von 15,5 Punkten.",
+      "pnl": -1.0
     },
     {
       "match": "Saint Louis Billikens vs Missouri Tigers",
@@ -105,7 +109,11 @@
       "stake": 0.75,
       "date": "2026-11-06",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "90:84",
+      "info": "Die Saint Louis Billikens setzten sich regulär mit 90:84 gegen Missouri durch.",
+      "pnl": 0.81
     }
-  ]
+  ],
+  "pending": []
 }
