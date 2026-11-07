@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import re
 import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -22,6 +23,12 @@ TELEGRAM_THREAD_ID = (
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_soccer.json"
 HISTORY_FILE = "soccer_history.json"
+
+def strip_kickoff_prefix(text):
+    """Entfernt Anstoßzeit-Präfixe wie '[15:30 Uhr]' vor dem Teamnamen."""
+    if not text:
+        return ""
+    return re.sub(r"^\s*\[\s*\d{1,2}:\d{2}(?:\s*uhr)?\s*\]\s*", "", text, flags=re.IGNORECASE).strip()
 
 def make_progress_bar(percentage, segments=10):
     clamped = max(0.0, min(100.0, float(percentage)))
@@ -70,16 +77,17 @@ def send_telegram_message(text, reply_to=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3800
     chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
+    rem_text = text.strip()
+    while len(rem_text) > max_len:
+        split_idx = rem_text.rfind("\n\n", 0, max_len)
         if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
+            split_idx = rem_text.rfind("\n", 0, max_len)
         if split_idx == -1:
             split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
+        chunks.append(rem_text[:split_idx].strip())
+        rem_text = rem_text[split_idx:].strip()
+    if rem_text:
+        chunks.append(rem_text)
 
     for chunk in chunks:
         payload = {
@@ -110,7 +118,7 @@ def settle_soccer_bets():
         except Exception:
             data = {}
 
-    # Bereits am Vorabend durch soccer_live abgerechnet oder komplett leer
+    # Bereits durch soccer_live abgerechnet oder komplett leer
     if not data or data == {} or data.get("settled") is True:
         print("pending_soccer.json ist bereits abgerechnet oder leer. Kein zweites Settlement nötig.")
         return
@@ -125,7 +133,7 @@ def settle_soccer_bets():
 
     prompt = f"""
 Du bist 'JARVIS SOCCER SETTLEMENT AGENT'.
-Recherchiere über Google Search die finalen Endergebnisse für folgende Fussball-Wetten:
+Recherchiere über Google Search die finalen offiziellen Endergebnisse für folgende Fussball-Wetten:
 
 Offene Fussball-Wetten:
 {json.dumps(data, ensure_ascii=False, indent=2)}
@@ -134,7 +142,23 @@ REGELN:
 1. Prüfe, ob alle Spiele offiziell beendet sind (FT - Reguläre Spielzeit 90 Min + Nachspielzeit).
 2. Markiere beendete Tipps mit ✅ WON, ❌ LOST oder 🟡 PUSH/VOID.
 3. Bei Kombiwetten: Zeige jedes Bein (Leg) mit Ergebnis und Status.
-4. Berechne Netto-Units.
+4. Falls Anstoßzeiten angegeben sind, behalte sie in der Übersicht bei (z. B. '[15:30 Uhr] Team A vs. Team B (2:1)').
+
+EXAKTES TELEGRAM-AUSGABEFORMAT:
+⚽ <b>JARVIS SOCCER — TAGESABSCHLUSS & BILANZ ({date_display})</b>
+━━━━━━━━━━━━━━━━━━━━
+📋 <b>ERGEBNISSE:</b>
+
+[Für jedes Ticket nach folgendem Muster formatieren:]
+⭐ <b>POTD (<code>1.50u</code> | <code>@1.85</code>)</b> ➔ ✅ <b>WON</b> (<code>+1.28u</code>)
+• <b>Match:</b> [15:30 Uhr] Team A vs. Team B (2:1)
+• <b>Tipp:</b> Team A Sieg
+• <i>Kurzer Satz zum Spielverlauf</i>
+
+🔥 <b>CONSERVATIVE BANKER (<code>1.25u</code> | Gesamt: <code>@1.95</code>)</b> ➔ ❌ <b>LOST</b> (<code>-1.25u</code>)
+• <b>Beine getroffen:</b> 1/2
+  - [15:30 Uhr] Team A vs. Team B (2:1) ➔ ✅ WON
+  - [16:00 Uhr] Team C vs. Team D (1:1) ➔ ❌ LOST
 
 Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
 {bt}json
@@ -150,11 +174,11 @@ Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
   "is_complete": true,
   "settled_picks": [
     {{
-      "match": "Heim vs Gast",
-      "pick": "Tipp",
+      "match": "Team A vs Team B",
+      "pick": "Team A Sieg",
       "odds": 1.85,
-      "stake": 1.0,
-      "pnl": 0.85,
+      "stake": 1.5,
+      "pnl": 1.28,
       "status": "WON",
       "sport": "Soccer",
       "date": "{today_iso}"
@@ -162,11 +186,6 @@ Am Ende MUSS zwingend dieser maschinenlesbare JSON-Block folgen:
   ]
 }}
 {bt}
-
-FORMAT-VORLAGE FÜR TELEGRAM:
-⚽ <b>JARVIS SOCCER — TAGESABSCHLUSS ({date_display})</b>
-━━━━━━━━━━━━━━━━━━━━
-[Hier die abgerechneten Wetten und Kombis mit ihren Ergebnissen übersichtlich darstellen]
 """
 
     host = "generativelanguage.googleapis.com"
@@ -211,14 +230,15 @@ FORMAT-VORLAGE FÜR TELEGRAM:
             profit = json_metrics.get("net_profit", 0.0)
             roi = json_metrics.get("roi", 0.0)
             sign = "+" if profit >= 0 else ""
+            profit_color = "🟢" if profit >= 0 else "🔴"
 
             dashboard = "\n\n━━━━━━━━━━━━━━━━━━━━\n"
-            dashboard += "📊 <b>PERFORMANCE DASHBOARD & METRIKEN</b>\n"
+            dashboard += "📊 <b>BILANZ & KENNZAHLEN</b>\n"
             dashboard += f"• <b>Ticket Win-Rate:</b> {t_won}/{t_total} ({t_rate:.1f}%) {make_progress_bar(t_rate)}\n"
             dashboard += f"• <b>Pick Hit-Rate:</b>   {p_won}/{p_total} ({p_rate:.1f}%) {make_progress_bar(p_rate)}\n"
-            dashboard += f"• <b>Einsatz / Return:</b> {staked:.2f}U ➔ {returned:.2f}U\n"
-            dashboard += f"• <b>Netto-Profit:</b>     <b>{sign}{profit:.2f} Units</b>\n"
-            dashboard += f"• <b>Tages-ROI:</b>        <b>{sign}{roi:.1f}%</b>\n"
+            dashboard += f"• <b>Einsatz / Return:</b> {staked:.2f}u ➔ {returned:.2f}u\n"
+            dashboard += f"• {profit_color} <b>Netto-Ertrag:</b>     <b>{sign}{profit:.2f} Units</b>\n"
+            dashboard += f"• <b>ROI:</b>              <b>{sign}{roi:.1f}%</b>\n"
             dashboard += "━━━━━━━━━━━━━━━━━━━━"
 
             final_message = clean_text + dashboard
@@ -232,12 +252,15 @@ FORMAT-VORLAGE FÜR TELEGRAM:
         if is_complete:
             items_to_archive = []
             if json_metrics and "settled_picks" in json_metrics and json_metrics["settled_picks"]:
-                items_to_archive = json_metrics["settled_picks"]
+                for sp in json_metrics["settled_picks"]:
+                    sp["match"] = strip_kickoff_prefix(sp.get("match", ""))
+                    items_to_archive.append(sp)
             else:
                 raw_list = data if isinstance(data, list) else data.get("picks", [data])
                 for item in raw_list:
                     if isinstance(item, dict):
                         archived_item = dict(item)
+                        archived_item["match"] = strip_kickoff_prefix(archived_item.get("match", ""))
                         archived_item.setdefault("date", today_iso)
                         archived_item.setdefault("sport", "Soccer")
                         archived_item.setdefault("status", "WON" if json_metrics and json_metrics.get("net_profit", 0) > 0 else "LOST")
@@ -245,7 +268,7 @@ FORMAT-VORLAGE FÜR TELEGRAM:
 
             append_to_history(items_to_archive)
 
-            # WICHTIG: Als Dictionary {} leeren, NIE wieder als Liste []!
+            # Als leeres Dictionary leeren
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump({}, f, indent=2)
             print("Alle Soccer Wetten final beendet. pending_soccer.json sauber als {} geleert.")
