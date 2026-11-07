@@ -15,8 +15,16 @@ TELEGRAM_THREAD_ID = (
 
 PENDING_FILE = "pending_soccer.json"
 
+def strip_kickoff_prefix(text):
+    """Entfernt Anstoßzeit-Präfixe wie '[15:30 Uhr]' vor dem Teamnamen."""
+    if not text:
+        return ""
+    return re.sub(r"^\s*\[\s*\d{1,2}:\d{2}(?:\s*uhr)?\s*\]\s*", "", text, flags=re.IGNORECASE).strip()
+
 def clean_name(name):
-    clean = re.sub(r"\b(fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca)\b", "", name.lower())
+    clean = strip_kickoff_prefix(str(name)).lower()
+    clean = re.sub(r"\b(fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|tsg|fk|sk|vfb|vfl|bvb)\b", " ", clean)
+    clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
 
 def send_telegram_alert(text):
@@ -47,7 +55,7 @@ def run_lineup_check():
         print(f"[LineupCheck] Fehler beim Laden von {PENDING_FILE}: {e}")
         return
 
-    # Sammle nur Spiele, bei denen wir konkrete Spieler-Props haben
+    # Sammle nur Spiele, bei denen konkrete Spieler-Props vorliegen
     target_matches = {}
     
     # 1. POTD prüfen
@@ -56,7 +64,8 @@ def run_lineup_check():
         p = state["potd"].get("pick", "")
         pl = state["potd"].get("player", "")
         if m and (pl or any(k in p.lower() for k in ["torschuss", "torschüsse", "scorer", "trifft", "torerzieler"])):
-            target_matches.setdefault(m, []).append({"player": pl, "pick": p})
+            clean_m = strip_kickoff_prefix(m)
+            target_matches.setdefault(clean_m, []).append({"player": pl, "pick": p, "raw_match": m})
 
     # 2. Tickets prüfen
     for t in state.get("tickets", []):
@@ -65,7 +74,8 @@ def run_lineup_check():
             p = item.get("pick", "")
             pl = item.get("player", "")
             if m and (pl or any(k in p.lower() for k in ["torschuss", "torschüsse", "scorer", "trifft", "torerzieler"])):
-                target_matches.setdefault(m, []).append({"player": pl, "pick": p})
+                clean_m = strip_kickoff_prefix(m)
+                target_matches.setdefault(clean_m, []).append({"player": pl, "pick": p, "raw_match": m})
 
     if not target_matches:
         print("[LineupCheck] Keine Spieler-Props vorhanden. Kein Check nötig.")
@@ -76,7 +86,6 @@ def run_lineup_check():
         "x-rapidapi-host": "sportapi7.p.rapidapi.com"
     }
 
-    # Spiele des Tages abrufen (funktioniert auch VOR Anpfiff)
     today_str = state.get("date", datetime.now().strftime("%Y-%m-%d"))
     events = []
     
@@ -88,7 +97,7 @@ def run_lineup_check():
     except Exception as e:
         print(f"[LineupCheck] Fehler beim Abruf des Spielplans: {e}")
 
-    # Fallback auf Live-Events falls Spielplan leer ist
+    # Fallback auf Live-Events, falls Spielplan leer ist
     if not events:
         try:
             res_live = requests.get("https://sportapi7.p.rapidapi.com/api/v1/sport/football/events/live", headers=headers, timeout=12)
@@ -107,9 +116,21 @@ def run_lineup_check():
             h = clean_name(ev.get("homeTeam", {}).get("name", ""))
             a = clean_name(ev.get("awayTeam", {}).get("name", ""))
             if len(parts) >= 2:
-                if (parts[0] in h and parts[1] in a) or (parts[1] in h and parts[0] in a):
+                p1, p2 = parts[0], parts[1]
+                if (p1 in h and p2 in a) or (p2 in h and p1 in a):
                     matched_ev = ev
                     break
+
+                # Token-Fallback
+                p1_tokens = [w for w in p1.split() if len(w) >= 3]
+                p2_tokens = [w for w in p2.split() if len(w) >= 3]
+                if p1_tokens and p2_tokens:
+                    if any(t in h for t in p1_tokens) and any(t in a for t in p2_tokens):
+                        matched_ev = ev
+                        break
+                    if any(t in h for t in p2_tokens) and any(t in a for t in p1_tokens):
+                        matched_ev = ev
+                        break
 
         if not matched_ev:
             continue
@@ -138,26 +159,24 @@ def run_lineup_check():
             for item in prop_items:
                 target_player = item["player"].lower() if item["player"] else ""
                 pick_text = item["pick"].lower()
-                
-                # Suchbegriff bestimmen
                 search_term = target_player if target_player else pick_text
 
-                # Prüfen, ob Spieler in der Startelf steht
+                # Prüfen, ob der Spieler in der Startelf steht
                 is_starting = False
                 for starter in all_starters:
-                    # Prüfe Nachname/Vorname (mindestens 4 Buchstaben)
                     tokens = [t for t in starter.split() if len(t) >= 4]
                     if any(t in search_term for t in tokens) or (target_player and target_player in starter):
                         is_starting = True
                         break
 
+                display_match = item.get("raw_match", match_name)
+
                 if is_starting:
-                    print(f"[LineupCheck] OK: '{search_term}' steht in der Startelf bei {match_name}.")
+                    print(f"[LineupCheck] OK: '{search_term}' steht in der Startelf bei {display_match}.")
                 else:
-                    # Spieler sitzt nur auf der Bank oder fehlt komplett
                     player_display = item["player"] if item["player"] else item["pick"]
                     critical_alerts.append(
-                        f"⚠️ <b>ROTATIONS-WARNUNG | {match_name}</b>\n"
+                        f"⚠️ <b>ROTATIONS-WARNUNG | {display_match}</b>\n"
                         f"Der Spieler <b>{player_display}</b> steht <u>NICHT</u> in der Startelf!\n"
                         f"<i>(Tipp: {item['pick']})</i>"
                     )
@@ -165,7 +184,7 @@ def run_lineup_check():
         except Exception as err:
             print(f"[LineupCheck] Fehler bei Event {event_id}: {err}")
 
-    # Telegram wird NUR benachrichtigt, wenn wirklich Gefahr für einen Tipp besteht!
+    # Telegram wird nur benachrichtigt, wenn Gefahr für einen Tipp besteht
     if critical_alerts:
         msg = "🚨 <b>JARVIS LINEUP-ALARM</b>\n\n" + "\n\n".join(critical_alerts)
         send_telegram_alert(msg)
