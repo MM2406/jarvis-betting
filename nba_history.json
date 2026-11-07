@@ -108,5 +108,60 @@
     "status": "LOST",
     "sport": "NBA",
     "date": "2026-11-02"
+  },
+  {
+    "match": "Memphis Grizzlies vs. Oklahoma City Thunder",
+    "pick": "Oklahoma City Thunder -4.5",
+    "odds": "1.94",
+    "result": "WON",
+    "icon": "✅",
+    "score": "97:128",
+    "details": "Die Oklahoma City Thunder gewannen mit 128:97 bei den Memphis Grizzlies und haben das Handicap von -4,5 Punkten mit 31 Punkten Differenz klar abgedeckt.",
+    "date": "2026-11-06",
+    "sport": "NBA"
+  },
+  {
+    "match": "New Orleans Pelicans vs. Minnesota Timberwolves",
+    "pick": "Minnesota Timberwolves ML",
+    "odds": "1.60",
+    "result": "WON",
+    "icon": "✅",
+    "score": "109:115",
+    "details": "Die Minnesota Timberwolves gewannen das Spiel auswärts bei den New Orleans Pelicans mit 115:109.",
+    "date": "2026-11-06",
+    "sport": "NBA"
+  },
+  {
+    "match": "Los Angeles Lakers vs. Portland Trail Blazers",
+    "pick": "Los Angeles Lakers ML",
+    "odds": "1.65",
+    "result": "WON",
+    "icon": "✅",
+    "score": "124:118",
+    "details": "Die Los Angeles Lakers setzten sich mit 124:118 gegen die Portland Trail Blazers durch.",
+    "date": "2026-11-06",
+    "sport": "NBA"
+  },
+  {
+    "match": "Atlanta Hawks vs. Washington Wizards",
+    "pick": "Over 229.5",
+    "odds": "1.89",
+    "result": "WON",
+    "icon": "✅",
+    "score": "139:132",
+    "details": "Die Atlanta Hawks besiegten die Washington Wizards mit 139:132, womit die Gesamtpunktzahl von 271 Punkten deutlich über der Grenze von 229,5 Punkten liegt.",
+    "date": "2026-11-06",
+    "sport": "NBA"
+  },
+  {
+    "match": "Atlanta Hawks vs. Washington Wizards",
+    "pick": "Trae Young Over 8.5 Assists",
+    "odds": "1.85",
+    "result": "WON",
+    "icon": "✅",
+    "score": "139:132",
+    "details": "Die Atlanta Hawks besiegten die Washington Wizards mit 139:132, wobei Trae Young 10 Assists verzeichnete und die Wette (Over 8.5 Assists) damit gewonnen hat.",
+    "date": "2026-11-06",
+    "sport": "NBA"
   }
 ]
