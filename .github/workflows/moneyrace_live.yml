@@ -51,6 +51,7 @@ jobs:
             git commit -m "Update Moneyrace Live Board State [skip ci]"
             git checkout -- . 2>/dev/null || true
             git clean -fd 2>/dev/null || true
-            git pull --rebase origin main
-            git push origin main
+            for i in {1..5}; do
+              git pull --rebase origin main && git push origin main && break || sleep 3
+            done
           fi
