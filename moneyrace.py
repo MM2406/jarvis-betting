@@ -25,24 +25,26 @@ TELEGRAM_THREAD_ID = (
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 STATE_FILE = "moneyrace_state.json"
 
+# Vollständig harmonisierte Ligenliste (inkl. korrekter API-Keys)
 MONEYRACE_SPORTS = [
-    # Top-Fussball Ligen
+    # Top-Fussball Ligen & Erweiterungen
     "soccer_germany_bundesliga",
     "soccer_germany_bundesliga2",
+    "soccer_austria_bundesliga",
     "soccer_epl",
-    "soccer_england_championship",
+    "soccer_efl_champ",                  # Korrigiert: statt soccer_england_championship
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
     "soccer_france_ligue_one",
     "soccer_netherlands_eredivisie",
-    "soccer_portugal_primeira_liga",
-    "soccer_austria_bundesliga",
     "soccer_belgium_first_div",
+    "soccer_portugal_primeira_liga",
+    "soccer_switzerland_superleague",     # Neu hinzugefügt
     # UEFA Wettbewerbe
     "soccer_uefa_champs_league",
     "soccer_uefa_europa_league",
     "soccer_uefa_europa_conference_league",
-    # Eishockey (Top 4 Ligen)
+    # Eishockey (Top Ligen Europa & USA)
     "icehockey_nhl",
     "icehockey_germany_del",
     "icehockey_sweden_shl",
@@ -252,6 +254,7 @@ def fetch_moneyrace_odds():
     now_utc = datetime.now(timezone.utc)
     now_hour = datetime.now(LOCAL_TZ).hour
     
+    # 6 Stunden Vorlauf am Mittag, 9 Stunden am Abend
     window_hours = 6 if now_hour < 15 else 9
     cutoff = now_utc + timedelta(hours=window_hours)
 
@@ -261,11 +264,15 @@ def fetch_moneyrace_odds():
         sports_url = "https://api.the-odds-api.com/v4/sports/"
         res_sports = requests.get(sports_url, params={"apiKey": ODDS_API_KEY}, timeout=10)
         if res_sports.status_code == 200:
+            active_remote = {s.get("key") for s in res_sports.json() if s.get("active", False)}
+            # Nur remote tatsächlich aktive Ligen abfragen
+            sports_to_query = [s for s in sports_to_query if s in active_remote]
+            # Dynamische Tennis-Turniere hinzufügen
             for s in res_sports.json():
                 if s.get("group") == "Tennis" and s.get("active", False):
                     sports_to_query.append(s.get("key"))
     except Exception as e:
-        print(f"Fehler beim dynamischen Tennis-Ligen-Scan: {e}")
+        print(f"Hinweis beim Abruf aktiver Sportarten: {e}")
 
     for sport in sports_to_query:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
@@ -281,7 +288,7 @@ def fetch_moneyrace_odds():
                 for match in res.json():
                     commence_utc = datetime.fromisoformat(match["commence_time"].replace("Z", "+00:00"))
                     if now_utc <= commence_utc <= cutoff:
-                        time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%d.%m. %H:%M Uhr")
+                        time_str = commence_utc.astimezone(LOCAL_TZ).strftime("%H:%M Uhr")
                         bookies = match.get("bookmakers", [])
                         if not bookies:
                             continue
@@ -289,12 +296,12 @@ def fetch_moneyrace_odds():
                         for m in bookies[0].get("markets", []):
                             outcomes = [f"{o['name']} ({o.get('point', '')}): {o['price']}" for o in m.get("outcomes", [])]
                             odds_details.append(f"{m.get('key')}: {', '.join(outcomes)}")
-                        all_events.append(f"[{sport}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_details)}")
+                        all_events.append(f"[{sport}] [{time_str}] {match['home_team']} vs. {match['away_team']} | {' // '.join(odds_details)}")
         except Exception as e:
             print(f"Fehler bei {sport}: {e}")
 
     print(f"Gefundene Moneyrace-Kandidaten: {len(all_events)}")
-    return "\n".join(all_events[:65])
+    return "\n".join(all_events[:70])
 
 def run_moneyrace():
     state = load_state()
@@ -324,7 +331,7 @@ def run_moneyrace():
     bar = make_progress_bar(state.get("current_step", 0))
 
     prompt = f"""
-Du bist 'JARVIS MONEYRACE QUANT' – ein konservativer Bankroll-Algorithmus.
+Du bist 'JARVIS MONEYRACE QUANT' – ein hochkonservativer Bankroll-Algorithmus.
 Ziel: Wir verdoppeln schrittweise das Startkapital in 7 Stufen bis zu einem Ziel von {target:.2f} €.
 Aktueller Status:
 - Stufe: {next_step} von 7
@@ -335,10 +342,11 @@ VERFÜGBARE PARTIEN & BUCHMACHERQUOTEN:
 {odds_data}
 
 ================================================================================
-STRIKTE REGELN (PICKS FIRST):
+STRIKTE REGELN (PICKS FIRST & ANSTOSSZEIT):
 ================================================================================
 1. PICKS FIRST:
    - Die spielfertige Wette steht ganz oben direkt unter dem Header!
+   - Gib bei 'Match' immer die genaue Anstoßzeit an (z. B. '[15:30 Uhr] Team A vs. Team B').
    - Erst danach folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und die Deep-Dive-Begründung.
 2. SICHERHEIT:
    - Quotenbereich: 1.35 bis 1.70.
@@ -356,21 +364,22 @@ Fortschritt: {bar} (<code>{stake:.2f} €</code> / <code>{target:.2f} €</code>
 ━━━━━━━━━━━━━━━━━━━━
 📋 <b>WETTE AUF EINEN BLICK:</b>
 
-📌 <b>Match:</b> [Heim] vs. [Gast]
-⏰ <b>Beginn:</b> [Uhrzeit] Uhr | 🏆 <b>Liga:</b> [Sportart/Liga]
+📌 <b>Match:</b> [HH:MM Uhr] [Heim] vs. [Gast]
+⏰ <b>Beginn:</b> [HH:MM Uhr] | 🏆 <b>Liga:</b> [Sportart/Liga]
 🎯 <b>Tipp:</b> <b>[Markt & Auswahl]</b> (<code>@[Quote]</code>)
 💰 <b>Einsatz:</b> <code>{stake:.2f} €</code> (All-In) ➔ <b>Möglicher Return:</b> <code>[Return] €</code>
 ⚠️ <b>Value-Grenze:</b> Spielbar bis <code>@[Quote]</code>
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
-• <b>Quant-Edge:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
-• <b>Begründung:</b> [Maximal 2-3 präzise Sätze zur taktischen und statistischen Herleitung]
+- <b>Quant-Edge:</b> Modell-Chance: [XX.X]% | Fair Odds: ~[X.XX] (<b>+[X.X]% EV</b>)
+- <b>Begründung:</b> [Maximal 2-3 präzise Sätze zur taktischen und statistischen Herleitung]
 
 ---JSON_TRACKING---
 {{
   "step": {next_step},
   "match": "Team A vs Team B",
+  "kickoff": "HH:MM Uhr",
   "sport": "Soccer",
   "pick": "Auswahl",
   "odds": 1.50,
