@@ -28,10 +28,17 @@ TELEGRAM_THREAD_ID = (
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 HISTORY_FILE = "euro_history.json"
 
+# Erweiterte Liste europäischer Spitzenligen (Basketball & Eishockey)
 EURO_SPORTS = [
+    # Basketball
     "basketball_euroleague",
+    "basketball_eurocup",
+    "basketball_spain_acb",
+    # Eishockey
     "icehockey_germany_del",
-    "icehockey_sweden_shl"
+    "icehockey_sweden_shl",
+    "icehockey_switzerland_nl",
+    "icehockey_liiga"
 ]
 
 def make_progress_bar(percentage, segments=10):
@@ -332,9 +339,26 @@ INFO: [Maximal 1 prägnanter Satz]
 def fetch_euro_odds():
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=15)
+    cutoff = now_utc + timedelta(hours=18)
 
-    for sport in EURO_SPORTS:
+    # Vorab prüfen, welche Ligen aktuell im System aktiv sind
+    available_keys = set(EURO_SPORTS)
+    try:
+        res_sports = requests.get(
+            "https://api.the-odds-api.com/v4/sports/",
+            params={"apiKey": ODDS_API_KEY},
+            timeout=10
+        )
+        if res_sports.status_code == 200:
+            active_remote = {s.get("key") for s in res_sports.json() if s.get("active", False)}
+            # Nur Ligen abrufen, die gerade tatsächlich Saison/Spiele haben
+            matching = [s for s in EURO_SPORTS if s in active_remote]
+            if matching:
+                available_keys = matching
+    except Exception as e:
+        print(f"Hinweis beim Abruf der aktiven Ligen: {e}")
+
+    for sport in available_keys:
         url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
@@ -381,7 +405,7 @@ def run_euro_report():
     today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
 
     prompt = f"""
-Du bist 'JARVIS EURO INTEL ARCHITECT' – Experte für EuroLeague Basketball sowie deutsches (DEL) und schwedisches (SHL) Eishockey.
+Du bist 'JARVIS EURO INTEL ARCHITECT' – Experte für europäischen Spitzen-Basketball (EuroLeague, EuroCup, Liga ACB) sowie europäisches Spitzen-Eishockey (DEL, SHL, Schweizer National League, Liiga).
 Erstelle für heute ({today_str}) das quantitative Value-Dossier.
 
 VERFÜGBARE PARTIEN & ECHTE BUCHMACHERQUOTEN:
