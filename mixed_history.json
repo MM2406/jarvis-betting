@@ -1,5 +1,42 @@
 {
-  "settled": [],
+  "settled": [
+    {
+      "tier": "🛡️ SAFE HARBOR ACCA",
+      "sport": "Mixed",
+      "pick": "Unter 2.5 Tore (Sevilla vs. Alavés) + Žalgiris Sieg (Beşiktaş vs. Žalgiris)",
+      "odds": 2.97,
+      "stake": 1.5,
+      "date": "2026-11-06",
+      "status": "WON",
+      "score": "Sevilla vs. Alavés 0:0 | Beşiktaş vs. Žalgiris 67:83",
+      "info": "Das La-Liga-Spiel zwischen Sevilla und Alavés endete mit 0:0, womit die Wette auf „Unter 2.5 Tore“ gewonnen hat. Žalgiris Kaunas setzte sich in der EuroLeague mit 83:67 bei Beşiktaş durch und erfüllte damit das zweite Bein. Beide Partien sind offiziell beendet.",
+      "pnl": 2.96
+    },
+    {
+      "tier": "⚖️ BALANCED VALUE ACCA",
+      "sport": "Mixed",
+      "pick": "Dynamo Dresden Sieg + Žalgiris Sieg + 1+ Schuss aufs Tor (Everton vs. Coventry)",
+      "odds": 4.9,
+      "stake": 0.75,
+      "date": "2026-11-06",
+      "status": "WON",
+      "score": "Dynamo Dresden 3:0 SpVgg Greuther Fürth | Beşiktaş 67:83 Žalgiris Kaunas | Everton 3:1 Coventry City (4 Tore / mehrere Torschüsse)",
+      "info": "Alle drei Partien wurden am 06.11.2026 regulär beendet und alle Tipps waren erfolgreich. Dynamo Dresden sowie Žalgiris gewannen ihre Spiele deutlich, und beim 3:1 zwischen Everton und Coventry wurde die Mindestanforderung von mindestens einem Torschuss problemlos erfüllt.",
+      "pnl": 2.93
+    },
+    {
+      "tier": "🚀 MOONSHOT MULTI",
+      "sport": "Mixed",
+      "pick": "Sevilla Sieg + Under 174.5 (Beşiktaş vs. Žalgiris) + Über 2.5 Tore (Toulouse vs. Strasbourg) + 1+ Schuss aufs Tor (Everton vs. Coventry)",
+      "odds": 10.13,
+      "stake": 0.35,
+      "date": "2026-11-06",
+      "status": "LOST",
+      "score": "",
+      "info": "",
+      "pnl": -0.35
+    }
+  ],
   "pending": [
     {
       "tier": "🛡️ SAFE HARBOR ACCA",
@@ -20,8 +57,8 @@
       "stake": 0.75,
       "date": "2026-11-06",
       "status": "PENDING",
-      "score": "Celtics @ Hornets (steht noch an, Beginn 19:00 Uhr ET) | Oilers (kein Spiel am 06.11.2026; 4:5-Niederlage am 05.11. gegen die Ducks) | Luke Littler (kein beendetes Match)",
-      "info": "Gemäß Regel 1 muss zwingend mit PENDING geantwortet werden, da noch nicht alle Partien regulär beendet sind und mindestens ein Spiel der Wette (Boston Celtics bei den Charlotte Hornets) noch ansteht."
+      "score": "",
+      "info": ""
     },
     {
       "tier": "🚀 MOONSHOT MULTI",
@@ -30,34 +67,9 @@
       "odds": 9.33,
       "stake": 0.35,
       "date": "2026-11-06",
-      "status": "PENDING"
-    },
-    {
-      "tier": "🛡️ SAFE HARBOR ACCA",
-      "sport": "Mixed",
-      "pick": "Unter 2.5 Tore (Sevilla vs. Alavés) + Žalgiris Sieg (Beşiktaş vs. Žalgiris)",
-      "odds": 2.97,
-      "stake": 1.5,
-      "date": "2026-11-06",
-      "status": "PENDING"
-    },
-    {
-      "tier": "⚖️ BALANCED VALUE ACCA",
-      "sport": "Mixed",
-      "pick": "Dynamo Dresden Sieg + Žalgiris Sieg + 1+ Schuss aufs Tor (Everton vs. Coventry)",
-      "odds": 4.9,
-      "stake": 0.75,
-      "date": "2026-11-06",
-      "status": "PENDING"
-    },
-    {
-      "tier": "🚀 MOONSHOT MULTI",
-      "sport": "Mixed",
-      "pick": "Sevilla Sieg + Under 174.5 (Beşiktaş vs. Žalgiris) + Über 2.5 Tore (Toulouse vs. Strasbourg) + 1+ Schuss aufs Tor (Everton vs. Coventry)",
-      "odds": 10.13,
-      "stake": 0.35,
-      "date": "2026-11-06",
-      "status": "PENDING"
+      "status": "PENDING",
+      "score": "Arsenal (Soccer): Steht noch an (07.11.2026 vs. Hull City) | Celtics (NBA): 119:80 vs. Hornets (Cover -5.5 erfüllt) | Littler (Darts): Steht noch an (Grand Slam of Darts ab 14.11.2026) | Oilers (NHL): Sieg vs. Ducks",
+      "info": "Da die Partie des FC Arsenal erst am heutigen Samstag (07.11.2026) ansteht und Luke Littler als bereits vorqualifizierter Titelverteidiger am 06.11. spielfrei hatte, sind noch nicht alle Auswahlen der Kombiwette regulär beendet. Gemäß den Vorgaben ist der Wettschein daher zwingend als PENDING einzustufen."
     }
   ]
 }
