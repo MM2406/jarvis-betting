@@ -153,9 +153,7 @@
       "score": "6:3, 6:3 // 6:4, 4:6, 6:3",
       "info": "Ruud gewann souverän, doch Tommy Paul verlor sein Match gegen Ben Shelton in drei Sätzen.",
       "pnl": -0.75
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "[ATP] Casper Ruud vs. Nuno Borges",
       "sport": "Tennis",
@@ -165,7 +163,10 @@
       "stake": 1.5,
       "date": "2026-11-06",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "7:6, 6:4",
+      "info": "Borges verliert mit nur drei Games Rückstand und deckt das +3.5-Handicap ab.",
+      "pnl": 1.17
     },
     {
       "match": "[ATP] Taylor Fritz vs. Carlos Alcaraz // [ATP] Casper Ruud vs. Nuno Borges",
@@ -176,7 +177,10 @@
       "stake": 1.0,
       "date": "2026-11-06",
       "is_kombi": true,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "6:7, 7:5, 6:3 // 7:6, 6:4",
+      "info": "Sowohl Carlos Alcaraz als auch Casper Ruud gewannen ihre Viertelfinalpartien erfolgreich.",
+      "pnl": 0.9
     },
     {
       "match": "[ATP] Casper Ruud vs. Nuno Borges",
@@ -186,6 +190,44 @@
       "odds": 1.9,
       "stake": 0.75,
       "date": "2026-11-06",
+      "is_kombi": false,
+      "status": "WON",
+      "score": "7:6, 6:4",
+      "info": "Mit 23 gespielten Games wurde die Marke von Over 22,5 Games knapp übertroffen.",
+      "pnl": 0.67
+    }
+  ],
+  "pending": [
+    {
+      "match": "[ATP] Luca Van Assche vs. Ben Shelton",
+      "sport": "Tennis",
+      "category": "POTD",
+      "pick": "Ben Shelton -3.5 Games",
+      "odds": 1.75,
+      "stake": 1.5,
+      "date": "2026-11-07",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "[ATP] Luca Van Assche vs. Ben Shelton // [ATP] Casper Ruud vs. Carlos Alcaraz",
+      "sport": "Tennis",
+      "category": "ACCA",
+      "pick": "Ben Shelton ML + Carlos Alcaraz -3.5 Games",
+      "odds": 1.96,
+      "stake": 1.0,
+      "date": "2026-11-07",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "[ATP] Casper Ruud vs. Carlos Alcaraz",
+      "sport": "Tennis",
+      "category": "SPOTLIGHT",
+      "pick": "Unter 21.5 Games",
+      "odds": 1.85,
+      "stake": 0.75,
+      "date": "2026-11-07",
       "is_kombi": false,
       "status": "PENDING"
     }
