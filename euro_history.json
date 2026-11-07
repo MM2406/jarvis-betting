@@ -103,9 +103,7 @@
       "score": "95:99",
       "info": "Bayern München setzte sich auswärts bei ASVEL Lyon-Villeurbanne knapp mit 99:95 durch.",
       "pnl": 0.74
-    }
-  ],
-  "pending": [
+    },
     {
       "match": "Beşiktaş J.K. vs. Žalgiris",
       "sport": "Euro-Hoops & Ice",
@@ -115,7 +113,10 @@
       "stake": 1.5,
       "date": "2026-11-06",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "67:83",
+      "info": "Žalgiris setzte sich auswärts bei Beşiktaş souverän mit 83:67 durch.",
+      "pnl": 1.2
     },
     {
       "match": "Olympiacos vs. KK Crvena zvezda // KK Partizan NIS vs. Maccabi Tel Aviv",
@@ -126,7 +127,10 @@
       "stake": 1.0,
       "date": "2026-11-06",
       "is_kombi": true,
-      "status": "PENDING"
+      "status": "LOST",
+      "score": "57:62 // 88:67",
+      "info": "Da Olympiacos gegen Crvena zvezda verloren hat, ist die Kombiwette nicht aufgegangen.",
+      "pnl": -1.0
     },
     {
       "match": "Beşiktaş J.K. vs. Žalgiris",
@@ -137,7 +141,11 @@
       "stake": 0.75,
       "date": "2026-11-06",
       "is_kombi": false,
-      "status": "PENDING"
+      "status": "WON",
+      "score": "67:83",
+      "info": "Mit 150 Gesamtpunkten blieb die Partie deutlich unter der Grenze von 174,5 Punkten.",
+      "pnl": 0.75
     }
-  ]
+  ],
+  "pending": []
 }
