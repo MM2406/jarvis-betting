@@ -24,16 +24,27 @@ TELEGRAM_THREAD_ID = (
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 PENDING_FILE = "pending_soccer.json"
 
-SOCCER_LEAGUES = [
+# Basis-Ligen für europäischen Fußball
+EURO_SOCCER_LEAGUES = [
     "soccer_germany_bundesliga",
     "soccer_germany_bundesliga2",
+    "soccer_austria_bundesliga",
     "soccer_epl",
+    "soccer_efl_champ",
     "soccer_spain_la_liga",
     "soccer_italy_serie_a",
     "soccer_france_ligue_one",
+    "soccer_netherlands_eredivisie",
+    "soccer_belgium_first_div",
+    "soccer_portugal_primeira_liga",
+    "soccer_switzerland_superleague",
     "soccer_uefa_champs_league",
     "soccer_uefa_europa_league",
-    "soccer_uefa_europa_conference_league",
+    "soccer_uefa_europa_conference_league"
+]
+
+# MLS exklusiv für Abend- & Nacht-Slate
+OVERSEAS_LEAGUES = [
     "soccer_usa_mls"
 ]
 
@@ -90,12 +101,36 @@ def send_telegram(text):
 
     return last_message_id
 
-def fetch_soccer_odds():
+def fetch_soccer_odds(is_afternoon_slate=True):
     all_events = []
     now_utc = datetime.now(timezone.utc)
-    cutoff = now_utc + timedelta(hours=14)
 
-    for league in SOCCER_LEAGUES:
+    # Präzise Zeit- und Ligenweiche je nach Slate
+    if is_afternoon_slate:
+        # Mittagsrun: Nur Spiele bis maximal 19:15 Uhr MEZ (ca. 7.5 Stunden Puffer)
+        cutoff = now_utc + timedelta(hours=7.5)
+        active_leagues = list(EURO_SOCCER_LEAGUES)  # KEINE MLS am Mittag!
+    else:
+        # Abendrun: Abendslots (18:30 - 21:00 Uhr) + Nachtspiele (MLS) bis zum nächsten Morgen
+        cutoff = now_utc + timedelta(hours=14)
+        active_leagues = list(EURO_SOCCER_LEAGUES) + list(OVERSEAS_LEAGUES)
+
+    # Vorab prüfen, welche Ligen aktuell im System aktiv sind
+    try:
+        res_sports = requests.get(
+            "https://api.the-odds-api.com/v4/sports/",
+            params={"apiKey": ODDS_API_KEY},
+            timeout=10
+        )
+        if res_sports.status_code == 200:
+            active_remote = {s.get("key") for s in res_sports.json() if s.get("active", False)}
+            matching = [s for s in active_leagues if s in active_remote]
+            if matching:
+                active_leagues = matching
+    except Exception as e:
+        print(f"Hinweis beim Abruf aktiver Ligen: {e}")
+
+    for league in active_leagues:
         url = f"https://api.the-odds-api.com/v4/sports/{league}/odds/"
         params = {
             "apiKey": ODDS_API_KEY,
@@ -114,19 +149,19 @@ def fetch_soccer_odds():
                         bookies = match.get("bookmakers", [])
                         if not bookies:
                             continue
-                        
+
                         odds_summary = []
                         for m in bookies[0].get("markets", []):
                             outcomes = [f"{o['name']}: {o['price']}" for o in m.get("outcomes", [])]
                             odds_summary.append(f"{m.get('key')}: {', '.join(outcomes)}")
 
-                        line = f"[{league.replace('soccer_', '').upper()}] {match['home_team']} vs. {match['away_team']} ({time_str}) | {' // '.join(odds_summary)}"
+                        line = f"[{league.replace('soccer_', '').upper()}] [{time_str}] {match['home_team']} vs. {match['away_team']} | {' // '.join(odds_summary)}"
                         all_events.append(line)
         except Exception as e:
             print(f"Fehler bei Liga {league}: {e}")
 
-    print(f"Gefundene Soccer-Partien: {len(all_events)}")
-    return "\n".join(all_events[:65])
+    print(f"Gefundene Soccer-Partien ({'Mittag' if is_afternoon_slate else 'Abend'}): {len(all_events)}")
+    return "\n".join(all_events[:70])
 
 def run_jarvis_soccer():
     now_dt = datetime.now(LOCAL_TZ)
@@ -135,10 +170,13 @@ def run_jarvis_soccer():
 
     # Unter der Woche (Mo - Fr) keine Posts vor 16:00 Uhr MEZ
     if weekday < 5 and now_hour < 16:
-        print(f"Wochentag-Check ({now_hour}:00 Uhr MEZ): Unter der Woche werden Dossiers erst ab 16:00 Uhr für die Abendslots generiert. Abbruch.")
+        print(f"Wochentag-Check ({now_hour}:00 Uhr MEZ): Unter der Woche werden Dossiers erst ab 16:00 Uhr generiert. Abbruch.")
         return
 
-    odds_data = fetch_soccer_odds()
+    is_afternoon_slate = (now_hour < 15)
+    edition_label = "TAGES- & NACHMITTAGS-SLATE" if is_afternoon_slate else "HAUPT- & ABEND-SLATE"
+
+    odds_data = fetch_soccer_odds(is_afternoon_slate=is_afternoon_slate)
     if not odds_data:
         print("Keine relevanten Soccer-Partien im aktuellen Zeitfenster gefunden.")
         return
@@ -146,12 +184,11 @@ def run_jarvis_soccer():
     today_str = now_dt.strftime("%d.%m.%Y")
     today_iso = now_dt.strftime("%Y-%m-%d")
     current_year = now_dt.strftime("%Y")
-    edition_label = "TAGES-SLATE" if now_hour < 15 else "HAUPT- & ABEND-SLATE"
 
     prompt = f"""
 Du bist 'JARVIS SOCCER QUANT ARCHITECT'.
 HEUTIGES DATUM: {today_str} (Aktuelles Jahr: {current_year}).
-Erstelle für heute das Value-Dossier für die Slate ({edition_label}).
+Erstelle das Value-Dossier für die {edition_label}.
 
 VERFÜGBARE PARTIEN & REAL-QUOTEN AUS DER API:
 {odds_data}
@@ -159,8 +196,10 @@ VERFÜGBARE PARTIEN & REAL-QUOTEN AUS DER API:
 ================================================================================
 STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
 ================================================================================
-1. PICKS FIRST:
-   - Die spielfertigen Wettscheine (POTD, Kombis, Props) stehen ZWINGEND GANZ OBEN direkt unter dem Header!
+1. PICKS FIRST & ANSTOSSZEITEN-PFLICHT:
+   - Alle spielfertigen Wettscheine stehen ZWINGEND GANZ OBEN direkt unter dem Header!
+   - VOR JEDEM MATCH MUSS ZWINGEND DIE ANSTOSSZEIT IN ECKIGEN KLAMMERN STEHEN! (z. B. '[15:30 Uhr] Team A vs. Team B')
+   - Verwende exakt die Uhrzeit, die in der Partienliste in '[HH:MM Uhr]' angegeben ist!
    - Erst DANACH folgt die Trennlinie '━━━━━━━━━━━━━━━━━━━━' und der Abschnitt 'ANALYSEN & MODELL-LOGIK (DEEP DIVE)'.
 2. LÄNGEN-LIMIT:
    - Der GESAMTE Text vor '---JSON_TRACKING---' darf maximal 3.400 Zeichen umfassen!
@@ -182,50 +221,52 @@ STRIKTE ARCHITEKTUR & LAYOUT-REGELN (PICKS FIRST):
 
 EXAKTES HTML-AUSGABEFORMAT:
 ⚽ <b>JARVIS SOCCER — TAGESEMPFEHLUNGEN ({today_str})</b>
+<i>{edition_label}</i>
 ━━━━━━━━━━━━━━━━━━━━
 📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
 
 ⭐ <b>POTD (<code>1.50u</code> | <code>@[Quote]</code>)</b>
-• <b>[Heim] vs. [Gast]</b> ➔ <i>[Tipp]</i>
+- <b>[HH:MM Uhr] [Heim] vs. [Gast]</b> ➔ <i>[Tipp]</i> (<code>@[Quote]</code>)
 
 🔥 <b>CONSERVATIVE BANKER (<code>1.25u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
 
 ⚖️ <b>BALANCED VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 3]</i>
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i> (<code>@[Quote]</code>)
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i> (<code>@[Quote]</code>)
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Tipp 3]</i> (<code>@[Quote]</code>)
 
 ⚡ <b>HYBRID QUANT MULTI (<code>0.50u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Heim] vs. [Gast] ➔ <i>[Markt & Tipp 1]</i>
-• [Heim] vs. [Gast] ➔ <i>[Markt & Tipp 2]</i>
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Markt & Tipp 1]</i> (<code>@[Quote]</code>)
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Markt & Tipp 2]</i> (<code>@[Quote]</code>)
 
 ⚽ <b>GOALS & BTTS VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Heim] vs. [Gast] ➔ <i>[Tore-Tipp 1]</i>
-• [Heim] vs. [Gast] ➔ <i>[Tore-Tipp 2]</i>
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Tore-Tipp 1]</i> (<code>@[Quote]</code>)
+- [HH:MM Uhr] [Heim] vs. [Gast] ➔ <i>[Tore-Tipp 2]</i> (<code>@[Quote]</code>)
 
 🎯 <b>PLAYER PROPS MULTI (<code>0.50u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Spieler 1] ([Team]) ➔ <i>1+ Schuss aufs Tor</i>
-• [Spieler 2] ([Team]) ➔ <i>1+ Schuss aufs Tor</i>
+- [HH:MM Uhr] [Spieler 1] ([Team]) ➔ <i>1+ Schuss aufs Tor</i> (<code>@[Quote]</code>)
+- [HH:MM Uhr] [Spieler 2] ([Team]) ➔ <i>1+ Schuss aufs Tor</i> (<code>@[Quote]</code>)
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
-🔎 <b>POTD: [Heim] vs. [Gast]</b>
-• <b>Edge:</b> [Prozentuale Kante oder Fair-Quote]
-• <b>Logik:</b> [Maximal 2 präzise Sätze zur taktischen Kante / xG]
+🔎 <b>POTD: [Heim] vs. [Gast] ([HH:MM Uhr])</b>
+- <b>Edge:</b> [Prozentuale Kante oder Fair-Quote]
+- <b>Logik:</b> [Maximal 2 präzise Sätze zur taktischen Kante / xG]
 
 🔎 <b>Banker & Value Begründungen:</b>
-• [Team 1]: [1-2 Sätze Begründung]
-• [Team 2]: [1-2 Sätze Begründung]
-• [Team 3]: [1-2 Sätze Begründung]
+- [Team 1]: [1-2 Sätze Begründung]
+- [Team 2]: [1-2 Sätze Begründung]
+- [Team 3]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 {{
   "date": "{today_iso}",
   "potd": {{
     "match": "Heim vs. Gast",
+    "kickoff": "HH:MM Uhr",
     "pick": "Tipp",
     "odds": 1.85,
     "stake": 1.50
@@ -236,8 +277,8 @@ EXAKTES HTML-AUSGABEFORMAT:
       "odds": 1.95,
       "stake": 1.25,
       "picks": [
-        {{"match": "Team A vs. Team B", "pick": "Team A Sieg", "odds": 1.40}},
-        {{"match": "Team C vs. Team D", "pick": "Über 1.5 Tore", "odds": 1.39}}
+        {{"match": "Team A vs. Team B", "kickoff": "15:30 Uhr", "pick": "Team A Sieg", "odds": 1.40}},
+        {{"match": "Team C vs. Team D", "kickoff": "16:00 Uhr", "pick": "Über 1.5 Tore", "odds": 1.39}}
       ]
     }},
     {{
@@ -245,9 +286,9 @@ EXAKTES HTML-AUSGABEFORMAT:
       "odds": 3.20,
       "stake": 0.75,
       "picks": [
-        {{"match": "Team E vs. Team F", "pick": "Team E DNB", "odds": 1.45}},
-        {{"match": "Team G vs. Team H", "pick": "Team G Sieg", "odds": 1.50}},
-        {{"match": "Team I vs. Team J", "pick": "Über 2.5 Tore", "odds": 1.47}}
+        {{"match": "Team E vs. Team F", "kickoff": "15:30 Uhr", "pick": "Team E DNB", "odds": 1.45}},
+        {{"match": "Team G vs. Team H", "kickoff": "16:00 Uhr", "pick": "Team G Sieg", "odds": 1.50}},
+        {{"match": "Team I vs. Team J", "kickoff": "18:30 Uhr", "pick": "Über 2.5 Tore", "odds": 1.47}}
       ]
     }},
     {{
@@ -255,8 +296,8 @@ EXAKTES HTML-AUSGABEFORMAT:
       "odds": 3.10,
       "stake": 0.50,
       "picks": [
-        {{"match": "Team K vs. Team L", "pick": "Team K Sieg", "odds": 1.60}},
-        {{"match": "Team M vs. Team N", "pick": "Unter 3.5 Tore", "odds": 1.55}}
+        {{"match": "Team K vs. Team L", "kickoff": "15:30 Uhr", "pick": "Team K Sieg", "odds": 1.60}},
+        {{"match": "Team M vs. Team N", "kickoff": "17:00 Uhr", "pick": "Unter 3.5 Tore", "odds": 1.55}}
       ]
     }},
     {{
@@ -264,8 +305,8 @@ EXAKTES HTML-AUSGABEFORMAT:
       "odds": 2.80,
       "stake": 0.75,
       "picks": [
-        {{"match": "Team Q vs. Team R", "pick": "Über 2.5 Tore", "odds": 1.65}},
-        {{"match": "Team S vs. Team T", "pick": "BTTS Ja", "odds": 1.70}}
+        {{"match": "Team Q vs. Team R", "kickoff": "15:30 Uhr", "pick": "Über 2.5 Tore", "odds": 1.65}},
+        {{"match": "Team S vs. Team T", "kickoff": "16:00 Uhr", "pick": "BTTS Ja", "odds": 1.70}}
       ]
     }},
     {{
@@ -273,8 +314,8 @@ EXAKTES HTML-AUSGABEFORMAT:
       "odds": 2.45,
       "stake": 0.50,
       "picks": [
-        {{"match": "Team U vs. Team V", "player": "Spieler 1", "pick": "1+ Schuss aufs Tor", "odds": 1.55}},
-        {{"match": "Team W vs. Team X", "player": "Spieler 2", "pick": "1+ Schuss aufs Tor", "odds": 1.58}}
+        {{"match": "Team U vs. Team V", "kickoff": "15:30 Uhr", "player": "Spieler 1", "pick": "1+ Schuss aufs Tor", "odds": 1.55}},
+        {{"match": "Team W vs. Team X", "kickoff": "16:00 Uhr", "player": "Spieler 2", "pick": "1+ Schuss aufs Tor", "odds": 1.58}}
       ]
     }}
   ]
