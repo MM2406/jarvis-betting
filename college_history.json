@@ -115,5 +115,39 @@
       "pnl": 0.81
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "match": "Nebraska Cornhuskers vs. Providence Friars",
+      "sport": "US College",
+      "category": "POTD",
+      "pick": "Nebraska Cornhuskers -2.5",
+      "odds": 1.91,
+      "stake": 1.5,
+      "date": "2026-11-07",
+      "is_kombi": false,
+      "status": "PENDING"
+    },
+    {
+      "match": "Georgetown Hoyas vs. Maryland Terrapins // Drexel Dragons vs. Colgate Raiders",
+      "sport": "US College",
+      "category": "ACCA",
+      "pick": "Maryland Terrapins -3.0 + Drexel Dragons -1.5",
+      "odds": 3.5,
+      "stake": 1.0,
+      "date": "2026-11-07",
+      "is_kombi": true,
+      "status": "PENDING"
+    },
+    {
+      "match": "Memphis Tigers vs. VCU Rams",
+      "sport": "US College",
+      "category": "SPOTLIGHT",
+      "pick": "Memphis Tigers ML",
+      "odds": 2.08,
+      "stake": 0.75,
+      "date": "2026-11-07",
+      "is_kombi": false,
+      "status": "PENDING"
+    }
+  ]
 }
