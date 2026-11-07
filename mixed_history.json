@@ -68,8 +68,35 @@
       "stake": 0.35,
       "date": "2026-11-06",
       "status": "PENDING",
-      "score": "Arsenal (Soccer): Steht noch an (07.11.2026 vs. Hull City) | Celtics (NBA): 119:80 vs. Hornets (Cover -5.5 erfüllt) | Littler (Darts): Steht noch an (Grand Slam of Darts ab 14.11.2026) | Oilers (NHL): Sieg vs. Ducks",
-      "info": "Da die Partie des FC Arsenal erst am heutigen Samstag (07.11.2026) ansteht und Luke Littler als bereits vorqualifizierter Titelverteidiger am 06.11. spielfrei hatte, sind noch nicht alle Auswahlen der Kombiwette regulär beendet. Gemäß den Vorgaben ist der Wettschein daher zwingend als PENDING einzustufen."
+      "score": "",
+      "info": ""
+    },
+    {
+      "tier": "🛡️ SAFE HARBOR ACCA",
+      "sport": "Mixed",
+      "pick": "Ben Shelton -3.5 Games + RB Leipzig Sieg",
+      "odds": 2.89,
+      "stake": 1.5,
+      "date": "2026-11-07",
+      "status": "PENDING"
+    },
+    {
+      "tier": "⚖️ BALANCED VALUE ACCA",
+      "sport": "Mixed",
+      "pick": "Ben Shelton -3.5 Games + Torino Sieg + Manchester City Sieg",
+      "odds": 4.76,
+      "stake": 0.75,
+      "date": "2026-11-07",
+      "status": "PENDING"
+    },
+    {
+      "tier": "🚀 MOONSHOT MULTI",
+      "sport": "Mixed",
+      "pick": "Ben Shelton -3.5 Games + Bayern Munich (-1.5) + Casper Ruud vs Alcaraz Unter 21.5 Games + Real Madrid (-1.5)",
+      "odds": 8.81,
+      "stake": 0.35,
+      "date": "2026-11-07",
+      "status": "PENDING"
     }
   ]
 }
