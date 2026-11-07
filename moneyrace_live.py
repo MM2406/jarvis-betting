@@ -38,8 +38,16 @@ SPORT_ENDPOINT_MAP = {
     "nfl": "american-football"
 }
 
+def strip_kickoff_prefix(text):
+    """Entfernt Anstoßzeit-Präfixe wie '[15:30 Uhr]' vor dem Matchnamen."""
+    if not text:
+        return ""
+    return re.sub(r"^\s*\[\s*\d{1,2}:\d{2}(?:\s*uhr)?\s*\]\s*", "", str(text), flags=re.IGNORECASE).strip()
+
 def clean_team_name(name):
-    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio|u19|u21|u23|youth|frauen|women)\b", "", str(name).lower())
+    clean = strip_kickoff_prefix(str(name)).lower()
+    clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|calcio|u19|u21|u23|youth|frauen|women|tsg|fk|sk|vfb|vfl|bvb)\b", " ", clean)
+    clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
 
 def load_state():
@@ -122,7 +130,7 @@ def detect_sport(active_pick):
         return "tennis"
     if any(k in combined_text for k in ["nba", "basketball", "euroleague"]):
         return "basketball"
-    if any(k in combined_text for k in ["nhl", "eishockey", "ice hockey"]):
+    if any(k in combined_text for k in ["nhl", "eishockey", "ice hockey", "del", "shl", "liiga"]):
         return "ice-hockey"
     if any(k in combined_text for k in ["nfl", "american football"]):
         return "american-football"
@@ -139,13 +147,15 @@ def fetch_rapidapi_sportapi(match_name, sport_name="soccer"):
         "x-rapidapi-host": "sportapi7.p.rapidapi.com"
     }
 
+    clean_match = strip_kickoff_prefix(match_name)
+
     try:
         res = requests.get(url, headers=headers, timeout=12)
         if res.status_code != 200:
             return None
 
         events = res.json().get("events", [])
-        raw_parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+|\s+@\s+", match_name, flags=re.IGNORECASE) if clean_team_name(p)]
+        raw_parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+|\s+@\s+", clean_match, flags=re.IGNORECASE) if clean_team_name(p)]
         
         if len(raw_parts) < 2:
             return None
@@ -190,10 +200,12 @@ def fetch_gemini_search(match_name, match_date, pick_text, sport_name="soccer"):
     if not GEMINI_API_KEY:
         return None
 
+    clean_match = strip_kickoff_prefix(match_name)
+
     prompt = f"""
 Recherchiere via Google Search den offiziellen Zwischenstand/Endstand für folgende Partie:
 - Sportart: {sport_name}
-- Begegnung: {match_name}
+- Begegnung: {clean_match}
 - Datum: {match_date}
 - Wette: {pick_text}
 
@@ -245,13 +257,15 @@ def run_live_update():
     main_msg_id = active.get("message_id")
     ticker_msg_id = active.get("ticker_message_id")
 
-    match_name = active.get("match", "")
+    raw_match = active.get("match", "")
+    clean_match = strip_kickoff_prefix(raw_match)
     match_date = active.get("date", "")
     pick_text = active.get("pick", "")
+    kickoff = active.get("kickoff", "")
     sport = detect_sport(active)
 
     # 1. Daten ermitteln
-    api_data = fetch_rapidapi_sportapi(match_name, sport_name=sport)
+    api_data = fetch_rapidapi_sportapi(clean_match, sport_name=sport)
     
     status = "UPCOMING"
     score = "-"
@@ -267,7 +281,7 @@ def run_live_update():
 
         if "sieg" in pick_text.lower():
             p_clean = clean_team_name(pick_text)
-            parts = [clean_team_name(p) for p in re.split(r"vs\.?| - ", match_name, flags=re.IGNORECASE)]
+            parts = [clean_team_name(p) for p in re.split(r"vs\.?| - | @ ", clean_match, flags=re.IGNORECASE)]
             if len(parts) >= 2:
                 if parts[0] in p_clean:
                     track = "ON_TRACK" if h > a else "AT_RISK"
@@ -275,10 +289,10 @@ def run_live_update():
                     track = "ON_TRACK" if a > h else "AT_RISK"
 
         if status == "FINISHED":
-            g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
+            g_data = fetch_gemini_search(clean_match, match_date, pick_text, sport_name=sport)
             outcome = g_data.get("outcome", "PENDING") if g_data else "PENDING"
     else:
-        g_data = fetch_gemini_search(match_name, match_date, pick_text, sport_name=sport)
+        g_data = fetch_gemini_search(clean_match, match_date, pick_text, sport_name=sport)
         if g_data:
             status = g_data["status"]
             score = g_data["score"]
@@ -287,7 +301,8 @@ def run_live_update():
             outcome = g_data["outcome"]
 
     if status == "UPCOMING":
-        print(f"[Moneyrace] {match_name} ist laut Abfrage noch nicht gestartet.")
+        ko_hint = f" (Startet um {kickoff})" if kickoff else ""
+        print(f"[Moneyrace] {clean_match} ist noch nicht gestartet{ko_hint}.")
         return
 
     # 2. Eigenständigen Ticker-Post zusammenstellen
@@ -298,7 +313,7 @@ def run_live_update():
         ticker_text = (
             f"⏱️ <b>MONEYRACE • LIVE-TRACKER (BEENDET)</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"• <b>Match:</b> {match_name}\n"
+            f"• <b>Match:</b> {clean_match}\n"
             f"• <b>Endstand:</b> <b>{score}</b>\n"
             f"• <b>Status:</b> Spiel offiziell beendet"
         )
@@ -306,12 +321,12 @@ def run_live_update():
         ticker_text = (
             f"⏱️ <b>MONEYRACE • LIVE-TRACKER</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"• <b>Match:</b> {match_name}\n"
+            f"• <b>Match:</b> {clean_match}\n"
             f"• <b>Spielstand:</b> <b>{score}</b>{time_display}\n"
             f"• <b>Status:</b> {track_icon}"
         )
 
-    # 3. Posten oder Editiere per reply_to_message_id
+    # 3. Posten oder Editieren
     if not ticker_msg_id:
         new_id = send_msg(ticker_text, reply_to=main_msg_id)
         if new_id:
@@ -337,7 +352,7 @@ def run_live_update():
             state["bankroll"] = round(expected_return, 2)
             state["current_step"] = step_num
             state.setdefault("history", []).append({
-                "step": step_num, "match": match_name, "pick": pick_text,
+                "step": step_num, "match": clean_match, "pick": pick_text,
                 "odds": odds_val, "stake": stake, "return": round(expected_return, 2),
                 "status": "WON", "date": active.get("date")
             })
@@ -346,7 +361,7 @@ def run_live_update():
 
             win_msg = (
                 f"✅ <b>MONEYRACE — STUFE {step_num} GEWONNEN!</b>\n\n"
-                f"📌 <b>Match:</b> {match_name}\n"
+                f"📌 <b>Match:</b> {clean_match}\n"
                 f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
                 f"💰 <b>Gewinn:</b> <b>{expected_return:.2f} €</b>\n\n"
                 f"🚀 <b>Stufe {step_num + 1} freigeschaltet!</b>\n"
@@ -358,7 +373,7 @@ def run_live_update():
             state["bankroll"] = float(state.get("start_amount", 5.0))
             state["current_step"] = 0
             state.setdefault("history", []).append({
-                "step": step_num, "match": match_name, "pick": pick_text,
+                "step": step_num, "match": clean_match, "pick": pick_text,
                 "odds": odds_val, "stake": stake, "return": 0.0,
                 "status": "LOST", "date": active.get("date")
             })
@@ -367,7 +382,7 @@ def run_live_update():
 
             lose_msg = (
                 f"❌ <b>MONEYRACE — STUFE {step_num} VERLOREN</b>\n\n"
-                f"📌 <b>Match:</b> {match_name}\n"
+                f"📌 <b>Match:</b> {clean_match}\n"
                 f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
                 f"🔄 <b>Challenge-Reset:</b> Rückkehr zu Stufe 1 (<b>{state['bankroll']:.2f} €</b>)."
             )
@@ -378,7 +393,7 @@ def run_live_update():
             save_state(state)
             void_msg = (
                 f"🟡 <b>MONEYRACE — STUFE {step_num} VOID / PUSH</b>\n\n"
-                f"📌 <b>Match:</b> {match_name}\n"
+                f"📌 <b>Match:</b> {clean_match}\n"
                 f"🎯 <b>Tipp:</b> {pick_text} (Endstand: {score})\n"
                 f"Einsatz erstattet. Stufe {step_num} wird wiederholt."
             )
