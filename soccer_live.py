@@ -38,8 +38,14 @@ HISTORY_CSV = "history_soccer.csv"
 HISTORY_JSON = "soccer_history.json"
 LOCAL_TZ = ZoneInfo("Europe/Berlin")
 
+def strip_kickoff_prefix(text):
+    """Entfernt Anstoßzeit-Präfixe wie '[15:30 Uhr]' oder '[15:30]' vor dem Teamnamen."""
+    if not text:
+        return ""
+    return re.sub(r"^\s*\[\s*\d{1,2}:\d{2}(?:\s*uhr)?\s*\]\s*", "", text, flags=re.IGNORECASE).strip()
+
 def clean_team_name(name):
-    clean = str(name).lower()
+    clean = strip_kickoff_prefix(str(name)).lower()
     clean = re.sub(r"\b(bc|fc|cf|sc|ac|united|city|afc|ssc|rb|cp|calcio|ca|lisbon|lissabon|donetsk|u19|u21|u23|youth|frauen|women|tsg|1899|fk|sk)\b", " ", clean)
     clean = re.sub(r"[^\w\s]", " ", clean)
     return " ".join(clean.split()).strip()
@@ -152,7 +158,8 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, curr_min=0, i
         return (f"🟡 {hit}/2 Teams", "🟡") if curr_min >= 45 else (f"⏳ {hit}/2 Teams", "🟢")
 
     # 7. Siegwetten, DNB & Doppelte Chance
-    parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", match_str, flags=re.IGNORECASE)]
+    clean_match = strip_kickoff_prefix(match_str)
+    parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", clean_match, flags=re.IGNORECASE)]
     if len(parts) >= 2:
         h_name, a_name = parts[0], parts[1]
 
@@ -225,8 +232,9 @@ def evaluate_pick_progress(match_str, pick_text, h_score, a_score, curr_min=0, i
 def fallback_gemini_match(match_str):
     if not GEMINI_API_KEY:
         return None
-    print(f"[SoccerLive] Starte Gemini-Websuche Fallback für: {match_str}...")
-    prompt = f"Recherchiere via Google Search das aktuelle Zwischenergebnis oder Endergebnis für das Fußballspiel: {match_str} von heute. Antworte exakt in zwei Zeilen:\nSTATUS: FINISHED oder LIVE oder UPCOMING\nSCORE: X:Y"
+    clean_match = strip_kickoff_prefix(match_str)
+    print(f"[SoccerLive] Starte Gemini-Websuche Fallback für: {clean_match}...")
+    prompt = f"Recherchiere via Google Search das aktuelle Zwischenergebnis oder Endergebnis für das Fußballspiel: {clean_match} von heute. Antworte exakt in zwei Zeilen:\nSTATUS: FINISHED oder LIVE oder UPCOMING\nSCORE: X:Y"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -415,7 +423,8 @@ def match_teams(search_str, home_name, away_name):
 
     h = clean_team_name(home_name)
     a = clean_team_name(away_name)
-    parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", search_str, flags=re.IGNORECASE) if clean_team_name(p)]
+    clean_search = strip_kickoff_prefix(search_str)
+    parts = [clean_team_name(p) for p in re.split(r"\s+vs\.?\s+|\s+-\s+", clean_search, flags=re.IGNORECASE) if clean_team_name(p)]
     
     if len(parts) >= 2:
         p1, p2 = parts[0], parts[1]
@@ -445,12 +454,17 @@ def run_soccer_live():
 
     finished_matches = state.setdefault("finished_matches", {})
     match_picks = {}
+    match_kickoffs = {}
 
     if "potd" in state and isinstance(state["potd"], dict):
-        m = state["potd"].get("match")
+        raw_m = state["potd"].get("match", "")
         p = state["potd"].get("pick")
+        ko = state["potd"].get("kickoff", "")
+        m = strip_kickoff_prefix(raw_m)
         if m:
             match_picks.setdefault(m, []).append(f"⭐ POTD: {p}")
+            if ko:
+                match_kickoffs[m] = ko
 
     raw_tickets = state.get("tickets", [])
     tickets_normalized = []
@@ -471,12 +485,16 @@ def run_soccer_live():
     for ticket in tickets_normalized:
         t_name = ticket.get("ticket_name", "Kombi")
         for p_item in ticket.get("picks", []):
-            m = p_item.get("match")
+            raw_m = p_item.get("match", "")
             p = p_item.get("pick", "")
             pl = p_item.get("player")
+            ko = p_item.get("kickoff", "")
+            m = strip_kickoff_prefix(raw_m)
             pick_label = f"{pl}: {p}" if pl else p
             if m:
                 match_picks.setdefault(m, []).append(f"{t_name}: {pick_label}")
+                if ko and m not in match_kickoffs:
+                    match_kickoffs[m] = ko
 
     print(f"[SoccerLive] Überwache {len(match_picks)} Spiele (Haupt-Post: {main_msg_id}, Ticker-Post: {ticker_msg_id}).")
 
@@ -490,6 +508,8 @@ def run_soccer_live():
     now_berlin = datetime.now(LOCAL_TZ)
 
     for match, picks in sorted(match_picks.items()):
+        ko_str = f"[{match_kickoffs[match]}] " if match in match_kickoffs else ""
+
         if match in finished_matches:
             f_data = finished_matches[match]
             h_score = f_data["h_score"]
@@ -534,7 +554,7 @@ def run_soccer_live():
                     p_text = parts_p[1].strip() if len(parts_p) > 1 else ""
                     pick_summaries.append(f"{p_text} ({tag})")
                 p_joined = " • ".join(pick_summaries)
-                pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
+                pending_list.append(f"• <b>{ko_str}{match}</b> ➔ <i>{p_joined}</i>")
                 continue
 
             if is_finished:
@@ -618,7 +638,7 @@ def run_soccer_live():
                     p_text = parts_p[1].strip() if len(parts_p) > 1 else ""
                     pick_summaries.append(f"{p_text} ({tag})")
                 p_joined = " • ".join(pick_summaries)
-                pending_list.append(f"• <b>{match}</b> ➔ <i>{p_joined}</i>")
+                pending_list.append(f"• <b>{ko_str}{match}</b> ➔ <i>{p_joined}</i>")
 
     # Ticker formatieren
     if format_standalone_live_ticker:
@@ -673,21 +693,28 @@ def run_soccer_live():
         if "potd" in state and isinstance(state["potd"], dict):
             potd_odds = float(state["potd"].get("odds", 1.60))
             potd_stake = float(state["potd"].get("stake", 1.50))
+            raw_potd_m = state["potd"].get("match", "")
+            clean_potd_m = strip_kickoff_prefix(raw_potd_m)
             all_tickets_to_eval.append({
                 "ticket_name": "⭐ SOCCER POTD",
                 "odds": potd_odds,
                 "stake": potd_stake,
-                "picks": [{"match": state["potd"].get("match"), "pick": state["potd"].get("pick")}]
+                "picks": [{"match": clean_potd_m, "pick": state["potd"].get("pick")}]
             })
 
         for t in tickets_normalized:
             t_odds = float(t.get("odds", 2.0))
             stake = float(t.get("stake", 1.0))
+            norm_picks = []
+            for p in t.get("picks", []):
+                p_copy = dict(p)
+                p_copy["match"] = strip_kickoff_prefix(p_copy.get("match", ""))
+                norm_picks.append(p_copy)
             all_tickets_to_eval.append({
                 "ticket_name": t.get("ticket_name", "Kombi"),
                 "odds": t_odds,
                 "stake": stake,
-                "picks": t.get("picks", [])
+                "picks": norm_picks
             })
 
         today_iso = datetime.now(LOCAL_TZ).strftime("%Y-%m-%d")
@@ -703,7 +730,7 @@ def run_soccer_live():
             pick_summaries = []
 
             for p in picks:
-                m_str = p.get("match", "")
+                m_str = strip_kickoff_prefix(p.get("match", ""))
                 p_str = p.get("pick", "")
                 pl_str = p.get("player")
                 p_label = f"{pl_str}: {p_str}" if pl_str else p_str
