@@ -131,6 +131,16 @@
       "date": "2026-11-06"
     }
   ],
-  "active_pick": null,
-  "last_run_date": "2026-11-06"
+  "active_pick": {
+    "step": 1,
+    "match": "RB Leipzig vs. Augsburg",
+    "sport": "Soccer",
+    "pick": "Sieg RB Leipzig",
+    "odds": 1.44,
+    "stake": 5.0,
+    "expected_return": 7.2,
+    "date": "2026-11-07",
+    "message_id": 265
+  },
+  "last_run_date": "2026-11-07"
 }
