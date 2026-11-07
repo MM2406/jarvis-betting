@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 import requests
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
@@ -46,16 +47,17 @@ def send_telegram(text, reply_to=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3900
     chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
+    rem_text = text.strip()
+    while len(rem_text) > max_len:
+        split_idx = rem_text.rfind("\n\n", 0, max_len)
         if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
+            split_idx = rem_text.rfind("\n", 0, max_len)
         if split_idx == -1:
             split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
+        chunks.append(rem_text[:split_idx].strip())
+        rem_text = rem_text[split_idx:].strip()
+    if rem_text:
+        chunks.append(rem_text)
 
     last_msg_id = None
     for chunk in chunks:
@@ -87,19 +89,52 @@ def send_telegram(text, reply_to=None):
 
     return last_msg_id
 
+def deduplicate_picks(items):
+    seen = set()
+    unique = []
+    for item in items:
+        key = (
+            str(item.get("date", "")).strip().lower(),
+            str(item.get("match", "")).strip().lower(),
+            str(item.get("pick", "")).strip().lower()
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(item)
+    return unique
+
+def format_ticket_header(item):
+    """Ermittelt das passende Schein-Label (POTD, ACCA, SPOTLIGHT, PROP) und Emoji."""
+    raw_cat = str(item.get("category", "")).strip().upper()
+    is_kombi = item.get("is_kombi", False) or " // " in item.get("match", "") or " / " in item.get("match", "")
+    
+    if "POTD" in raw_cat or "PICK OF THE DAY" in raw_cat:
+        return "⭐ <b>POTD</b>"
+    elif "ACCA" in raw_cat or is_kombi:
+        return "🔥 <b>QUANT VALUE ACCA</b>"
+    elif "TOTAL" in raw_cat:
+        return "🎯 <b>TOTALS SPOTLIGHT</b>"
+    elif "PROP" in raw_cat or "PLAYER" in raw_cat:
+        return "👟 <b>PLAYER PROP SPOTLIGHT</b>"
+    elif raw_cat:
+        return f"🎯 <b>{raw_cat}</b>"
+    else:
+        return "🎯 <b>NFL VALUE SPOT</b>"
+
 def load_pending():
     if not os.path.exists(PENDING_FILE):
         return []
     try:
         with open(PENDING_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data if isinstance(data, list) else []
+            return deduplicate_picks(data) if isinstance(data, list) else []
     except Exception as e:
         print(f"Fehler beim Laden von {PENDING_FILE}: {e}")
         return []
 
 def save_pending(pending_list):
     try:
+        pending_list = deduplicate_picks(pending_list)
         with open(PENDING_FILE, "w", encoding="utf-8") as f:
             json.dump(pending_list, f, ensure_ascii=False, indent=2)
     except Exception as e:
@@ -144,7 +179,7 @@ def settle_pending_bets():
         pick = bet.get("pick", "")
         odds = bet.get("odds", "-")
         date_str = bet.get("date", "")
-        is_kombi = bet.get("is_kombi", False) or "kombi" in bet.get("category", "").lower() or "+" in pick
+        is_kombi = bet.get("is_kombi", False) or "kombi" in bet.get("category", "").lower() or "+" in pick or " // " in match
 
         prompt = f"""
 Du bist ein Sport-Abrechnungssystem für American Football (NFL).
@@ -164,14 +199,15 @@ AUFGABE:
    - Werte jedes einzelne Bein separat aus.
    - Alle Beine gewonnen -> WON
    - Mindestens ein Bein verloren -> LOST
-3. Falls Einzelwette: Ermittle Endstand (z. B. 24:20) und bewerte WON oder LOST.
+3. Falls Einzelwette: Ermittle Endstand (z. B. 24:20) und bewerte WON, LOST oder VOID (Push).
 4. Falls Spiele noch laufen oder ausstehen -> STATUS: PENDING
 
 Antworte STRIKT in diesem Format:
 STATUS: FINISHED oder PENDING
-RESULT: WON oder LOST oder PENDING
+RESULT: WON oder LOST oder VOID oder PENDING
 LEGS_WON: Anzahl der gewonnenen Beine
 LEGS_TOTAL: Gesamtanzahl der Beine
+SCORE: [Nur Zahlen/Ergebnis, z.B. 24:20 oder 27:24 // 31:17]
 DETAILS:
 - Bein 1: Team A vs Team B | Ergebnis: X:Y | WON oder LOST
 - Bein 2: ...
@@ -189,6 +225,7 @@ DETAILS:
                 ans = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 status = "PENDING"
                 result = "PENDING"
+                score_val = ""
                 legs_won = 0
                 legs_total = 1
                 details_lines = []
@@ -200,6 +237,8 @@ DETAILS:
                         status = line_s.replace("STATUS:", "").strip().upper()
                     elif line_s.startswith("RESULT:"):
                         result = line_s.replace("RESULT:", "").strip().upper()
+                    elif line_s.startswith("SCORE:"):
+                        score_val = line_s.replace("SCORE:", "").strip()
                     elif line_s.startswith("LEGS_WON:"):
                         try:
                             legs_won = int(line_s.replace("LEGS_WON:", "").strip())
@@ -215,35 +254,42 @@ DETAILS:
                     elif in_details and line_s:
                         details_lines.append(line_s)
 
-                if status == "FINISHED" and result in ["WON", "LOST"]:
+                if status == "FINISHED" and result in ["WON", "LOST", "VOID"]:
                     try:
                         odds_val = float(str(odds).replace(",", "."))
                     except ValueError:
                         odds_val = 1.0
 
-                    stake = 1.0
-                    pnl = (stake * odds_val - stake) if result == "WON" else -stake
+                    try:
+                        stake_val = float(str(bet.get("stake", "1.0")).replace(",", "."))
+                    except ValueError:
+                        stake_val = 1.0
+
+                    if result == "WON":
+                        pnl = round((odds_val - 1.0) * stake_val, 2)
+                    elif result == "LOST":
+                        pnl = round(-stake_val, 2)
+                    else:
+                        pnl = 0.0
 
                     if not is_kombi:
                         legs_total = 1
                         legs_won = 1 if result == "WON" else 0
 
-                    settled_results.append({
-                        "match": match,
-                        "pick": pick,
-                        "odds": odds,
+                    bet.update({
+                        "score": score_val,
                         "odds_val": odds_val,
-                        "stake": stake,
+                        "stake": stake_val,
                         "pnl": pnl,
                         "result": result,
                         "status": result,
-                        "date": date_str,
                         "is_kombi": is_kombi,
                         "legs_won": legs_won,
                         "legs_total": legs_total,
                         "details": details_lines,
                         "sport": "NFL"
                     })
+                    settled_results.append(bet)
                 else:
                     remaining_pending.append(bet)
             else:
@@ -257,20 +303,25 @@ DETAILS:
     if settled_results:
         save_to_history(settled_results)
 
-        singles = [b for b in settled_results if not b["is_kombi"]]
-        kombis = [b for b in settled_results if b["is_kombi"]]
+        singles = [b for b in settled_results if not b.get("is_kombi", False)]
+        kombis = [b for b in settled_results if b.get("is_kombi", False)]
 
         singles_won = sum(1 for b in singles if b["result"] == "WON")
         kombis_won = sum(1 for b in kombis if b["result"] == "WON")
 
-        total_staked = sum(b["stake"] for b in settled_results)
-        total_pnl = sum(b["pnl"] for b in settled_results)
+        total_staked = sum(float(b.get("stake", 1.0)) for b in settled_results)
+        total_returned = sum(
+            (float(b.get("stake", 1.0)) * float(b.get("odds_val", 1.0))) if b["result"] == "WON"
+            else (float(b.get("stake", 1.0)) if b["result"] == "VOID" else 0.0)
+            for b in settled_results
+        )
+        total_pnl = total_returned - total_staked
         roi = (total_pnl / total_staked * 100) if total_staked > 0 else 0
         pnl_sign = "+" if total_pnl >= 0 else ""
         profit_color = "🟢" if total_pnl >= 0 else "🔴"
 
-        kombi_legs_won = sum(b["legs_won"] for b in kombis)
-        kombi_legs_total = sum(b["legs_total"] for b in kombis)
+        kombi_legs_won = sum(b.get("legs_won", 0) for b in kombis)
+        kombi_legs_total = sum(b.get("legs_total", 0) for b in kombis)
 
         total_picks_count = len(singles) + kombi_legs_total
         total_picks_won = singles_won + kombi_legs_won
@@ -283,21 +334,25 @@ DETAILS:
         ]
 
         for b in settled_results:
-            icon = "✅" if b["result"] == "WON" else "❌"
-            pnl_str = f"+{b['pnl']:.2f}u" if b["pnl"] >= 0 else f"{b['pnl']:.2f}u"
+            status = b["result"]
+            icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
+            odds_val = float(b.get("odds_val", 1.0))
+            stake_val = float(b.get("stake", 1.0))
+            pnl_val = b.get("pnl", 0.0)
+            pnl_str = f"+{pnl_val:.2f}u" if pnl_val >= 0 else f"{pnl_val:.2f}u"
+            ticket_header = format_ticket_header(b)
 
-            if b["is_kombi"]:
-                lines.append(f"{icon} <b>Kombi: {b['pick']}</b> (<code>@{b['odds']}</code>)")
-                lines.append(f"• <b>Status:</b> {b['result']} (<code>{pnl_str}</code>)")
-                lines.append(f"• <b>Beine getroffen:</b> {b['legs_won']}/{b['legs_total']}")
-                for d in b.get("details", []):
-                    lines.append(f"  {d}")
-            else:
-                lines.append(f"{icon} <b>{b['pick']}</b> (<code>@{b['odds']}</code>)")
-                lines.append(f"• <b>Match:</b> {b['match']}")
-                lines.append(f"• <b>Status:</b> {b['result']} (<code>{pnl_str}</code>)")
-                for d in b.get("details", []):
-                    lines.append(f"• <i>{d}</i>")
+            score_str = f" ({b['score']})" if b.get("score") else ""
+
+            lines.append(f"{ticket_header} (<code>{stake_val:.2f}u</code> | <code>@{odds_val:.2f}</code>) ➔ {icon} <b>{status}</b> (<code>{pnl_str}</code>)")
+            lines.append(f"• <b>Match:</b> {b['match']}{score_str}")
+            lines.append(f"• <b>Tipp:</b> {b['pick']}")
+
+            if b.get("is_kombi", False):
+                lines.append(f"• <b>Beine getroffen:</b> {b.get('legs_won', 0)}/{b.get('legs_total', 0)}")
+            
+            for d in b.get("details", []):
+                lines.append(f"  <i>{d}</i>")
             lines.append("")
 
         lines.append("━━━━━━━━━━━━━━━━━━━━")
@@ -312,6 +367,7 @@ DETAILS:
             lines.append(f"• <b>Kombis:</b> {kombis_won}/{len(kombis)} | {k_sign}{k_pnl:.2f}u")
 
         lines.append(f"• <b>Trefferquote:</b> {total_picks_won}/{total_picks_count} ({overall_accuracy:.1f}%)")
+        lines.append(f"• <b>Einsatz / Rücklauf:</b> {total_staked:.2f}u ➔ {total_returned:.2f}u")
         lines.append(f"• {profit_color} <b>Netto-Ertrag:</b> <b>{pnl_sign}{total_pnl:.2f} Units</b>")
         lines.append(f"• <b>ROI:</b> <b>{pnl_sign}{roi:.1f}%</b>")
         lines.append("\n📁 <i>Alle Tickets wurden in nfl_history.json archiviert.</i>")
@@ -395,48 +451,70 @@ EXAKTES HTML-AUSGABEFORMAT:
 📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
 
 ⭐ <b>POTD (<code>1.50u</code> | <code>@[Quote]</code>)</b>
-• <b>[Heim] vs. [Gast]</b> ➔ <i>[Spread / Total / ML]</i>
+- <b>[Heim] vs. [Gast]</b> ➔ <i>[Spread / Total / ML]</i>
 
 🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+- [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
+- [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
 
 🎯 <b>TOTALS SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
-• <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under Punkte]</i>
+- <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under Punkte]</i>
 
 👟 <b>PLAYER PROP SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
-• [Spieler] ([Team]) ➔ <i>[Anytime TD / Rush/Rec Yards]</i>
+- [Spieler] ([Team]) ➔ <i>[Anytime TD / Rush/Rec Yards]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
 🔎 <b>POTD: [Heim] vs. [Gast]</b>
-• <b>Edge:</b> [EPA/Play Vorteil, Key-Matchup oder Fair-Quote]
-• <b>Logik:</b> [Maximal 2 Sätze zu Offense/Defense EPA, O-Line vs D-Line Pressure Rate]
+- <b>Edge:</b> [EPA/Play Vorteil, Key-Matchup oder Fair-Quote]
+- <b>Logik:</b> [Maximal 2 Sätze zu Offense/Defense EPA, O-Line vs D-Line Pressure Rate]
 
 🔎 <b>Acca & Spotlights Begründung:</b>
-• [Pick 1]: [1-2 Sätze Begründung]
-• [Totals / Prop]: [1-2 Sätze Begründung]
+- [Pick 1]: [1-2 Sätze Begründung]
+- [Totals / Prop]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
   {{
     "match": "Team A vs Team B",
     "sport": "NFL",
-    "category": "PICK OF THE DAY",
+    "category": "POTD",
     "pick": "Team A -3.5",
-    "odds": "1.90",
+    "odds": 1.90,
+    "stake": 1.5,
     "date": "{today_iso}",
     "is_kombi": false
   }},
   {{
-    "match": "Team C vs Team D / Team E vs Team F",
+    "match": "Team C vs Team D // Team E vs Team F",
     "sport": "NFL",
     "category": "QUANT VALUE ACCA",
     "pick": "Team C ML + Team E Over 44.5",
-    "odds": "2.75",
+    "odds": 2.75,
+    "stake": 1.0,
     "date": "{today_iso}",
     "is_kombi": true
+  }},
+  {{
+    "match": "Team A vs Team B",
+    "sport": "NFL",
+    "category": "TOTALS SPOTLIGHT",
+    "pick": "Over 47.5 Punkte",
+    "odds": 1.90,
+    "stake": 0.75,
+    "date": "{today_iso}",
+    "is_kombi": false
+  }},
+  {{
+    "match": "Team C vs Team D",
+    "sport": "NFL",
+    "category": "PLAYER PROP SPOTLIGHT",
+    "pick": "Spieler X Anytime Touchdown",
+    "odds": 2.10,
+    "stake": 0.75,
+    "date": "{today_iso}",
+    "is_kombi": false
   }}
 ]
 """
@@ -462,6 +540,15 @@ EXAKTES HTML-AUSGABEFORMAT:
                         pending = load_pending()
                         for np in new_picks:
                             np["status"] = "PENDING"
+                            np["sport"] = "NFL"
+                            try:
+                                np["odds"] = float(str(np.get("odds", 1.90)).replace(",", "."))
+                            except ValueError:
+                                np["odds"] = 1.90
+                            try:
+                                np["stake"] = float(str(np.get("stake", 1.0)).replace(",", "."))
+                            except ValueError:
+                                np["stake"] = 1.0
                         pending.extend(new_picks)
                         save_pending(pending)
                         print(f"{len(new_picks)} NFL-Picks in {PENDING_FILE} gesichert.")
