@@ -2,9 +2,11 @@ name: JARVIS Soccer Live Ticker & Settlement
 
 on:
   schedule:
-    # Läuft an Spielabenden (Mo-Fr sowie Sa/So) von 18:00 bis 23:00 Uhr alle 10 Minuten
-    - cron: '*/10 18-23 * * *'
-  workflow_dispatch: # Erlaubt jederzeit einen manuellen Start per Klick
+    # 1. WOCHENENDE (Sa & So): 12:00 bis 23:00 Uhr UTC (= 13:00 bis 00:00 Uhr MEZ) alle 10 Min
+    - cron: '*/10 12-23 * * 0,6'
+    # 2. UNTER DER WOCHE (Mo-Fr): 17:00 bis 23:00 Uhr UTC (= 18:00 bis 00:00 Uhr MEZ) alle 10 Min
+    - cron: '*/10 17-23 * * 1-5'
+  workflow_dispatch:
 
 concurrency:
   group: soccer-live-ticker
@@ -33,26 +35,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      # Prüfen & Live-Updates an Telegram senden
       - name: Live-Ticker ausführen
         env:
           RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_SOCCER: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_SOCCER }}
         run: |
           python soccer_live.py
 
-      # Aktualisierten State & Ergebnisse ins Repo sichern (mit Rebase-Retry)
       - name: State ins Repo committen und pushen
         run: |
-          git config --global user.name "JARVIS Bot"
-          git config --global user.email "bot@jarvis-betting.local"
-          git add pending_soccer.json history_soccer.csv 2>/dev/null || true
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pending_soccer.json history_soccer.csv soccer_history.json 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "Keine Änderungen zum Committen."
           else
             git commit -m "Auto: Update live scores & ticket settlement [skip ci]"
+            git checkout -- . 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
             for i in {1..5}; do
               echo "Push-Versuch $i von 5..."
               git pull --rebase origin main && git push origin main && break || sleep 3
