@@ -53,16 +53,17 @@ def send_telegram(text, reply_to=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     max_len = 3900
     chunks = []
-    while len(text) > max_len:
-        split_idx = text.rfind("\n\n", 0, max_len)
+    rem_text = text.strip()
+    while len(rem_text) > max_len:
+        split_idx = rem_text.rfind("\n\n", 0, max_len)
         if split_idx == -1:
-            split_idx = text.rfind("\n", 0, max_len)
+            split_idx = rem_text.rfind("\n", 0, max_len)
         if split_idx == -1:
             split_idx = max_len
-        chunks.append(text[:split_idx].strip())
-        text = text[split_idx:].strip()
-    if text:
-        chunks.append(text)
+        chunks.append(rem_text[:split_idx].strip())
+        rem_text = rem_text[split_idx:].strip()
+    if rem_text:
+        chunks.append(rem_text)
 
     last_msg_id = None
     for chunk in chunks:
@@ -119,6 +120,21 @@ def clean_info_sentence(info):
     sentences = re.split(r"(?<=[.!?])\s+", info.strip())
     return sentences[0] if sentences else info.strip()
 
+def format_ticket_header(item):
+    """Ermittelt das passende Schein-Label (POTD, ACCA, SPOTLIGHT) und Emoji."""
+    raw_cat = str(item.get("category", "")).strip().upper()
+    
+    if "POTD" in raw_cat or "PICK OF THE DAY" in raw_cat:
+        return "⭐ <b>EURO PICK OF THE DAY</b>"
+    elif "ACCA" in raw_cat or item.get("is_kombi", False) or " // " in item.get("match", ""):
+        return "🔥 <b>QUANT VALUE ACCA</b>"
+    elif "SPOTLIGHT" in raw_cat or "SPECIAL" in raw_cat or "TOTAL" in raw_cat:
+        return "🎯 <b>SPECIAL MATCHUP SPOTLIGHT</b>"
+    elif raw_cat:
+        return f"🎯 <b>{raw_cat}</b>"
+    else:
+        return "🎯 <b>EURO VALUE SPOT</b>"
+
 def load_history():
     if not os.path.exists(HISTORY_FILE):
         return {"settled": [], "pending": []}
@@ -160,22 +176,30 @@ def settle_pending_picks(history):
     api_url = f"https://{host}/{path}?key={GEMINI_API_KEY}"
 
     for item in pending:
+        match = item.get("match", "")
+        pick = item.get("pick", "")
+        date_str = item.get("date", "")
+        sport_str = item.get("sport", "Euro-Hoops & Ice")
+        is_kombi = item.get("is_kombi", False) or "+" in pick or " // " in match
+
         prompt_settle = f"""
-Recherchiere via Google Search das offizielle Endergebnis für folgendes Spiel:
-Match: {item.get('match')}
-Wettbewerb: {item.get('sport')}
-Tipp: {item.get('pick')}
-Datum: {item.get('date')}
+Du bist 'JARVIS EURO SETTLEMENT AGENT'.
+Recherchiere via Google Search das offizielle Endergebnis für folgendes europäisches Basketball- oder Eishockeyspiel:
+Match: {match}
+Wettbewerb: {sport_str}
+Tipp: {pick}
+Datum: {date_str}
+Ist Kombi: {is_kombi}
 
 REGELN:
 1. Prüfe, ob das Match bereits beendet ist (FINAL, inkl. OT falls relevant). Falls noch nicht begonnen oder live, antworte mit PENDING.
-2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'.
+2. Markiere mit 'WON', wenn der Tipp aufgegangen ist, sonst 'LOST'. Bei Kombiwetten: Wenn alle Beine gewonnen sind -> WON, sobald ein Bein verliert -> LOST. Bei mehreren Matches im Match-String (' // ') nenne für beide Partien den Score!
 3. Bei Push (z. B. Handicap Unentschieden oder exakte Line) gib 'VOID' aus.
 4. Gib nur EINEN kurzen Satz Begründung an (max. 15 Wörter).
 
 Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: [Nur Zahlen/Ergebnis, z.B. 84:78 oder 3:2 OT]
+SCORE: [Nur Zahlen/Ergebnis, z.B. 84:78 oder 3:2 OT // 89:72]
 INFO: [Maximal 1 prägnanter Satz]
 """
         payload = {
@@ -231,7 +255,7 @@ INFO: [Maximal 1 prägnanter Satz]
             else:
                 still_pending.append(item)
         except Exception as e:
-            print(f"Fehler bei Euro-Settle {item.get('match')}: {e}")
+            print(f"Fehler bei Euro-Settle {match}: {e}")
             still_pending.append(item)
 
     if settled_now:
@@ -273,14 +297,20 @@ INFO: [Maximal 1 prägnanter Satz]
         for p in settled_now:
             status = p["status"]
             odds_val = float(p.get("odds", 1.0))
-            icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
+            stake_val = float(p.get("stake", 1.0))
+            status_icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
+            
             clean_score = clean_score_text(p.get("score", ""))
             score_disp = f" ({clean_score})" if clean_score else ""
             pnl_val = p.get("pnl", 0.0)
             pnl_str = f"+{pnl_val:.2f}u" if pnl_val >= 0 else f"{pnl_val:.2f}u"
+            
+            ticket_header = format_ticket_header(p)
 
-            lines.append(f"{icon} <b>{p['match']}</b>{score_disp}")
-            lines.append(f"• <b>Tipp:</b> {p['pick']} (<code>@{odds_val:.2f}</code>) ➔ <b>{status}</b> (<code>{pnl_str}</code>)")
+            lines.append(f"{ticket_header} (<code>{stake_val:.2f}u</code> | <code>@{odds_val:.2f}</code>) ➔ {status_icon} <b>{status}</b> (<code>{pnl_str}</code>)")
+            lines.append(f"• <b>Match:</b> {p['match']}{score_disp}")
+            lines.append(f"• <b>Tipp:</b> {p['pick']}")
+            
             clean_info = clean_info_sentence(p.get("info", ""))
             if clean_info:
                 lines.append(f"• <i>{clean_info}</i>")
@@ -381,25 +411,25 @@ EXAKTES HTML-AUSGABEFORMAT:
 📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>
 
 ⭐ <b>EURO PICK OF THE DAY (<code>1.50u</code> | <code>@[Quote]</code>)</b>
-• <b>[Heim] vs. [Gast]</b> ➔ <i>[Markt & Tipp]</i>
+- <b>[Heim] vs. [Gast]</b> ➔ <i>[Markt & Tipp]</i>
 
 🔥 <b>QUANT VALUE ACCA (<code>1.00u</code> | Gesamt: <code>@[Quote]</code>)</b>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
-• [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
+- [Heim] vs. [Gast] ➔ <i>[Tipp 1]</i>
+- [Heim] vs. [Gast] ➔ <i>[Tipp 2]</i>
 
 🎯 <b>SPECIAL MATCHUP SPOTLIGHT (<code>0.75u</code> | <code>@[Quote]</code>)</b>
-• <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under / Handicap / Team Total]</i>
+- <b>[Heim] vs. [Gast]</b> ➔ <i>[Over/Under / Handicap / Team Total]</i>
 
 ━━━━━━━━━━━━━━━━━━━━
 📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>
 
 🔎 <b>POTD: [Heim] vs. [Gast]</b>
-• <b>Edge:</b> [Defensiv-Rating Differenz / Fair-Quote]
-• <b>Logik:</b> [Maximal 2 präzise Sätze zu Pace, Heimstärke und Matchup-Vorteilen]
+- <b>Edge:</b> [Defensiv-Rating Differenz / Fair-Quote]
+- <b>Logik:</b> [Maximal 2 präzise Sätze zu Pace, Heimstärke und Matchup-Vorteilen]
 
 🔎 <b>Acca & Spotlight Begründung:</b>
-• [Pick 1]: [1-2 Sätze Begründung]
-• [Special Spotlight]: [1-2 Sätze Begründung]
+- [Pick 1]: [1-2 Sätze Begründung]
+- [Special Spotlight]: [1-2 Sätze Begründung]
 
 ---JSON_TRACKING---
 [
@@ -416,12 +446,22 @@ EXAKTES HTML-AUSGABEFORMAT:
   {{
     "match": "Team A vs Team B // Team C vs Team D",
     "sport": "Euro-Hoops & Ice",
-    "category": "ACCA",
+    "category": "QUANT VALUE ACCA",
     "pick": "Team A ML + Team C ML",
-    "odds": 2.45,
+    "odds": 1.95,
     "stake": 1.0,
     "date": "{today_iso}",
     "is_kombi": true
+  }},
+  {{
+    "match": "Team A vs Team B",
+    "sport": "Euro-Hoops & Ice",
+    "category": "SPECIAL MATCHUP SPOTLIGHT",
+    "pick": "Under 165.5 Gesamtpunkte",
+    "odds": 1.90,
+    "stake": 0.75,
+    "date": "{today_iso}",
+    "is_kombi": false
   }}
 ]
 """
