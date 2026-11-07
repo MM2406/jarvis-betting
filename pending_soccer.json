@@ -1,1 +1,105 @@
-{}
+{
+  "date": "2026-11-07",
+  "potd": {
+    "match": "VfB Stuttgart vs. Werder Bremen",
+    "pick": "VfB Stuttgart Sieg",
+    "odds": 1.88,
+    "stake": 1.5
+  },
+  "tickets": [
+    {
+      "ticket_name": "CONSERVATIVE BANKER",
+      "odds": 2.16,
+      "stake": 1.25,
+      "picks": [
+        {
+          "match": "RB Leipzig vs. Augsburg",
+          "pick": "RB Leipzig Sieg",
+          "odds": 1.47
+        },
+        {
+          "match": "Philadelphia Union vs. Toronto FC",
+          "pick": "Philadelphia Union Sieg",
+          "odds": 1.47
+        }
+      ]
+    },
+    {
+      "ticket_name": "BALANCED VALUE ACCA",
+      "odds": 4.88,
+      "stake": 0.75,
+      "picks": [
+        {
+          "match": "Nottingham Forest vs. Manchester City",
+          "pick": "Manchester City Sieg",
+          "odds": 1.7
+        },
+        {
+          "match": "Torino vs. Lecce",
+          "pick": "Torino Sieg",
+          "odds": 1.84
+        },
+        {
+          "match": "San Diego FC vs. Sporting Kansas City",
+          "pick": "San Diego FC Sieg",
+          "odds": 1.56
+        }
+      ]
+    },
+    {
+      "ticket_name": "HYBRID QUANT MULTI",
+      "odds": 3.82,
+      "stake": 0.5,
+      "picks": [
+        {
+          "match": "FSV Mainz 05 vs. Bayern Munich",
+          "pick": "Spread: Bayern Munich (-1.5)",
+          "odds": 1.88
+        },
+        {
+          "match": "Valencia vs. Real Madrid",
+          "pick": "Spread: Real Madrid (-1.5)",
+          "odds": 2.03
+        }
+      ]
+    },
+    {
+      "ticket_name": "GOALS & BTTS VALUE ACCA",
+      "odds": 2.66,
+      "stake": 0.75,
+      "picks": [
+        {
+          "match": "VfL Osnabrück vs. 1. FC Kaiserslautern",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.54
+        },
+        {
+          "match": "Fulham vs. Newcastle United",
+          "pick": "Über 2.5 Tore",
+          "odds": 1.73
+        }
+      ]
+    },
+    {
+      "ticket_name": "PLAYER PROPS MULTI",
+      "odds": 1.96,
+      "stake": 0.5,
+      "picks": [
+        {
+          "match": "Nottingham Forest vs. Manchester City",
+          "player": "Erling Haaland",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.42
+        },
+        {
+          "match": "FSV Mainz 05 vs. Bayern Munich",
+          "player": "Harry Kane",
+          "pick": "1+ Schuss aufs Tor",
+          "odds": 1.38
+        }
+      ]
+    }
+  ],
+  "message_id": 263,
+  "original_text": "⚽ <b>JARVIS SOCCER — TAGESEMPFEHLUNGEN (07.11.2026)</b>\n━━━━━━━━━━━━━━━━━━━━\n📋 <b>WETTSCHEINE AUF EINEN BLICK:</b>\n\n⭐ <b>POTD (<code>1.50u</code> | <code>@1.88</code>)</b>\n• <b>VfB Stuttgart vs. Werder Bremen</b> ➔ <i>VfB Stuttgart Sieg (<code>@1.88</code>)</i>\n\n🔥 <b>CONSERVATIVE BANKER (<code>1.25u</code> | Gesamt: <code>@2.16</code>)</b>\n• RB Leipzig vs. Augsburg ➔ <i>RB Leipzig Sieg (<code>@1.47</code>)</i>\n• Philadelphia Union vs. Toronto FC ➔ <i>Philadelphia Union Sieg (<code>@1.47</code>)</i>\n\n⚖️ <b>BALANCED VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@4.88</code>)</b>\n• Nottingham Forest vs. Manchester City ➔ <i>Manchester City Sieg (<code>@1.70</code>)</i>\n• Torino vs. Lecce ➔ <i>Torino Sieg (<code>@1.84</code>)</i>\n• San Diego FC vs. Sporting Kansas City ➔ <i>San Diego FC Sieg (<code>@1.56</code>)</i>\n\n⚡ <b>HYBRID QUANT MULTI (<code>0.50u</code> | Gesamt: <code>@3.82</code>)</b>\n• FSV Mainz 05 vs. Bayern Munich ➔ <i>Spread: Bayern Munich (-1.5) (<code>@1.88</code>)</i>\n• Valencia vs. Real Madrid ➔ <i>Spread: Real Madrid (-1.5) (<code>@2.03</code>)</i>\n\n⚽ <b>GOALS & BTTS VALUE ACCA (<code>0.75u</code> | Gesamt: <code>@2.66</code>)</b>\n• VfL Osnabrück vs. 1. FC Kaiserslautern ➔ <i>Über 2.5 Tore (<code>@1.54</code>)</i>\n• Fulham vs. Newcastle United ➔ <i>Über 2.5 Tore (<code>@1.73</code>)</i>\n\n🎯 <b>PLAYER PROPS MULTI (<code>0.50u</code> | Gesamt: <code>@1.96</code>)</b>\n• Erling Haaland (Manchester City) ➔ <i>1+ Schuss aufs Tor (<code>@1.42</code>)</i>\n• Harry Kane (Bayern Munich) ➔ <i>1+ Schuss aufs Tor (<code>@1.38</code>)</i>\n\n━━━━━━━━━━━━━━━━━━━━\n📊 <b>ANALYSEN & MODELL-LOGIK (DEEP DIVE)</b>\n\n🔎 <b>POTD: VfB Stuttgart vs. Werder Bremen</b>\n• <b>Edge:</b> +7.4% Kante (Quant-Modell Fairquote <code>@1.65</code> vs. Markt <code>@1.88</code>)\n• <b>Logik:</b> Stuttgart generiert im heimischen Stadion konstant über 2.10 xG und kontrolliert den Rhythmus in den Halbräumen. Werder offenbart gegen dominante Ballbesitzteams im Umschaltverhalten wiederholt defensive Lücken.\n\n🔎 <b>Banker & Value Begründungen:</b>\n• <b>RB Leipzig:</b> Erdrückende Feldvorteile und ein xG-Differential von +1.15 machen Leipzig gegen Augsburgs tiefen Block zum verlässlichen Heimsieger.\n• <b>Philadelphia Union:</b> Zuverlässig strukturiertes Umschaltspiel trifft auf Torontos anfällige Auswärtsdefensive, die ligaweit die meisten Großchancen zulässt.\n• <b>Manchester City:</b> Nach Formstabilisierung kontrolliert City gegen Nottingham den zweiten Ball und minimiert defensive Konterrisiken signifikant."
+}
