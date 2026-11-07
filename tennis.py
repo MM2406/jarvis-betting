@@ -113,6 +113,21 @@ def clean_info_sentence(info):
     sentences = re.split(r"(?<=[.!?])\s+", info.strip())
     return sentences[0] if sentences else info.strip()
 
+def format_ticket_header(item):
+    """Ermittelt das passende Schein-Label (POTD, ACCA, SPOTLIGHT) und Emoji."""
+    raw_cat = str(item.get("category", "")).strip().upper()
+    
+    if "POTD" in raw_cat:
+        return "⭐ <b>POTD</b>"
+    elif "ACCA" in raw_cat or item.get("is_kombi", False) or " // " in item.get("match", ""):
+        return "🔥 <b>QUANT VALUE ACCA</b>"
+    elif "SPOTLIGHT" in raw_cat or "TOTAL" in raw_cat:
+        return "🎯 <b>TOTALS SPOTLIGHT</b>"
+    elif raw_cat:
+        return f"🎯 <b>{raw_cat}</b>"
+    else:
+        return "🎯 <b>VALUE PICK</b>"
+
 def load_history():
     if not os.path.exists(HISTORY_FILE):
         return {"settled": [], "pending": []}
@@ -157,7 +172,7 @@ def settle_pending_picks(history):
         match = item.get("match", "")
         pick = item.get("pick", "")
         date_str = item.get("date", "")
-        is_kombi = item.get("is_kombi", False) or "+" in pick
+        is_kombi = item.get("is_kombi", False) or "+" in pick or " // " in match
 
         prompt_settle = f"""
 Du bist 'JARVIS TENNIS SETTLEMENT AGENT'.
@@ -170,13 +185,13 @@ Ist Kombi: {is_kombi}
 REGELN FÜR TENNIS:
 1. Prüfe, ob das Match beendet ist (FINAL). Falls noch live, durch Regen verzögert oder noch nicht gestartet -> PENDING.
 2. Wenn ein Spieler aufgibt (Retirement/Walkover): Falls der Buchmacher-Tipp dadurch ungültig wird oder unvollständig ist -> VOID (Push).
-3. Bei Kombiwetten: Wenn alle Beine gewonnen sind -> WON, sobald ein Bein verloren ist -> LOST.
+3. Bei Kombiwetten: Wenn alle Beine gewonnen sind -> WON, sobald ein Bein verloren ist -> LOST. Bei mehreren Matches im String (' // ') nenne für beide den Satzstand!
 4. Bei regulärem Sieg nach Sätzen: Bewerte nach Match-Gewinn, Games-Handicap oder Over/Under Total Games.
 5. Gib nur EINEN kurzen, prägnanten Satz Begründung an (max. 15 Wörter).
 
 Antworte exakt in diesem Format:
 RESULT: WON oder LOST oder PENDING oder VOID
-SCORE: [Satz-Ergebnis, z.B. 6:4, 3:6, 7:6]
+SCORE: [Satz-Ergebnis(se), z.B. 6:4, 3:6, 7:6 oder 6:7, 7:5, 6:3 // 7:6, 6:4]
 INFO: [Maximal 1 kurzer Satz Begründung]
 """
         payload = {
@@ -275,14 +290,21 @@ INFO: [Maximal 1 kurzer Satz Begründung]
         for p in settled_now:
             status = p["status"]
             odds_val = float(p.get("odds", 1.0))
-            icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
+            stake_val = float(p.get("stake", 1.0))
+            status_icon = "✅" if status == "WON" else ("🟡" if status == "VOID" else "❌")
+            
             clean_score = clean_score_text(p.get("score", ""))
             score_disp = f" ({clean_score})" if clean_score else ""
             pnl_val = p.get("pnl", 0.0)
             pnl_str = f"+{pnl_val:.2f}u" if pnl_val >= 0 else f"{pnl_val:.2f}u"
+            
+            ticket_header = format_ticket_header(p)
 
-            lines.append(f"{icon} <b>{p['match']}</b>{score_disp}")
-            lines.append(f"• <b>Tipp:</b> {p['pick']} (<code>@{odds_val:.2f}</code>) ➔ <b>{status}</b> (<code>{pnl_str}</code>)")
+            # Strukturierter Schein-Kopf mit Kategorie, Stake & Quote
+            lines.append(f"{ticket_header} (<code>{stake_val:.2f}u</code> | <code>@{odds_val:.2f}</code>) ➔ {status_icon} <b>{status}</b> (<code>{pnl_str}</code>)")
+            lines.append(f"• <b>Match:</b> {p['match']}{score_disp}")
+            lines.append(f"• <b>Tipp:</b> {p['pick']}")
+            
             clean_info = clean_info_sentence(p.get("info", ""))
             if clean_info:
                 lines.append(f"• <i>{clean_info}</i>")
@@ -314,13 +336,11 @@ def fetch_tennis_odds():
             for s in res_sports.json():
                 grp = str(s.get("group", "")).lower()
                 k = str(s.get("key", "")).lower()
-                # Dynamische Erkennung aller aktiven ATP & WTA Turniere
                 if (grp == "tennis" or "tennis" in k) and s.get("active", False):
                     active_tennis_sports.append(s.get("key"))
     except Exception as e:
         print(f"Fehler beim Abrufen der aktiven Tennis-Ligen: {e}")
 
-    # Breiter Fallback für beide Touren inklusive WTA Finals / Turniere
     if not active_tennis_sports:
         active_tennis_sports = [
             "tennis_atp",
@@ -450,12 +470,22 @@ EXAKTES HTML-AUSGABEFORMAT:
   {{
     "match": "[ATP/WTA] Player A vs Player B // [ATP/WTA] Player C vs Player D",
     "sport": "Tennis",
-    "category": "ACCA",
+    "category": "QUANT VALUE ACCA",
     "pick": "Player A ML + Player C ML",
-    "odds": 2.45,
+    "odds": 1.90,
     "stake": 1.0,
     "date": "{today_iso}",
     "is_kombi": true
+  }},
+  {{
+    "match": "[ATP/WTA] Player A vs Player B",
+    "sport": "Tennis",
+    "category": "TOTALS SPOTLIGHT",
+    "pick": "Over 22.5 Games",
+    "odds": 1.90,
+    "stake": 0.75,
+    "date": "{today_iso}",
+    "is_kombi": false
   }}
 ]
 """
