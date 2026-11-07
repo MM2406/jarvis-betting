@@ -508,5 +508,74 @@
     "details": [
       "- Bein 1: Edmonton Oilers vs. Anaheim Ducks | Ergebnis: 4:5 (Connor McDavid: 4 Scorerpunkte – 1 Tor, 3 Assists) | WON"
     ]
+  },
+  {
+    "match": "Calgary Flames vs Anaheim Ducks",
+    "pick": "Calgary Flames Sieg (inkl. OT)",
+    "odds": "1.68",
+    "odds_val": 1.68,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-06",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Calgary Flames vs Anaheim Ducks | Ergebnis: 3:5 | LOST"
+    ]
+  },
+  {
+    "match": "MIN vs SJS / BUF vs CBJ",
+    "pick": "Wild ML + Sabres ML",
+    "odds": "2.15",
+    "odds_val": 2.15,
+    "stake": 1.0,
+    "pnl": 1.15,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-06",
+    "is_kombi": true,
+    "legs_won": 2,
+    "legs_total": 2,
+    "details": [
+      "- Bein 1: Minnesota Wild vs San Jose Sharks | Ergebnis: 4:1 | WON",
+      "- Bein 2: Buffalo Sabres vs Columbus Blue Jackets | Ergebnis: 5:2 | WON"
+    ]
+  },
+  {
+    "match": "Buffalo Sabres vs Columbus Blue Jackets",
+    "pick": "Über 6.5 Tore",
+    "odds": "1.98",
+    "odds_val": 1.98,
+    "stake": 1.0,
+    "pnl": 0.98,
+    "result": "WON",
+    "status": "WON",
+    "date": "2026-11-06",
+    "is_kombi": false,
+    "legs_won": 1,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Buffalo Sabres vs Columbus Blue Jackets | Ergebnis: 5:2 (Gesamt: 7 Tore) | WON"
+    ]
+  },
+  {
+    "match": "Minnesota Wild vs San Jose Sharks",
+    "pick": "Kirill Kaprizov Über 3.5 Torschüsse",
+    "odds": "1.85",
+    "odds_val": 1.85,
+    "stake": 1.0,
+    "pnl": -1.0,
+    "result": "LOST",
+    "status": "LOST",
+    "date": "2026-11-06",
+    "is_kombi": false,
+    "legs_won": 0,
+    "legs_total": 1,
+    "details": [
+      "- Bein 1: Minnesota Wild vs San Jose Sharks | Ergebnis: 4:1 (Kirill Kaprizov: 3 Torschüsse) | LOST"
+    ]
   }
 ]
